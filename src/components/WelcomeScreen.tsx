@@ -24,7 +24,7 @@ export default function WelcomeScreen({ onStart }: WelcomeScreenProps) {
           <article className="rounded-2xl border border-blue-400/25 bg-blue-500/10 p-5 space-y-3">
             <div className="flex items-center justify-start gap-2 text-blue-300">
               <FlaskConical className="w-5 h-5" />
-              <h2 className="text-lg font-bold">PCR Standard</h2>
+              <h2 className="text-lg font-bold">PCR</h2>
             </div>
             <p className="text-slate-200 leading-relaxed">
               מרכיבי השיטה, שלביה ויישומה.
