@@ -47,7 +47,9 @@ export default function WelcomeScreen({ onStart }: WelcomeScreenProps) {
               <h2 className="text-lg font-bold">qPCR</h2>
             </div>
             <p className="text-slate-200 leading-relaxed">
-              חישובי <span className="font-mono text-white">2<sup>-ΔΔC<sub>T</sub></sup></span> וניתוח כימות יחסי בזמן אמת.
+              כימות יחסי ובזמן אמת.
+              <br />
+              שימוש בסימון פלואורסצנטי.
             </p>
           </article>
         </div>
