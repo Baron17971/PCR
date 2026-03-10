@@ -129,47 +129,47 @@ const PRACTICE_TEMPERATURE_RANGES: Record<
 const TROUBLESHOOTING_SCENARIOS = [
   {
     id: 'run-1',
-    title: 'Run 1',
+    title: 'הרצה 1',
     issue: 'no-band' as TroubleshootIssue,
-    summary: 'No visible band in the gel lane.',
-    context: 'The reaction produced no product signal. Identify the most likely correction.',
+    summary: 'לא התקבל פס נראה בנתיב הג׳ל.',
+    context: 'בריאקציה לא התקבל תוצר כלל. יש לבחור את התיקון הסביר ביותר.',
     correctOptionId: 'run1-taq',
-    successText: 'Correct. Without active Taq polymerase, no amplification product is formed.',
+    successText: 'נכון. ללא Taq פולימראז פעיל לא יתקבל תוצר הגברה.',
     options: [
-      { id: 'run1-anneal-high', label: 'Increase annealing temperature significantly', feedback: 'Not the best fix for a complete no-band result.' },
-      { id: 'run1-taq', label: 'Verify that active Taq polymerase was added', feedback: 'Correct choice.' },
-      { id: 'run1-ext-60', label: 'Lower extension to 60°C', feedback: 'Incorrect. Taq extension is optimized around 72°C.' },
-      { id: 'run1-ligase', label: 'Add DNA ligase to the mix', feedback: 'Incorrect. Ligase is not a standard fix for PCR no-band.' }
+      { id: 'run1-anneal-high', label: 'להעלות משמעותית את טמפרטורת ה-Annealing', feedback: 'לא התיקון המתאים במקרה של היעדר פס מוחלט.' },
+      { id: 'run1-taq', label: 'לוודא שהוסף Taq פולימראז פעיל', feedback: 'בחירה נכונה.' },
+      { id: 'run1-ext-60', label: 'להוריד הארכה ל-60°C', feedback: 'שגוי. הארכה עם Taq אופטימלית סביב 72°C.' },
+      { id: 'run1-ligase', label: 'להוסיף DNA Ligase לתערובת', feedback: 'שגוי. Ligase אינו פותר כשל PCR של היעדר פס.' }
     ]
   },
   {
     id: 'run-2',
-    title: 'Run 2',
+    title: 'הרצה 2',
     issue: 'smear' as TroubleshootIssue,
-    summary: 'Smear pattern instead of a sharp band.',
-    context: 'The lane shows broad non-specific signal. Choose the best corrective action.',
+    summary: 'מריחה (Smear) במקום פס חד.',
+    context: 'בנתיב מתקבל אות לא ספציפי רחב. בחרו את הפעולה המתקנת המדויקת ביותר.',
     correctOptionId: 'run2-anneal-up',
-    successText: 'Correct. Raising annealing temperature improves specificity and reduces smear.',
+    successText: 'נכון. העלאה מתונה של טמפרטורת ה-Annealing משפרת ספציפיות ומפחיתה מריחה.',
     options: [
-      { id: 'run2-cycles-10', label: 'Reduce to only 10 cycles', feedback: 'This may reduce signal but does not directly fix specificity.' },
-      { id: 'run2-anneal-up', label: 'Increase annealing temperature slightly', feedback: 'Correct choice.' },
-      { id: 'run2-helicase', label: 'Add helicase enzyme', feedback: 'Incorrect. Thermal denaturation replaces helicase in PCR.' },
-      { id: 'run2-new-template', label: 'Replace template DNA only', feedback: 'Not optimal before fixing cycling conditions.' }
+      { id: 'run2-cycles-10', label: 'להוריד ל-10 מחזורים בלבד', feedback: 'זה עשוי להחליש אות, אך לא פותר ישירות ספציפיות נמוכה.' },
+      { id: 'run2-anneal-up', label: 'להעלות מעט את טמפרטורת ה-Annealing', feedback: 'בחירה נכונה.' },
+      { id: 'run2-helicase', label: 'להוסיף אנזים Helicase', feedback: 'שגוי. ב-PCR הדנטורציה התרמית מחליפה Helicase.' },
+      { id: 'run2-new-template', label: 'להחליף רק את תבנית ה-DNA', feedback: 'לא אופטימלי לפני תיקון תנאי המחזור התרמי.' }
     ]
   },
   {
     id: 'run-3',
-    title: 'Run 3',
+    title: 'הרצה 3',
     issue: 'multi-band' as TroubleshootIssue,
-    summary: 'Multiple bands in a single lane.',
-    context: 'The amplification is not specific and several products appear.',
+    summary: 'כמה פסים בנתיב אחד.',
+    context: 'ההגברה אינה ספציפית ומתקבלים כמה תוצרים שונים.',
     correctOptionId: 'run3-redesign',
-    successText: 'Correct. Redesigning primers for higher specificity is the strongest fix.',
+    successText: 'נכון. תכנון מחדש של פריימרים בעלי ספציפיות גבוהה הוא התיקון היעיל ביותר.',
     options: [
-      { id: 'run3-mgcl2-up', label: 'Increase MgCl2 concentration strongly', feedback: 'Incorrect. Too much MgCl2 often increases non-specific products.' },
-      { id: 'run3-redesign', label: 'Redesign primers for higher specificity', feedback: 'Correct choice.' },
-      { id: 'run3-denat-low', label: 'Lower denaturation below 85°C', feedback: 'Incorrect. Under-denaturation can worsen amplification quality.' },
-      { id: 'run3-buffer-only', label: 'Change only the buffer composition', feedback: 'Insufficient. The main issue is primer specificity.' }
+      { id: 'run3-mgcl2-up', label: 'להעלות מאוד את ריכוז MgCl2', feedback: 'שגוי. עודף MgCl2 לרוב מגביר תוצרים לא ספציפיים.' },
+      { id: 'run3-redesign', label: 'לתכנן מחדש פריימרים לספציפיות גבוהה יותר', feedback: 'בחירה נכונה.' },
+      { id: 'run3-denat-low', label: 'להוריד דנטורציה מתחת ל-85°C', feedback: 'שגוי. דנטורציה לא מספקת עלולה לפגוע באיכות ההגברה.' },
+      { id: 'run3-buffer-only', label: 'לשנות רק את הרכב ה-Buffer', feedback: 'לא מספיק. שורש הבעיה הוא ספציפיות הפריימרים.' }
     ]
   }
 ] as const;
@@ -418,7 +418,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
   const validateScenarioChoice = () => {
     if (!activeScenarioSelection) {
-      setScenarioFeedback({ level: 'info', text: 'Please choose one fix before checking.' });
+      setScenarioFeedback({ level: 'info', text: 'יש לבחור תיקון אחד לפני הבדיקה.' });
       return;
     }
 
@@ -434,7 +434,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
     setScenarioFeedback({
       level: 'error',
-      text: activeScenarioOption?.feedback ?? 'Incorrect choice. Please try again.'
+      text: activeScenarioOption?.feedback ?? 'בחירה שגויה. נסו שוב.'
     });
   };
 
@@ -478,8 +478,8 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const mainStages: Array<{ id: Step; label: string }> = [
     { id: 1, label: 'Stage 1: Reagents' },
     { id: 2, label: 'Stage 2: Thermal Cycler' },
-    { id: 3, label: 'Stage 3: PCR Troubleshooting' },
-    { id: 4, label: 'Stage 4: Summary' }
+    { id: 3, label: 'שלב 3: דיבאגינג PCR' },
+    { id: 4, label: 'שלב 4: סיכום' }
   ];
   const canNavigateToMainStage = (targetStage: Step) => {
     if (contaminationTooHigh) return targetStage === 1;
@@ -962,10 +962,10 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
         <div className="rounded-2xl border border-slate-700/50 bg-slate-900/55 p-5 space-y-5">
           <h3 className="text-xl font-black text-white flex items-center gap-2">
             <Target className="w-6 h-6 text-violet-300" />
-            Stage 3: PCR Troubleshooting (3 Runs)
+            שלב 3: דיבאגינג PCR (3 הרצות)
           </h3>
           <p className="text-slate-300 text-sm leading-relaxed">
-            Each run shows a different gel problem. Choose the most accurate fix to progress.
+            בכל הרצה מוצגת בעיית ג׳ל אחרת. בחרו את התיקון המדויק ביותר כדי להתקדם.
           </p>
 
           <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4 space-y-3">
@@ -992,7 +992,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                 );
               })}
             </div>
-            <p className="text-xs text-slate-300">Progress: {solvedScenarioCount}/{TROUBLESHOOTING_SCENARIOS.length}</p>
+            <p className="text-xs text-slate-300">התקדמות: {solvedScenarioCount}/{TROUBLESHOOTING_SCENARIOS.length}</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1023,7 +1023,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             </div>
 
             <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-4 space-y-3">
-              <p className="text-slate-100 font-bold">Choose one correction:</p>
+              <p className="text-slate-100 font-bold">בחרו תיקון אחד:</p>
               <div className="space-y-2">
                 {activeScenario.options.map((option) => {
                   const isSelected = activeScenarioSelection === option.id;
@@ -1049,7 +1049,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                   onClick={validateScenarioChoice}
                   className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-xl"
                 >
-                  Check Answer
+                  בדוק בחירה
                 </button>
               </div>
 
@@ -1076,7 +1076,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               disabled={activeScenarioIndex <= 0}
               className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Previous Run
+              הרצה קודמת
             </button>
             <button
               onClick={jumpToNextScenario}
@@ -1086,14 +1086,14 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               }
               className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Next Run
+              הרצה הבאה
             </button>
             <button
               onClick={() => setStep(4)}
               disabled={!allScenariosSolved}
               className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold px-5 py-2.5 rounded-xl"
             >
-              Continue to Stage 4
+              המשך לשלב 4
             </button>
           </div>
         </div>
@@ -1101,8 +1101,8 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
       {step === 4 && allScenariosSolved && (
         <div className="rounded-2xl border border-slate-700/50 bg-slate-900/55 p-5 space-y-5">
-          <h3 className="text-2xl font-black text-white">PCR Troubleshooting Summary</h3>
-          <p className="text-slate-300 text-sm">You completed all three troubleshooting runs and identified a fix for each issue.</p>
+          <h3 className="text-2xl font-black text-white">סיכום דיבאגינג PCR</h3>
+          <p className="text-slate-300 text-sm">השלמתם שלוש הרצות שונות ובחרתם תיקון מתאים לכל תקלה.</p>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {TROUBLESHOOTING_SCENARIOS.map((scenario) => {
@@ -1116,10 +1116,10 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                   <p className="text-slate-100 font-bold">{scenario.title}</p>
                   <p className="text-sm text-slate-300">{scenario.summary}</p>
                   <p className={['text-xs font-bold', isCorrect ? 'text-emerald-300' : 'text-red-300'].join(' ')}>
-                    {isCorrect ? 'Correct choice' : 'Needs review'}
+                    {isCorrect ? 'בחירה נכונה' : 'דורש חיזוק'}
                   </p>
-                  <p className="text-xs text-slate-300">Selected: {chosenOption?.label ?? 'No selection'}</p>
-                  <p className="text-xs text-slate-400">Best fix: {correctOption?.label}</p>
+                  <p className="text-xs text-slate-300">נבחר: {chosenOption?.label ?? 'לא נבחר'}</p>
+                  <p className="text-xs text-slate-400">תיקון מיטבי: {correctOption?.label}</p>
                 </div>
               );
             })}
@@ -1131,14 +1131,14 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               className="bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold px-5 py-2.5 rounded-xl border border-slate-600 inline-flex items-center gap-2"
             >
               <RefreshCcw className="w-4 h-4" />
-              Play Again
+              שחק שוב
             </button>
             <button
               onClick={onComplete}
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-xl inline-flex items-center gap-2"
             >
               <FlaskConical className="w-4 h-4" />
-              Continue
+              המשך
             </button>
           </div>
         </div>
