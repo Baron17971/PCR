@@ -108,6 +108,7 @@ const DEFAULT_THERMAL_CONFIG: ThermalConfig = {
 };
 
 const PRACTICE_AUTO_ADVANCE_DELAY_MS = 3200;
+const SCENARIO_AUTO_ADVANCE_DELAY_MS = 3000;
 
 const createInitialThermalConfigByPractice = (): Record<PracticeId, ThermalConfig> => ({
   'practice-1': { ...DEFAULT_THERMAL_CONFIG },
@@ -388,17 +389,6 @@ function ScenarioGelPanel({
                 />
               ))}
             </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-[3.5rem_1fr] items-center gap-2 pr-1">
-        <span className="text-[10px] text-slate-500">Lanes</span>
-        <div className="grid grid-cols-4 gap-4 text-[10px] text-slate-300">
-          {lanes.map((lane) => (
-            <span key={`lane-label-${lane.id}`} className="text-center">
-              {lane.label}
-            </span>
           ))}
         </div>
       </div>
@@ -722,12 +712,12 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
         autoAdvanceScenarioTimeoutRef.current = setTimeout(() => {
           setActiveScenarioId(nextScenarioId);
           setScenarioFeedback(null);
-        }, 900);
+        }, SCENARIO_AUTO_ADVANCE_DELAY_MS);
       } else {
         autoAdvanceScenarioTimeoutRef.current = setTimeout(() => {
           setStep(4);
           setScenarioFeedback(null);
-        }, 900);
+        }, SCENARIO_AUTO_ADVANCE_DELAY_MS);
       }
       return;
     }
