@@ -792,6 +792,22 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                   className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-100"
                 />
               </div>
+
+              {thermoFeedback && (
+                <div
+                  className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+                    thermoFeedback.level === 'green'
+                      ? 'border-emerald-400/45 bg-emerald-500/10 text-emerald-200'
+                      : thermoFeedback.level === 'yellow'
+                        ? 'border-yellow-400/45 bg-yellow-500/10 text-yellow-100'
+                        : thermoFeedback.level === 'red'
+                          ? 'border-red-400/45 bg-red-500/10 text-red-100'
+                          : 'border-amber-400/45 bg-amber-500/10 text-amber-100'
+                  }`}
+                >
+                  {thermoFeedback.text}
+                </div>
+              )}
             </div>
           </div>
 
@@ -810,22 +826,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               המשך לשלב 3
             </button>
           </div>
-
-          {thermoFeedback && (
-            <div
-              className={`rounded-xl border px-4 py-3 text-sm font-medium ${
-                thermoFeedback.level === 'green'
-                  ? 'border-emerald-400/45 bg-emerald-500/10 text-emerald-200'
-                  : thermoFeedback.level === 'yellow'
-                    ? 'border-yellow-400/45 bg-yellow-500/10 text-yellow-100'
-                    : thermoFeedback.level === 'red'
-                      ? 'border-red-400/45 bg-red-500/10 text-red-100'
-                      : 'border-amber-400/45 bg-amber-500/10 text-amber-100'
-              }`}
-            >
-              {thermoFeedback.text}
-            </div>
-          )}
 
           {showContinuationPrompt && (
             <motion.div
