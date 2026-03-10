@@ -334,16 +334,12 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       'practice-2': { level: 'yellow', text: THERMAL_FEEDBACK_TEXT.yellow },
       'practice-3': { level: 'red', text: THERMAL_FEEDBACK_TEXT.red }
     };
-    const [denMin, denMax] = activeTemperatureRanges.denaturation;
-    const [annMin, annMax] = activeTemperatureRanges.annealing;
-    const [extMin, extMax] = activeTemperatureRanges.extension;
     const temperaturesAreValid = denaturationValid && extensionValid && annealingStatus === 'optimal';
 
     if (!temperaturesAreValid) {
-      const extensionTarget = extMin === extMax ? `${extMin}` : `${extMin}-${extMax}`;
       setThermoFeedback({
         level: 'info',
-        text: `הזנה שגויה של טמפרטורות עבור ${activePractice.title}. נדרש: דנטורציה ${denMin}-${denMax}°C, אנילינג ${annMin}-${annMax}°C, הארכה ${extensionTarget}°C.`
+        text: `הזנה שגויה של טמפרטורות עבור ${activePractice.title}. חשבו מחדש את הטמפרטורות לפי נתוני התרגיל ונסו שוב.`
       });
       return;
     }
