@@ -123,7 +123,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     extension: 68
   });
   const [thermoFeedback, setThermoFeedback] = useState<{ level: ThermalFeedbackLevel; text: string } | null>(null);
-  const [mustSelectPrimerOne, setMustSelectPrimerOne] = useState(false);
+  const [continuationPrimerChoice, setContinuationPrimerChoice] = useState<(typeof THERMAL_PRACTICES)[number]['id'] | null>(null);
   const [showScientificExplanation, setShowScientificExplanation] = useState(false);
   const [showContaminationModal, setShowContaminationModal] = useState(false);
   const [activePracticeId, setActivePracticeId] = useState<(typeof THERMAL_PRACTICES)[number]['id']>('practice-1');
@@ -171,7 +171,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     thermalPracticeStats[activePracticeIndex >= 0 ? activePracticeIndex : 0];
   const solvedPracticeCount = solvedPracticeIds.size;
   const allPracticesSolved = solvedPracticeCount === thermalPracticeStats.length;
-  const canProceedToStep3 = allPracticesSolved && !mustSelectPrimerOne;
+  const canProceedToStep3 = allPracticesSolved && continuationPrimerChoice === 'practice-1';
 
   const missingRequired = REQUIRED_REAGENTS.filter((id) => !addedReagents.has(id));
   const wrongReagents = Array.from(addedReagents).filter(
@@ -274,59 +274,12 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   };
 
   const validateThermalProfile = () => {
-    if (mustSelectPrimerOne && activePractice.id !== 'practice-1') {
-      setThermoFeedback({
-        level: 'red',
-        text: `${THERMAL_FEEDBACK_TEXT.red} התלמיד יצטרך לבחור בפריימר 1 כדי להמשיך.`
-      });
-      return;
-    }
-
-    if (!denaturationValid) {
-      setThermoFeedback({
-        level: 'info',
-        text: 'הפרופיל לא תקין: טמפרטורת הדנטורציה אינה מתאימה.'
-      });
-      return;
-    }
-
-    if (!extensionValid) {
-      setThermoFeedback({
-        level: 'info',
-        text: 'הפרופיל לא תקין: טמפרטורת ה-Extension אינה מתאימה.'
-      });
-      return;
-    }
-
-    if (annealingStatus === 'high') {
-      setThermoFeedback({
-        level: 'info',
-        text: 'הפרופיל לא תקין: טמפרטורת Annealing גבוהה מדי עבור התרגיל הנוכחי.'
-      });
-      return;
-    }
-
-    const annealingGap = activePractice.tm - thermoConfig.annealing;
-    if (annealingGap >= 10) {
-      setMustSelectPrimerOne(true);
-      setThermoFeedback({
-        level: 'red',
-        text: `${THERMAL_FEEDBACK_TEXT.red} התלמיד יצטרך לבחור בפריימר 1 כדי להמשיך.`
-      });
-      return;
-    }
-
-    if (annealingStatus === 'low') {
-      setThermoFeedback({
-        level: 'yellow',
-        text: THERMAL_FEEDBACK_TEXT.yellow
-      });
-      return;
-    }
-
-    if (activePractice.id === 'practice-1') {
-      setMustSelectPrimerOne(false);
-    }
+    const feedbackByPractice: Record<(typeof THERMAL_PRACTICES)[number]['id'], { level: ThermalFeedbackLevel; text: string }> = {
+      'practice-1': { level: 'green', text: THERMAL_FEEDBACK_TEXT.green },
+      'practice-2': { level: 'yellow', text: THERMAL_FEEDBACK_TEXT.yellow },
+      'practice-3': { level: 'red', text: THERMAL_FEEDBACK_TEXT.red }
+    };
+    setThermoFeedback(feedbackByPractice[activePractice.id]);
 
     const alreadySolved = solvedPracticeIds.has(activePractice.id);
     if (!alreadySolved) {
@@ -336,17 +289,20 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
         return next;
       });
     }
-    const solvedCountAfterCheck = alreadySolved ? solvedPracticeCount : solvedPracticeCount + 1;
-    if (solvedCountAfterCheck === thermalPracticeStats.length) {
+  };
+
+  const handleContinuationPrimerChoice = (practiceId: (typeof THERMAL_PRACTICES)[number]['id']) => {
+    setContinuationPrimerChoice(practiceId);
+    if (practiceId === 'practice-1') {
       setThermoFeedback({
         level: 'green',
-        text: `${THERMAL_FEEDBACK_TEXT.green} מעולה. כל שלושת התרגילים נפתרו נכון, אפשר לעבור לשלב 3.`
+        text: 'בחירה נכונה. פריימר 1 הוא הבחירה המתאימה להמשך לשלב הבא.'
       });
       return;
     }
     setThermoFeedback({
-      level: 'green',
-      text: `${THERMAL_FEEDBACK_TEXT.green} ${activePractice.title} נפתר נכון. עברו לתרגיל הבא.`
+      level: 'red',
+      text: 'בחירה שגויה. רק פריימר 1 יוביל לשלב הבא.'
     });
   };
 
@@ -448,7 +404,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     setContamination(0);
     setThermoConfig({ denaturation: 90, annealing: 45, extension: 68 });
     setThermoFeedback(null);
-    setMustSelectPrimerOne(false);
+    setContinuationPrimerChoice(null);
     setShowScientificExplanation(false);
     setShowContaminationModal(false);
     setActivePracticeId('practice-1');
@@ -677,26 +633,24 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             <div className="space-y-3">
               <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4 space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  {thermalPracticeStats.map((practice) => {
+                  {thermalPracticeStats.map((practice, index) => {
                     const isActive = practice.id === activePractice.id;
                     const isSolved = solvedPracticeIds.has(practice.id);
-                    const isLockedByRedFeedback = mustSelectPrimerOne && practice.id !== 'practice-1';
+                    const isUnlocked =
+                      index === 0 || solvedPracticeIds.has(thermalPracticeStats[index - 1].id);
                     return (
                       <button
                         key={practice.id}
-                        disabled={isLockedByRedFeedback}
+                        disabled={!isUnlocked}
                         onClick={() => {
                           setActivePracticeId(practice.id);
-                          if (practice.id === 'practice-1' && mustSelectPrimerOne) {
-                            setMustSelectPrimerOne(false);
-                          }
                           setThermoFeedback(null);
                         }}
                         className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${
                           isActive
                             ? 'border-blue-400 bg-blue-500/20 text-blue-100'
                             : 'border-slate-700 bg-slate-900/60 text-slate-300 hover:border-blue-400/60'
-                        } ${isLockedByRedFeedback ? 'opacity-45 cursor-not-allowed' : ''}`}
+                        } ${!isUnlocked ? 'opacity-45 cursor-not-allowed' : ''}`}
                       >
                         {practice.title} {isSolved ? '✓' : ''}
                       </button>
@@ -737,7 +691,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                       setActivePracticeId(thermalPracticeStats[previous].id);
                       setThermoFeedback(null);
                     }}
-                    disabled={activePracticeIndex <= 0 || mustSelectPrimerOne}
+                    disabled={activePracticeIndex <= 0}
                     className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     תרגיל קודם
@@ -748,7 +702,10 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                       setActivePracticeId(thermalPracticeStats[next].id);
                       setThermoFeedback(null);
                     }}
-                    disabled={activePracticeIndex >= thermalPracticeStats.length - 1 || mustSelectPrimerOne}
+                    disabled={
+                      activePracticeIndex >= thermalPracticeStats.length - 1 ||
+                      !solvedPracticeIds.has(thermalPracticeStats[activePracticeIndex].id)
+                    }
                     className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     תרגיל הבא
@@ -826,6 +783,37 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               }`}
             >
               {thermoFeedback.text}
+            </div>
+          )}
+
+          {allPracticesSolved && (
+            <div className="rounded-xl border border-blue-500/35 bg-slate-950/60 p-4 space-y-3">
+              <p className="text-slate-100 font-bold">עם איזה פריימר תרצה להמשיך?</p>
+              <div className="flex flex-wrap gap-2">
+                {thermalPracticeStats.map((practice) => {
+                  const isSelected = continuationPrimerChoice === practice.id;
+                  return (
+                    <button
+                      key={`continue-with-${practice.id}`}
+                      onClick={() => handleContinuationPrimerChoice(practice.id)}
+                      className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${
+                        isSelected
+                          ? 'border-blue-400 bg-blue-500/20 text-blue-100'
+                          : 'border-slate-700 bg-slate-900/60 text-slate-300 hover:border-blue-400/60'
+                      }`}
+                    >
+                      {practice.title}
+                    </button>
+                  );
+                })}
+              </div>
+              {continuationPrimerChoice && (
+                <p className={`text-xs font-bold ${continuationPrimerChoice === 'practice-1' ? 'text-emerald-300' : 'text-red-300'}`}>
+                  {continuationPrimerChoice === 'practice-1'
+                    ? 'בחירה נכונה. אפשר לעבור לשלב הבא.'
+                    : 'כדי להמשיך חובה לבחור בפריימר 1.'}
+                </p>
+              )}
             </div>
           )}
 
