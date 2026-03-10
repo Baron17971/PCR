@@ -6,6 +6,17 @@
   --primary: #3b82f6;
   --secondary: #f97316;
   --accent: #10b981;
+  --app-scale: 0.8;
+}
+
+html {
+  zoom: var(--app-scale);
+}
+
+@supports not (zoom: 1) {
+  html {
+    font-size: calc(16px * var(--app-scale));
+  }
 }
 
 body {
