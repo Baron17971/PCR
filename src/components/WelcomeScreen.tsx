@@ -37,7 +37,7 @@ export default function WelcomeScreen({ onStart }: WelcomeScreenProps) {
               <h2 className="text-lg font-bold">RT-PCR</h2>
             </div>
             <p className="text-slate-200 leading-relaxed">
-              מ - mRNA ל - DNA לאיפיון ביטוי גנים בתאים
+              מ - mRNA ל - DNA באמצעות RT. המטרה: איפיון ביטוי גנים בתאים.
             </p>
           </article>
 
