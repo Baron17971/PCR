@@ -99,15 +99,34 @@ function countBases(sequence: string) {
   return { aCount, tCount, gCount, cCount };
 }
 
-function getAnnealingStatus(annealingTemp: number, tm: number): AnnealingStatus {
-  if (annealingTemp > tm + 1) return 'high';
-  if (annealingTemp < tm - 5) return 'low';
-  return 'optimal';
-}
-
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
+
+const PRACTICE_TEMPERATURE_RANGES: Record<
+  (typeof THERMAL_PRACTICES)[number]['id'],
+  {
+    denaturation: [number, number];
+    annealing: [number, number];
+    extension: [number, number];
+  }
+> = {
+  'practice-1': {
+    denaturation: [90, 95],
+    annealing: [57, 62],
+    extension: [72, 72]
+  },
+  'practice-2': {
+    denaturation: [90, 95],
+    annealing: [35, 40],
+    extension: [72, 72]
+  },
+  'practice-3': {
+    denaturation: [90, 95],
+    annealing: [71, 76],
+    extension: [72, 72]
+  }
+};
 
 export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const [step, setStep] = useState<Step>(1);
@@ -196,9 +215,19 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     return { text: 'text-emerald-300', bar: 'bg-emerald-400' };
   }, [contamination]);
 
-  const annealingStatus = getAnnealingStatus(thermoConfig.annealing, activePractice.tm);
-  const denaturationValid = thermoConfig.denaturation >= 94 && thermoConfig.denaturation <= 95;
-  const extensionValid = thermoConfig.extension >= 71 && thermoConfig.extension <= 73;
+  const activeTemperatureRanges = PRACTICE_TEMPERATURE_RANGES[activePractice.id];
+  const denaturationValid =
+    thermoConfig.denaturation >= activeTemperatureRanges.denaturation[0] &&
+    thermoConfig.denaturation <= activeTemperatureRanges.denaturation[1];
+  const extensionValid =
+    thermoConfig.extension >= activeTemperatureRanges.extension[0] &&
+    thermoConfig.extension <= activeTemperatureRanges.extension[1];
+  const annealingStatus: AnnealingStatus =
+    thermoConfig.annealing > activeTemperatureRanges.annealing[1]
+      ? 'high'
+      : thermoConfig.annealing < activeTemperatureRanges.annealing[0]
+        ? 'low'
+        : 'optimal';
 
   const efficiency = useMemo(() => {
     const hitScore = (perfectHits / TOTAL_CYCLES) * 100;
@@ -299,15 +328,29 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   };
 
   const validateThermalProfile = () => {
+    setShowContinuationPrompt(false);
     const feedbackByPractice: Record<(typeof THERMAL_PRACTICES)[number]['id'], { level: ThermalFeedbackLevel; text: string }> = {
       'practice-1': { level: 'green', text: THERMAL_FEEDBACK_TEXT.green },
       'practice-2': { level: 'yellow', text: THERMAL_FEEDBACK_TEXT.yellow },
       'practice-3': { level: 'red', text: THERMAL_FEEDBACK_TEXT.red }
     };
+    const [denMin, denMax] = activeTemperatureRanges.denaturation;
+    const [annMin, annMax] = activeTemperatureRanges.annealing;
+    const [extMin, extMax] = activeTemperatureRanges.extension;
+    const temperaturesAreValid = denaturationValid && extensionValid && annealingStatus === 'optimal';
+
+    if (!temperaturesAreValid) {
+      const extensionTarget = extMin === extMax ? `${extMin}` : `${extMin}-${extMax}`;
+      setThermoFeedback({
+        level: 'info',
+        text: `הזנה שגויה של טמפרטורות עבור ${activePractice.title}. נדרש: דנטורציה ${denMin}-${denMax}°C, אנילינג ${annMin}-${annMax}°C, הארכה ${extensionTarget}°C.`
+      });
+      return;
+    }
+
     setThermoFeedback(feedbackByPractice[activePractice.id]);
     if (activePractice.id === 'practice-3') {
       setContinuationPrimerChoice(null);
-      setShowContinuationPrompt(false);
     }
 
     const alreadySolved = solvedPracticeIds.has(activePractice.id);
@@ -686,6 +729,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                         onClick={() => {
                           setActivePracticeId(practice.id);
                           setThermoFeedback(null);
+                          setShowContinuationPrompt(false);
                         }}
                         className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${
                           isActive
@@ -731,6 +775,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                       const previous = Math.max(0, activePracticeIndex - 1);
                       setActivePracticeId(thermalPracticeStats[previous].id);
                       setThermoFeedback(null);
+                      setShowContinuationPrompt(false);
                     }}
                     disabled={activePracticeIndex <= 0}
                     className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
@@ -742,6 +787,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                       const next = Math.min(thermalPracticeStats.length - 1, activePracticeIndex + 1);
                       setActivePracticeId(thermalPracticeStats[next].id);
                       setThermoFeedback(null);
+                      setShowContinuationPrompt(false);
                     }}
                     disabled={
                       activePracticeIndex >= thermalPracticeStats.length - 1 ||
