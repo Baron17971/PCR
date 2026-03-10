@@ -61,13 +61,13 @@ const PRIMER_SEQUENCE = 'ATGCGTACCGGATTCGATGC';
 const EXTRA_PRACTICES = [
   {
     id: 'practice-2',
-    title: 'תרגול נוסף 1',
+    title: 'תרגיל 2',
     sequence: 'TTAATATTAATATTAATATT',
     note: 'רצף עשיר בבסיסי A-T'
   },
   {
     id: 'practice-3',
-    title: 'תרגול נוסף 2',
+    title: 'תרגיל 3',
     sequence: 'GCGTCCGCGGCGCGTCCGCG',
     note: 'רצף עשיר בבסיסי G-C'
   }
@@ -75,7 +75,7 @@ const EXTRA_PRACTICES = [
 const THERMAL_PRACTICES = [
   {
     id: 'practice-1',
-    title: 'תרגול 1',
+    title: 'תרגיל 1',
     sequence: PRIMER_SEQUENCE,
     note: 'רצף פריימר בסיסי'
   },
