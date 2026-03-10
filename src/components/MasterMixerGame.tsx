@@ -515,7 +515,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             <div
               onDrop={handleDropToTube}
               onDragOver={(event) => event.preventDefault()}
-              className="rounded-2xl border border-blue-500/35 bg-slate-950/70 p-5 min-h-[240px] flex flex-col gap-4"
+              className="rounded-2xl border border-blue-500/35 bg-slate-950/70 p-4 min-h-[160px] md:min-h-[180px] flex flex-col gap-3"
             >
               <div className="flex items-center justify-between">
                 <div className="text-right">
