@@ -495,15 +495,15 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                 {contamination}%
               </span>
             </div>
+            <p className="mt-1 text-sm font-semibold text-amber-200 text-right">
+              שימו לב: בחירה במרכיבים שגויים תגדיל את הזיהום.
+            </p>
             <div className="mt-2 h-2 rounded-full bg-slate-800 overflow-hidden">
               <div
                 className={`h-full transition-all ${contaminationVisuals.bar}`}
                 style={{ width: `${contamination}%` }}
               />
             </div>
-            <p className="mt-2 text-xs text-amber-200 text-right">
-              שימו לב, אם תבחרו במרכיבים שגויים, הזיהום יגדל.
-            </p>
           </div>
 
           {!tipFresh && !contaminationTooHigh && (
