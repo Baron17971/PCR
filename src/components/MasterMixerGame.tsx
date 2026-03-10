@@ -28,6 +28,7 @@ type ReagentId =
 type Step = 1 | 2 | 3 | 4;
 type AnnealingStatus = 'optimal' | 'high' | 'low';
 type OutcomeType = 'clean-band' | 'smear' | 'no-band';
+type ThermalFeedbackLevel = 'green' | 'yellow' | 'red' | 'info';
 
 interface Reagent {
   id: ReagentId;
@@ -41,6 +42,13 @@ interface MasterMixerGameProps {
 }
 
 const TOTAL_CYCLES = 30;
+const THERMAL_FEEDBACK_TEXT = {
+  green: 'אור ירוק: ביצועים מעולים - הפריימר שלך מאוזן ומצוין!.',
+  yellow:
+    'אור צהוב: זהירות - סכנה לקשרים לא ספציפיים (יותר מדי רעש) בשל קירור משמעותי של המערכת.',
+  red:
+    'אור אדום: אזהרה - פריימר "דביק" - הוא עלול להיצמד לעצמו (ליצור פלונטרים) במקום להיצמד לדגימה שלך.'
+} as const;
 
 const REAGENTS: Reagent[] = [
   { id: 'template-dna', label: 'Template DNA', required: true, shortNote: 'תבנית המטרה' },
@@ -114,7 +122,8 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     annealing: 45,
     extension: 68
   });
-  const [thermoMessage, setThermoMessage] = useState('');
+  const [thermoFeedback, setThermoFeedback] = useState<{ level: ThermalFeedbackLevel; text: string } | null>(null);
+  const [mustSelectPrimerOne, setMustSelectPrimerOne] = useState(false);
   const [showScientificExplanation, setShowScientificExplanation] = useState(false);
   const [showContaminationModal, setShowContaminationModal] = useState(false);
   const [activePracticeId, setActivePracticeId] = useState<(typeof THERMAL_PRACTICES)[number]['id']>('practice-1');
@@ -162,6 +171,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     thermalPracticeStats[activePracticeIndex >= 0 ? activePracticeIndex : 0];
   const solvedPracticeCount = solvedPracticeIds.size;
   const allPracticesSolved = solvedPracticeCount === thermalPracticeStats.length;
+  const canProceedToStep3 = allPracticesSolved && !mustSelectPrimerOne;
 
   const missingRequired = REQUIRED_REAGENTS.filter((id) => !addedReagents.has(id));
   const wrongReagents = Array.from(addedReagents).filter(
@@ -264,24 +274,58 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   };
 
   const validateThermalProfile = () => {
+    if (mustSelectPrimerOne && activePractice.id !== 'practice-1') {
+      setThermoFeedback({
+        level: 'red',
+        text: `${THERMAL_FEEDBACK_TEXT.red} התלמיד יצטרך לבחור בפריימר 1 כדי להמשיך.`
+      });
+      return;
+    }
+
     if (!denaturationValid) {
-      setThermoMessage('הפרופיל לא תקין: טמפרטורת הדנטורציה אינה מתאימה.');
+      setThermoFeedback({
+        level: 'info',
+        text: 'הפרופיל לא תקין: טמפרטורת הדנטורציה אינה מתאימה.'
+      });
       return;
     }
 
     if (!extensionValid) {
-      setThermoMessage('הפרופיל לא תקין: טמפרטורת ה-Extension אינה מתאימה.');
+      setThermoFeedback({
+        level: 'info',
+        text: 'הפרופיל לא תקין: טמפרטורת ה-Extension אינה מתאימה.'
+      });
       return;
     }
 
     if (annealingStatus === 'high') {
-      setThermoMessage('הפרופיל לא תקין: טמפרטורת Annealing גבוהה מדי עבור התרגול הנוכחי.');
+      setThermoFeedback({
+        level: 'info',
+        text: 'הפרופיל לא תקין: טמפרטורת Annealing גבוהה מדי עבור התרגיל הנוכחי.'
+      });
+      return;
+    }
+
+    const annealingGap = activePractice.tm - thermoConfig.annealing;
+    if (annealingGap >= 10) {
+      setMustSelectPrimerOne(true);
+      setThermoFeedback({
+        level: 'red',
+        text: `${THERMAL_FEEDBACK_TEXT.red} התלמיד יצטרך לבחור בפריימר 1 כדי להמשיך.`
+      });
       return;
     }
 
     if (annealingStatus === 'low') {
-      setThermoMessage('הפרופיל לא תקין: טמפרטורת Annealing נמוכה מדי עבור התרגול הנוכחי.');
+      setThermoFeedback({
+        level: 'yellow',
+        text: THERMAL_FEEDBACK_TEXT.yellow
+      });
       return;
+    }
+
+    if (activePractice.id === 'practice-1') {
+      setMustSelectPrimerOne(false);
     }
 
     const alreadySolved = solvedPracticeIds.has(activePractice.id);
@@ -294,10 +338,16 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     }
     const solvedCountAfterCheck = alreadySolved ? solvedPracticeCount : solvedPracticeCount + 1;
     if (solvedCountAfterCheck === thermalPracticeStats.length) {
-      setThermoMessage('מעולה. כל שלושת התרגולים נפתרו נכון, אפשר לעבור לשלב 3.');
+      setThermoFeedback({
+        level: 'green',
+        text: `${THERMAL_FEEDBACK_TEXT.green} מעולה. כל שלושת התרגילים נפתרו נכון, אפשר לעבור לשלב 3.`
+      });
       return;
     }
-    setThermoMessage(`${activePractice.title} נפתר נכון. עברו לתרגול הבא.`);
+    setThermoFeedback({
+      level: 'green',
+      text: `${THERMAL_FEEDBACK_TEXT.green} ${activePractice.title} נפתר נכון. עברו לתרגיל הבא.`
+    });
   };
 
   const startCycle = (cycle: number) => {
@@ -397,7 +447,8 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     setTipFresh(true);
     setContamination(0);
     setThermoConfig({ denaturation: 90, annealing: 45, extension: 68 });
-    setThermoMessage('');
+    setThermoFeedback(null);
+    setMustSelectPrimerOne(false);
     setShowScientificExplanation(false);
     setShowContaminationModal(false);
     setActivePracticeId('practice-1');
@@ -427,7 +478,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const canNavigateToMainStage = (targetStage: Step) => {
     if (contaminationTooHigh) return targetStage === 1;
     if (targetStage === 1 || targetStage === 2) return true;
-    if (targetStage === 3) return allPracticesSolved;
+    if (targetStage === 3) return canProceedToStep3;
     return outcome !== null;
   };
   const isRaceLocked = raceStarted && step === 3;
@@ -629,18 +680,23 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                   {thermalPracticeStats.map((practice) => {
                     const isActive = practice.id === activePractice.id;
                     const isSolved = solvedPracticeIds.has(practice.id);
+                    const isLockedByRedFeedback = mustSelectPrimerOne && practice.id !== 'practice-1';
                     return (
                       <button
                         key={practice.id}
+                        disabled={isLockedByRedFeedback}
                         onClick={() => {
                           setActivePracticeId(practice.id);
-                          setThermoMessage('');
+                          if (practice.id === 'practice-1' && mustSelectPrimerOne) {
+                            setMustSelectPrimerOne(false);
+                          }
+                          setThermoFeedback(null);
                         }}
                         className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${
                           isActive
                             ? 'border-blue-400 bg-blue-500/20 text-blue-100'
                             : 'border-slate-700 bg-slate-900/60 text-slate-300 hover:border-blue-400/60'
-                        }`}
+                        } ${isLockedByRedFeedback ? 'opacity-45 cursor-not-allowed' : ''}`}
                       >
                         {practice.title} {isSolved ? '✓' : ''}
                       </button>
@@ -679,23 +735,23 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                     onClick={() => {
                       const previous = Math.max(0, activePracticeIndex - 1);
                       setActivePracticeId(thermalPracticeStats[previous].id);
-                      setThermoMessage('');
+                      setThermoFeedback(null);
                     }}
-                    disabled={activePracticeIndex <= 0}
+                    disabled={activePracticeIndex <= 0 || mustSelectPrimerOne}
                     className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    תרגול קודם
+                    תרגיל קודם
                   </button>
                   <button
                     onClick={() => {
                       const next = Math.min(thermalPracticeStats.length - 1, activePracticeIndex + 1);
                       setActivePracticeId(thermalPracticeStats[next].id);
-                      setThermoMessage('');
+                      setThermoFeedback(null);
                     }}
-                    disabled={activePracticeIndex >= thermalPracticeStats.length - 1}
+                    disabled={activePracticeIndex >= thermalPracticeStats.length - 1 || mustSelectPrimerOne}
                     className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    תרגול הבא
+                    תרגיל הבא
                   </button>
                   <span className="text-xs text-slate-300">התקדמות: {solvedPracticeCount}/{thermalPracticeStats.length}</span>
                 </div>
@@ -749,7 +805,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               בדוק פרופיל טרמי
             </button>
             <button
-              disabled={!allPracticesSolved}
+              disabled={!canProceedToStep3}
               onClick={() => setStep(3)}
               className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold px-5 py-2.5 rounded-xl"
             >
@@ -757,10 +813,20 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             </button>
           </div>
 
-          {thermoMessage && (
-            <p className={`text-sm font-medium ${thermoMessage.includes('נפתר נכון') || thermoMessage.includes('מעולה') ? 'text-emerald-300' : 'text-amber-300'}`}>
-              {thermoMessage}
-            </p>
+          {thermoFeedback && (
+            <div
+              className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+                thermoFeedback.level === 'green'
+                  ? 'border-emerald-400/45 bg-emerald-500/10 text-emerald-200'
+                  : thermoFeedback.level === 'yellow'
+                    ? 'border-yellow-400/45 bg-yellow-500/10 text-yellow-100'
+                    : thermoFeedback.level === 'red'
+                      ? 'border-red-400/45 bg-red-500/10 text-red-100'
+                      : 'border-amber-400/45 bg-amber-500/10 text-amber-100'
+              }`}
+            >
+              {thermoFeedback.text}
+            </div>
           )}
 
           {showScientificExplanation && (
