@@ -119,6 +119,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   });
   const [thermoMessage, setThermoMessage] = useState('');
   const [showScientificExplanation, setShowScientificExplanation] = useState(false);
+  const [showContaminationModal, setShowContaminationModal] = useState(false);
   const [activePracticeId, setActivePracticeId] = useState<(typeof THERMAL_PRACTICES)[number]['id']>('practice-1');
   const [solvedPracticeIds, setSolvedPracticeIds] = useState<Set<(typeof THERMAL_PRACTICES)[number]['id']>>(new Set());
 
@@ -201,6 +202,12 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       clearRaceTimers();
     };
   }, []);
+
+  useEffect(() => {
+    if (contaminationTooHigh) {
+      setShowContaminationModal(true);
+    }
+  }, [contaminationTooHigh]);
 
   const reagentById = (id: ReagentId) => REAGENTS.find((reagent) => reagent.id === id);
 
@@ -382,6 +389,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     setThermoConfig({ denaturation: 90, annealing: 45, extension: 68 });
     setThermoMessage('');
     setShowScientificExplanation(false);
+    setShowContaminationModal(false);
     setActivePracticeId('practice-1');
     setSolvedPracticeIds(new Set());
     setRaceStarted(false);
@@ -407,6 +415,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     { id: 4, label: 'תוצאות ג׳ל' }
   ];
   const canNavigateToMainStage = (targetStage: Step) => {
+    if (contaminationTooHigh) return targetStage === 1;
     if (targetStage === 1 || targetStage === 2) return true;
     if (targetStage === 3) return allPracticesSolved;
     return outcome !== null;
@@ -414,6 +423,10 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const isRaceLocked = raceStarted && step === 3;
   const goToMainStage = (targetStage: Step) => {
     if (targetStage === step) return;
+    if (contaminationTooHigh) {
+      setShowContaminationModal(true);
+      return;
+    }
     if (isRaceLocked) return;
     if (!canNavigateToMainStage(targetStage)) return;
     setStep(targetStage);
@@ -581,18 +594,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
               {tipReminder && (
                 <p className="text-xs text-amber-300">{tipReminder}</p>
-              )}
-
-              {contaminationTooHigh && (
-                <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 space-y-2">
-                  <p className="text-sm font-bold text-red-200">התחל מחדש - הזיהום רב מידי!</p>
-                  <button
-                    onClick={resetEntireGame}
-                    className="px-3 py-1.5 rounded-lg border border-red-400/50 bg-red-500/20 hover:bg-red-500/30 text-red-100 text-xs font-bold"
-                  >
-                    התחל מחדש
-                  </button>
-                </div>
               )}
 
               <div className="flex justify-start">
@@ -955,6 +956,33 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             </button>
           </div>
         </div>
+      )}
+
+      {showContaminationModal && (
+        <motion.div
+          className="fixed inset-0 z-[99] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 18, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="w-full max-w-md rounded-2xl border border-red-500/45 bg-slate-950/95 p-5 text-right space-y-3 shadow-2xl"
+          >
+            <h4 className="text-xl font-black text-red-200">עצור: זיהום גבוה</h4>
+            <p className="text-slate-200 leading-relaxed">
+              הגעת ל-30% זיהום ומעלה. לא ניתן להמשיך בתהליך.
+            </p>
+            <p className="text-sm font-bold text-red-200">התחל מחדש - הזיהום רב מידי!</p>
+            <button
+              onClick={resetEntireGame}
+              className="w-full bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-2.5 rounded-xl"
+            >
+              התחל מחדש
+            </button>
+          </motion.div>
+        </motion.div>
       )}
 
       <div className="rounded-2xl border border-slate-700/40 bg-slate-900/40 p-4 flex flex-wrap items-center gap-3">
