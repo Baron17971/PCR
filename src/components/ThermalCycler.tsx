@@ -78,6 +78,15 @@ export default function ThermalCycler({ onComplete }: { onComplete: () => void }
         </div>
       </div>
 
+      <div className="flex justify-start" dir="rtl">
+        <button
+          onClick={onComplete}
+          className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-3 rounded-2xl transition-all shadow-[0_10px_25px_rgba(59,130,246,0.25)]"
+        >
+          סיימתי את האנימציה - מעבר לפעילות השוואה
+        </button>
+      </div>
+
     </div>
   );
 }
