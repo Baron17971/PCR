@@ -1,4 +1,4 @@
-export type SimulationPhase = 'landing' | 'preparation' | 'pcr-running' | 'replication-comparison' | 'pcr-principles-game' | 'pcr-applications' | 'completed' | 'gene-expression-lab';
+export type SimulationPhase = 'landing' | 'preparation' | 'pcr-running' | 'master-mixer-game' | 'replication-comparison' | 'pcr-principles-game' | 'pcr-applications' | 'completed' | 'gene-expression-lab';
 
 export type IngredientId = 'dna' | 'primers' | 'taq' | 'dntps' | 'buffer' | 'rna-pol' | 'helicase' | 'ribosome';
 

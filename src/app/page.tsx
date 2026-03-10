@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import PreparationStage from '@/components/PreparationStage';
 import ThermalCycler from '@/components/ThermalCycler';
+import MasterMixerGame from '@/components/MasterMixerGame';
 import GeneExpressionLab from '@/components/GeneExpressionLab';
 import ReplicationComparisonActivity from '@/components/ReplicationComparisonActivity';
 import PcrPrinciplesGame from '@/components/PcrPrinciplesGame';
@@ -14,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function Home() {
   const [phase, setPhase] = useState<SimulationPhase>('landing');
 
-  const phases: SimulationPhase[] = ['landing', 'preparation', 'pcr-running', 'replication-comparison', 'completed', 'gene-expression-lab', 'pcr-applications', 'pcr-principles-game'];
+  const phases: SimulationPhase[] = ['landing', 'preparation', 'pcr-running', 'master-mixer-game', 'replication-comparison', 'completed', 'gene-expression-lab', 'pcr-applications', 'pcr-principles-game'];
   const currentIndex = phases.indexOf(phase);
 
   const goToNext = () => {
@@ -51,6 +52,10 @@ export default function Home() {
 
         {phase === 'pcr-running' && (
           <ThermalCycler />
+        )}
+
+        {phase === 'master-mixer-game' && (
+          <MasterMixerGame onComplete={() => setPhase('replication-comparison')} />
         )}
 
         {phase === 'replication-comparison' && (
