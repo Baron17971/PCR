@@ -5,11 +5,9 @@ import {
   Beaker,
   CheckCircle2,
   Dna,
-  Droplets,
   FlaskConical,
   Play,
   RefreshCcw,
-  ShieldCheck,
   Target,
   Thermometer,
   XCircle
@@ -1005,12 +1003,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
         </motion.div>
       )}
 
-      <div className="rounded-2xl border border-slate-700/40 bg-slate-900/40 p-4 flex flex-wrap items-center gap-3">
-        <ShieldCheck className="w-5 h-5 text-emerald-300" />
-        <span className="text-slate-200 text-sm">זכור: החלפת Tip בין רכיבים שומרת על סטריליות ומונעת זיהום.</span>
-        <Droplets className="w-5 h-5 text-blue-300" />
-        <span className="text-slate-200 text-sm">ללא DDW לא מתקבלת דילול תקין של הריאקציה.</span>
-      </div>
     </div>
   );
 }
