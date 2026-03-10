@@ -109,7 +109,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const [tipFresh, setTipFresh] = useState(true);
   const [tipReminder, setTipReminder] = useState('');
   const [contamination, setContamination] = useState(0);
-  const [pipettingLog, setPipettingLog] = useState<string[]>([]);
 
   const [thermoConfig, setThermoConfig] = useState({
     denaturation: 90,
@@ -223,7 +222,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
     setTipFresh(false);
     setTipReminder('החלף Tip לפני הוספת הרכיב הבא.');
-    setPipettingLog((prev) => [reagent?.label ?? id, ...prev].slice(0, 6));
   };
 
   const removeReagent = (id: ReagentId) => {
@@ -378,7 +376,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     setTipFresh(true);
     setTipReminder('');
     setContamination(0);
-    setPipettingLog([]);
     setThermoConfig({ denaturation: 90, annealing: 45, extension: 68 });
     setThermoMessage('');
     setShowScientificExplanation(false);
@@ -562,21 +559,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               {tipReminder && (
                 <p className="text-xs text-amber-300">{tipReminder}</p>
               )}
-
-              <div>
-                <p className="text-slate-300 text-sm font-bold mb-1">רכיבים אחרונים שנוספו:</p>
-                <div className="flex flex-wrap gap-2">
-                  {pipettingLog.length === 0 ? (
-                    <span className="text-xs text-slate-500">עדיין לא בוצעה פיפטציה</span>
-                  ) : (
-                    pipettingLog.map((entry) => (
-                      <span key={entry} className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300">
-                        {entry}
-                      </span>
-                    ))
-                  )}
-                </div>
-              </div>
 
               <div className="flex justify-start">
                 <button
