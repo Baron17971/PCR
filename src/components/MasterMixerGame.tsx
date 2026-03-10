@@ -491,12 +491,12 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
               {!tipFresh && !contaminationTooHigh && (
                 <motion.div
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="sm:col-span-2 sticky top-2 z-10 rounded-xl border border-cyan-400/45 bg-cyan-500/10 p-3 flex items-center justify-between gap-3"
+                  className="col-span-full sticky top-2 z-10 rounded-xl border border-cyan-400/45 bg-cyan-500/10 p-3 flex items-center justify-between gap-3"
                 >
                   <p className="text-sm text-cyan-100 font-bold">נוסף רכיב. החלף Tip לפני בחירה הבאה.</p>
                   <button
