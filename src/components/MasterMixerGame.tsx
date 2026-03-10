@@ -489,15 +489,14 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       {step === 1 && (
         <div className="relative space-y-4">
           <div className="sticky top-2 z-20 rounded-2xl border border-blue-500/35 bg-slate-900/85 p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-200 font-bold">מד זיהום (Contamination)</span>
-              <span className={`font-black ${contaminationVisuals.text}`}>
+            <div className="flex items-start justify-between gap-3">
+              <span className="text-slate-200 font-bold text-sm md:text-base leading-relaxed">
+                מד זיהום (Contamination) - שימו לב, אם תבחרו במרכיבים שגויים, הזיהום יגדל.
+              </span>
+              <span className={`font-black ${contaminationVisuals.text} shrink-0`}>
                 {contamination}%
               </span>
             </div>
-            <p className="mt-1 text-sm font-semibold text-amber-200 text-right">
-              שימו לב: בחירה במרכיבים שגויים תגדיל את הזיהום.
-            </p>
             <div className="mt-2 h-2 rounded-full bg-slate-800 overflow-hidden">
               <div
                 className={`h-full transition-all ${contaminationVisuals.bar}`}
