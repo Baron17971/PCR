@@ -27,7 +27,7 @@ export default function WelcomeScreen({ onStart }: WelcomeScreenProps) {
               <h2 className="text-lg font-bold">PCR Standard</h2>
             </div>
             <p className="text-slate-200 leading-relaxed">
-              אופטימיזציה של תנאי ריצה וטמפרטורות Annealing.
+              מרכיבי השיטה, שלביה ויישומה.
             </p>
           </article>
 
