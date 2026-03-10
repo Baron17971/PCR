@@ -94,6 +94,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   });
   const [thermoChecked, setThermoChecked] = useState(false);
   const [thermoMessage, setThermoMessage] = useState('');
+  const [showScientificExplanation, setShowScientificExplanation] = useState(false);
 
   const [raceStarted, setRaceStarted] = useState(false);
   const [currentCycle, setCurrentCycle] = useState(1);
@@ -312,6 +313,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     setThermoConfig({ denaturation: 90, annealing: 45, extension: 68 });
     setThermoChecked(false);
     setThermoMessage('');
+    setShowScientificExplanation(false);
     setRaceStarted(false);
     setCurrentCycle(1);
     setWindowOpen(false);
@@ -523,6 +525,14 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                 חישוב Tm מהיר: 2 × (A+T) + 4 × (G+C) = <span className="font-bold text-violet-300">{tm}°C</span>
               </p>
               <p className="text-xs text-slate-500">טווח Annealing מומלץ: {tm - 5}°C עד {tm}°C</p>
+              <div className="pt-2">
+                <button
+                  onClick={() => setShowScientificExplanation(true)}
+                  className="px-4 py-2 rounded-xl border border-violet-400/40 bg-violet-500/15 hover:bg-violet-500/25 text-violet-100 text-sm font-bold"
+                >
+                  פתח הסבר מדעי
+                </button>
+              </div>
             </div>
 
             <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4 space-y-4">
@@ -564,46 +574,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-violet-500/25 bg-violet-500/10 p-4 md:p-5 space-y-3 text-right">
-            <h4 className="text-lg font-black text-violet-200">
-              הסבר מדעי: נוסחת וואלס (Wallace Rule)
-            </h4>
-            <p className="text-slate-200 leading-relaxed">
-              זהו אחד החישובים הבסיסיים והחשובים בביוטכנולוגיה. הנוסחה מעריכה את
-              טמפרטורת ההיתוך (<span className="font-mono">Tm</span>) שבה כמחצית ממולקולות ה-DNA הדו-גדילי
-              (הפריימר והתבנית) נפרדות זו מזו.
-            </p>
-            <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3 text-slate-100 font-mono text-sm">
-              Tm = 2 × (A + T) + 4 × (G + C)
-            </div>
-            <div className="space-y-2 text-slate-200 leading-relaxed">
-              <p>
-                <span className="font-bold text-blue-200">למה 2 ו-4?</span> ההבדל נובע ממספר קשרי המימן:
-              </p>
-              <p>
-                <span className="font-bold text-blue-200">A-T:</span> 2 קשרי מימן, ולכן כל זוג תורם בערך
-                <span className="font-mono"> 2°C </span>
-                ליציבות התרמית.
-              </p>
-              <p>
-                <span className="font-bold text-blue-200">G-C:</span> 3 קשרי מימן, קשר חזק יותר, ולכן כל זוג תורם בערך
-                <span className="font-mono"> 4°C</span>.
-              </p>
-            </div>
-            <div className="rounded-xl border border-blue-500/25 bg-blue-500/10 p-3 space-y-1 text-slate-200">
-              <p>
-                בניתוח הרצף כאן מתקבל <span className="font-mono text-blue-200">Tm = {tm}°C</span>, כלומר פריימר יציב יחסית.
-              </p>
-              <p>
-                לכן טמפרטורת <span className="font-mono">Annealing (Ta)</span> מומלצת סביב
-                <span className="font-mono text-blue-200"> {tm - 5}°C</span>.
-              </p>
-              <p className="text-sm text-slate-300">
-                גבוה מדי (קרוב ל-{tm}) עלול למנוע קישור פריימר; נמוך מדי (למשל 45°C) עלול ליצור קישור לא-ספציפי ו-primer dimers.
-              </p>
-            </div>
-          </div>
-
           <div className="flex flex-wrap gap-3">
             <button
               onClick={validateThermalProfile}
@@ -624,6 +594,75 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             <p className={`text-sm font-medium ${thermoMessage.includes('מצוין') ? 'text-emerald-300' : 'text-amber-300'}`}>
               {thermoMessage}
             </p>
+          )}
+
+          {showScientificExplanation && (
+            <motion.div
+              className="fixed inset-0 z-[95] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowScientificExplanation(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className="w-full max-w-3xl rounded-3xl border border-violet-400/25 bg-slate-950/95 shadow-2xl overflow-hidden"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="p-5 border-b border-slate-800 flex items-start justify-between gap-4">
+                  <button
+                    onClick={() => setShowScientificExplanation(false)}
+                    className="text-slate-400 hover:text-white transition-colors p-1"
+                    aria-label="סגור חלון הסבר"
+                  >
+                    <XCircle className="w-6 h-6" />
+                  </button>
+                  <h4 className="text-xl font-black text-violet-200 text-right">
+                    הסבר מדעי: נוסחת וואלס (Wallace Rule)
+                  </h4>
+                </div>
+
+                <div className="p-5 space-y-3 text-right">
+                  <p className="text-slate-200 leading-relaxed">
+                    זהו אחד החישובים הבסיסיים והחשובים בביוטכנולוגיה. הנוסחה מעריכה את
+                    טמפרטורת ההיתוך (<span className="font-mono">Tm</span>) שבה כמחצית ממולקולות ה-DNA הדו-גדילי
+                    (הפריימר והתבנית) נפרדות זו מזו.
+                  </p>
+
+                  <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3 text-slate-100 font-mono text-sm">
+                    Tm = 2 × (A + T) + 4 × (G + C)
+                  </div>
+
+                  <div className="space-y-2 text-slate-200 leading-relaxed">
+                    <p>
+                      <span className="font-bold text-blue-200">מדוע היחס הוא 2 ו-4?</span> ההבדל נובע ממספר קשרי המימן:
+                    </p>
+                    <p>
+                      <span className="font-bold text-blue-200">A ו-T:</span> ביניהם 2 קשרי מימן, ולכן כל זוג תורם בערך
+                      <span className="font-mono"> 2°C</span> ליציבות התרמית.
+                    </p>
+                    <p>
+                      <span className="font-bold text-blue-200">G ו-C:</span> ביניהם 3 קשרי מימן, קשר חזק ויציב יותר, ולכן כל זוג תורם בערך
+                      <span className="font-mono"> 4°C</span>.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-blue-500/25 bg-blue-500/10 p-3 space-y-1 text-slate-200">
+                    <p>
+                      אם מתקבל <span className="font-mono text-blue-200">Tm = {tm}°C</span>, הפריימר יציב יחסית.
+                    </p>
+                    <p>
+                      לכן טמפרטורת <span className="font-mono">Annealing (Ta)</span> מומלצת סביב
+                      <span className="font-mono text-blue-200"> {tm - 5}°C</span>.
+                    </p>
+                    <p className="text-sm text-slate-300">
+                      גבוה מדי (קרוב ל-{tm}) עלול למנוע קישור פריימר; נמוך מדי (למשל 45°C) עלול ליצור קישור לא-ספציפי ו-primer dimers.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
           )}
         </div>
       )}
