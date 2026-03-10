@@ -510,11 +510,11 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
               <div className="flex flex-wrap gap-2">
                 {Array.from(addedReagents).map((id) => (
-                  <span key={id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold border border-blue-400/40 bg-blue-500/15 text-blue-100">
+                  <span key={id} className="inline-flex items-center gap-0.5 px-1 py-[1px] rounded border border-blue-400/40 bg-blue-500/15 text-xs font-bold leading-tight text-blue-100">
                     {reagentById(id)?.label ?? id}
                     <button
                       onClick={() => removeReagent(id)}
-                      className="w-3.5 h-3.5 rounded-full border border-blue-300/40 text-[9px] leading-none hover:bg-blue-400/20"
+                      className="w-3 h-3 rounded-full border border-blue-300/40 text-[8px] leading-none hover:bg-blue-400/20"
                       aria-label={`הסר ${reagentById(id)?.label ?? id}`}
                     >
                       ×
