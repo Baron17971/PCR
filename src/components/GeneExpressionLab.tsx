@@ -13,7 +13,7 @@ export default function GeneExpressionLab() {
 
   const steps = [
     { id: 0, label: 'בידוד mRNA', description: 'הפקת ה-RNA השליח מהדגימות' },
-    { id: 1, label: 'שיעתוק לאחור (cDNA)', description: 'המרת RNA ל-DNA יציב' },
+    { id: 1, label: 'שיעתוק לאחור (cDNA)', description: 'באומצעות האנזים RT' },
     { id: 2, label: 'הגברת PCR', description: 'הכפלת גן מטרה (אינסולין)' }
   ];
 
