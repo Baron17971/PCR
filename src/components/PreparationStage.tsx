@@ -8,6 +8,15 @@ interface PreparationStageProps {
   onComplete: () => void;
 }
 
+function shuffleArray<T>(items: T[]): T[] {
+  const next = [...items];
+  for (let i = next.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [next[i], next[j]] = [next[j], next[i]];
+  }
+  return next;
+}
+
 export default function PreparationStage({ onComplete }: PreparationStageProps) {
   const [addedIngredients, setAddedIngredients] = useState<Set<IngredientId>>(new Set());
   const [activeInstruction, setActiveInstruction] = useState<IngredientId | null>(null);
@@ -15,6 +24,22 @@ export default function PreparationStage({ onComplete }: PreparationStageProps) 
   const [shakeTube, setShakeTube] = useState(false);
 
   const requiredCount = INGREDIENTS.filter(i => i.isRequired).length;
+  const mixedIngredients = useMemo(() => {
+    const required = shuffleArray(INGREDIENTS.filter((ingredient) => ingredient.isRequired));
+    const notRequired = shuffleArray(INGREDIENTS.filter((ingredient) => !ingredient.isRequired));
+    const mixed: Ingredient[] = [];
+
+    while (required.length > 0 || notRequired.length > 0) {
+      if (required.length > 0) {
+        mixed.push(required.pop() as Ingredient);
+      }
+      if (notRequired.length > 0) {
+        mixed.push(notRequired.pop() as Ingredient);
+      }
+    }
+
+    return mixed;
+  }, []);
 
   const handleAddIngredient = (item: Ingredient) => {
     setActiveInstruction(item.id);
@@ -186,7 +211,7 @@ export default function PreparationStage({ onComplete }: PreparationStageProps) 
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {INGREDIENTS.map((ingredient) => {
+          {mixedIngredients.map((ingredient) => {
             const isAdded = addedIngredients.has(ingredient.id);
             return (
               <motion.button
