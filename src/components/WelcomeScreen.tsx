@@ -37,7 +37,7 @@ export default function WelcomeScreen({ onStart }: WelcomeScreenProps) {
               <h2 className="text-lg font-bold">RT-PCR</h2>
             </div>
             <p className="text-slate-200 leading-relaxed">
-              מעבר מהיר מ-RNA ל-cDNA עם פרוטוקולים מדויקים.
+              מ - mRNA ל - DNA לאיפיון ביטוי גנים בתאים
             </p>
           </article>
 
