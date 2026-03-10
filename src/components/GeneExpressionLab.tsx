@@ -66,10 +66,10 @@ export default function GeneExpressionLab() {
       </div>
 
       {/* Lab Layout Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
 
         {/* Left Section: Tissue Info (3 columns) */}
-        <div className="lg:col-span-3 space-y-3">
+        <div className="md:col-span-3 space-y-3">
           <div className="p-6 bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-[2rem] space-y-4">
             <h3 className="text-xl font-bold text-white flex items-center gap-2">
               <Microscope className="w-7 h-7 text-emerald-400" />
@@ -125,7 +125,7 @@ export default function GeneExpressionLab() {
         </div>
 
         {/* Center Section: RT-PCR Processing (4 columns) */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className="md:col-span-4 space-y-4">
           <div className="p-6 bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-[2.5rem] relative overflow-hidden min-h-[450px] flex flex-col justify-between">
             <div className="space-y-1 relative">
               <button
@@ -231,7 +231,7 @@ export default function GeneExpressionLab() {
         </div>
 
         {/* Right Section: Gel Electrophoresis (5 columns) */}
-        <div className="lg:col-span-12 xl:col-span-5 space-y-6">
+        <div className="md:col-span-5 space-y-6">
           <GelElectrophoresis
             onRunComplete={handleRunComplete}
             onReset={resetLab}
