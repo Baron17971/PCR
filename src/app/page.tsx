@@ -3,14 +3,15 @@ import { useState } from 'react';
 import PreparationStage from '@/components/PreparationStage';
 import ThermalCycler from '@/components/ThermalCycler';
 import GeneExpressionLab from '@/components/GeneExpressionLab';
+import WelcomeScreen from '@/components/WelcomeScreen';
 import { SimulationPhase } from '@/types';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Home() {
-  const [phase, setPhase] = useState<SimulationPhase>('preparation');
+  const [phase, setPhase] = useState<SimulationPhase>('landing');
 
-  const phases: SimulationPhase[] = ['preparation', 'pcr-running', 'completed', 'gene-expression-lab'];
+  const phases: SimulationPhase[] = ['landing', 'preparation', 'pcr-running', 'completed', 'gene-expression-lab'];
   const currentIndex = phases.indexOf(phase);
 
   const goToNext = () => {
@@ -37,6 +38,10 @@ export default function Home() {
       </div>
 
       <div className="flex-1 flex flex-col min-h-0">
+        {phase === 'landing' && (
+          <WelcomeScreen onStart={() => setPhase('preparation')} />
+        )}
+
         {phase === 'preparation' && (
           <PreparationStage onComplete={() => setPhase('pcr-running')} />
         )}

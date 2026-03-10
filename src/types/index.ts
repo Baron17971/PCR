@@ -1,4 +1,4 @@
-export type SimulationPhase = 'preparation' | 'pcr-running' | 'completed' | 'gene-expression-lab';
+export type SimulationPhase = 'landing' | 'preparation' | 'pcr-running' | 'completed' | 'gene-expression-lab';
 
 export type IngredientId = 'dna' | 'primers' | 'taq' | 'dntps' | 'buffer' | 'rna-pol' | 'helicase' | 'ribosome';
 
