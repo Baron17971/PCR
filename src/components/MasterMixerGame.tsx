@@ -867,6 +867,14 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             >
               המשך לשלב 3
             </button>
+            {allPracticesSolved && !showContinuationPrompt && !canProceedToStep3 && (
+              <button
+                onClick={() => setShowContinuationPrompt(true)}
+                className="bg-violet-600 hover:bg-violet-500 text-white font-bold px-5 py-2.5 rounded-xl"
+              >
+                חזרה לשאלה
+              </button>
+            )}
           </div>
 
           {showContinuationPrompt && (
@@ -908,6 +916,17 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                       : 'בחירתך שגויה. תוכל/י לחזור לתרגילים כדי לבחון שוב מיהו הפריימר האידיאלי.'}
                   </p>
                 )}
+                <div className="pt-1">
+                  <button
+                    onClick={() => {
+                      setShowContinuationPrompt(false);
+                      setThermoFeedback(null);
+                    }}
+                    className="px-4 py-2 rounded-xl border border-slate-600 bg-slate-900/70 hover:border-blue-400 text-slate-200 text-sm font-bold"
+                  >
+                    חזרה לתרגילים
+                  </button>
+                </div>
               </motion.div>
             </motion.div>
           )}
