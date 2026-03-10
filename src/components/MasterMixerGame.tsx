@@ -124,6 +124,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   });
   const [thermoFeedback, setThermoFeedback] = useState<{ level: ThermalFeedbackLevel; text: string } | null>(null);
   const [continuationPrimerChoice, setContinuationPrimerChoice] = useState<(typeof THERMAL_PRACTICES)[number]['id'] | null>(null);
+  const [showContinuationPrompt, setShowContinuationPrompt] = useState(false);
   const [showScientificExplanation, setShowScientificExplanation] = useState(false);
   const [showContaminationModal, setShowContaminationModal] = useState(false);
   const [activePracticeId, setActivePracticeId] = useState<(typeof THERMAL_PRACTICES)[number]['id']>('practice-1');
@@ -141,6 +142,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const preDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const openWindowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const advanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const continuationPromptTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const raceActiveRef = useRef(false);
   const cycleRef = useRef(1);
   const clickedThisCycleRef = useRef(false);
@@ -219,6 +221,10 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     return () => {
       raceActiveRef.current = false;
       clearRaceTimers();
+      if (continuationPromptTimeoutRef.current) {
+        clearTimeout(continuationPromptTimeoutRef.current);
+        continuationPromptTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -227,6 +233,25 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       setShowContaminationModal(true);
     }
   }, [contaminationTooHigh]);
+
+  useEffect(() => {
+    if (continuationPromptTimeoutRef.current) {
+      clearTimeout(continuationPromptTimeoutRef.current);
+      continuationPromptTimeoutRef.current = null;
+    }
+    if (!(allPracticesSolved && thermoFeedback?.level === 'red')) {
+      return;
+    }
+    continuationPromptTimeoutRef.current = setTimeout(() => {
+      setShowContinuationPrompt(true);
+    }, 3000);
+    return () => {
+      if (continuationPromptTimeoutRef.current) {
+        clearTimeout(continuationPromptTimeoutRef.current);
+        continuationPromptTimeoutRef.current = null;
+      }
+    };
+  }, [allPracticesSolved, thermoFeedback]);
 
   const reagentById = (id: ReagentId) => REAGENTS.find((reagent) => reagent.id === id);
 
@@ -280,6 +305,10 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       'practice-3': { level: 'red', text: THERMAL_FEEDBACK_TEXT.red }
     };
     setThermoFeedback(feedbackByPractice[activePractice.id]);
+    if (activePractice.id === 'practice-3') {
+      setContinuationPrimerChoice(null);
+      setShowContinuationPrompt(false);
+    }
 
     const alreadySolved = solvedPracticeIds.has(activePractice.id);
     if (!alreadySolved) {
@@ -291,6 +320,12 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     }
   };
 
+  const getPrimerLabel = (practiceId: (typeof THERMAL_PRACTICES)[number]['id']) => {
+    if (practiceId === 'practice-1') return 'פריימר 1';
+    if (practiceId === 'practice-2') return 'פריימר 2';
+    return 'פריימר 3';
+  };
+
   const handleContinuationPrimerChoice = (practiceId: (typeof THERMAL_PRACTICES)[number]['id']) => {
     setContinuationPrimerChoice(practiceId);
     if (practiceId === 'practice-1') {
@@ -298,6 +333,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
         level: 'green',
         text: 'בחירה נכונה. פריימר 1 הוא הבחירה המתאימה להמשך לשלב הבא.'
       });
+      setShowContinuationPrompt(false);
       return;
     }
     setThermoFeedback({
@@ -405,6 +441,11 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     setThermoConfig({ denaturation: 90, annealing: 45, extension: 68 });
     setThermoFeedback(null);
     setContinuationPrimerChoice(null);
+    setShowContinuationPrompt(false);
+    if (continuationPromptTimeoutRef.current) {
+      clearTimeout(continuationPromptTimeoutRef.current);
+      continuationPromptTimeoutRef.current = null;
+    }
     setShowScientificExplanation(false);
     setShowContaminationModal(false);
     setActivePracticeId('practice-1');
@@ -786,35 +827,47 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             </div>
           )}
 
-          {allPracticesSolved && (
-            <div className="rounded-xl border border-blue-500/35 bg-slate-950/60 p-4 space-y-3">
-              <p className="text-slate-100 font-bold">עם איזה פריימר תרצה להמשיך?</p>
-              <div className="flex flex-wrap gap-2">
-                {thermalPracticeStats.map((practice) => {
-                  const isSelected = continuationPrimerChoice === practice.id;
-                  return (
-                    <button
-                      key={`continue-with-${practice.id}`}
-                      onClick={() => handleContinuationPrimerChoice(practice.id)}
-                      className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${
-                        isSelected
-                          ? 'border-blue-400 bg-blue-500/20 text-blue-100'
-                          : 'border-slate-700 bg-slate-900/60 text-slate-300 hover:border-blue-400/60'
-                      }`}
-                    >
-                      {practice.title}
-                    </button>
-                  );
-                })}
-              </div>
-              {continuationPrimerChoice && (
-                <p className={`text-xs font-bold ${continuationPrimerChoice === 'practice-1' ? 'text-emerald-300' : 'text-red-300'}`}>
-                  {continuationPrimerChoice === 'practice-1'
-                    ? 'בחירה נכונה. אפשר לעבור לשלב הבא.'
-                    : 'כדי להמשיך חובה לבחור בפריימר 1.'}
-                </p>
-              )}
-            </div>
+          {showContinuationPrompt && (
+            <motion.div
+              className="fixed inset-0 z-[96] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className="w-full max-w-2xl rounded-3xl border border-blue-500/45 bg-slate-950/95 shadow-2xl p-5 space-y-4"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h4 className="text-xl font-black text-blue-100 text-right">עם איזה פריימר תרצה להמשיך?</h4>
+                <div className="flex flex-wrap gap-2">
+                  {thermalPracticeStats.map((practice) => {
+                    const isSelected = continuationPrimerChoice === practice.id;
+                    return (
+                      <button
+                        key={`continue-with-${practice.id}`}
+                        onClick={() => handleContinuationPrimerChoice(practice.id)}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${
+                          isSelected
+                            ? 'border-blue-400 bg-blue-500/20 text-blue-100'
+                            : 'border-slate-700 bg-slate-900/60 text-slate-300 hover:border-blue-400/60'
+                        }`}
+                      >
+                        {getPrimerLabel(practice.id)}
+                      </button>
+                    );
+                  })}
+                </div>
+                {continuationPrimerChoice && (
+                  <p className={`text-xs font-bold ${continuationPrimerChoice === 'practice-1' ? 'text-emerald-300' : 'text-red-300'}`}>
+                    {continuationPrimerChoice === 'practice-1'
+                      ? 'בחירה נכונה. אפשר לעבור לשלב הבא.'
+                      : 'כדי להמשיך חובה לבחור בפריימר 1.'}
+                  </p>
+                )}
+              </motion.div>
+            </motion.div>
           )}
 
           {showScientificExplanation && (
