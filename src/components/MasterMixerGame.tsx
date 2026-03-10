@@ -595,7 +595,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-blue-500/35 bg-slate-900/60 p-4 space-y-3">
+            <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm">
                   <p className="text-slate-300">Tip נוכחי:</p>
