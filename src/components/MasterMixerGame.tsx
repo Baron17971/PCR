@@ -88,9 +88,9 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const [pipettingLog, setPipettingLog] = useState<string[]>([]);
 
   const [thermoConfig, setThermoConfig] = useState({
-    denaturation: 94,
-    annealing: 58,
-    extension: 72
+    denaturation: 90,
+    annealing: 45,
+    extension: 68
   });
   const [thermoChecked, setThermoChecked] = useState(false);
   const [thermoMessage, setThermoMessage] = useState('');
@@ -309,7 +309,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     setTipFresh(true);
     setContamination(0);
     setPipettingLog([]);
-    setThermoConfig({ denaturation: 94, annealing: 58, extension: 72 });
+    setThermoConfig({ denaturation: 90, annealing: 45, extension: 68 });
     setThermoChecked(false);
     setThermoMessage('');
     setRaceStarted(false);
