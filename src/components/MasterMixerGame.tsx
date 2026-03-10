@@ -193,7 +193,7 @@ const TROUBLESHOOTING_SCENARIOS = [
     correctOptionId: 'run3-redesign',
     successText: 'נכון. תכנון מחדש של פריימרים בעלי ספציפיות גבוהה הוא התיקון היעיל ביותר.',
     options: [
-      { id: 'run3-mgcl2-up', label: 'להעלות מאוד את ריכוז MgCl2', feedback: 'שגוי. עודף MgCl2 לרוב מגביר תוצרים לא ספציפיים.' },
+      { id: 'run3-mgcl2-up', label: 'להעלות מאוד את ריכוז MgCl₂', feedback: 'שגוי. עודף MgCl₂ לרוב מגביר תוצרים לא ספציפיים.' },
       { id: 'run3-redesign', label: 'לתכנן מחדש פריימרים לספציפיות גבוהה יותר', feedback: 'בחירה נכונה.' },
       { id: 'run3-denat-low', label: 'להוריד דנטורציה מתחת ל-85°C', feedback: 'שגוי. דנטורציה לא מספקת עלולה לפגוע באיכות ההגברה.' },
       { id: 'run3-buffer-only', label: 'לשנות רק את הרכב ה-Buffer', feedback: 'לא מספיק. שורש הבעיה הוא ספציפיות הפריימרים.' }
@@ -1348,7 +1348,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                 );
               })}
             </div>
-            <p className="text-xs text-slate-300">התקדמות: {solvedScenarioCount}/{TROUBLESHOOTING_SCENARIOS.length}</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
