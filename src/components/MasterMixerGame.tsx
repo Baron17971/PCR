@@ -252,6 +252,11 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     }
   };
 
+  const replaceTip = () => {
+    setTipFresh(true);
+    setTipReminder('');
+  };
+
   const validateThermalProfile = () => {
     if (!denaturationValid) {
       setThermoMessage('הפרופיל לא תקין: טמפרטורת הדנטורציה אינה מתאימה.');
@@ -487,6 +492,21 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {!tipFresh && !contaminationTooHigh && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="sm:col-span-2 sticky top-2 z-10 rounded-xl border border-cyan-400/45 bg-cyan-500/10 p-3 flex items-center justify-between gap-3"
+                >
+                  <p className="text-sm text-cyan-100 font-bold">נוסף רכיב. החלף Tip לפני בחירה הבאה.</p>
+                  <button
+                    onClick={replaceTip}
+                    className="px-3 py-1.5 rounded-lg border border-cyan-300/50 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-50 text-sm font-bold whitespace-nowrap"
+                  >
+                    החלף Tip
+                  </button>
+                </motion.div>
+              )}
               {REAGENTS.map((reagent) => {
                 const isAdded = addedReagents.has(reagent.id);
                 return (
@@ -582,10 +602,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                   <p className={`font-bold ${tipFresh ? 'text-emerald-300' : 'text-red-300'}`}>{tipFresh ? 'נקי' : 'בשימוש'}</p>
                 </div>
                 <button
-                  onClick={() => {
-                    setTipFresh(true);
-                    setTipReminder('');
-                  }}
+                  onClick={replaceTip}
                   className="px-4 py-2 rounded-xl border border-slate-600 hover:border-blue-400 bg-slate-800 text-slate-100 text-sm font-bold"
                 >
                   החלף Tip
