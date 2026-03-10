@@ -564,6 +564,46 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             </div>
           </div>
 
+          <div className="rounded-2xl border border-violet-500/25 bg-violet-500/10 p-4 md:p-5 space-y-3 text-right">
+            <h4 className="text-lg font-black text-violet-200">
+              הסבר מדעי: נוסחת וואלס (Wallace Rule)
+            </h4>
+            <p className="text-slate-200 leading-relaxed">
+              זהו אחד החישובים הבסיסיים והחשובים בביוטכנולוגיה. הנוסחה מעריכה את
+              טמפרטורת ההיתוך (<span className="font-mono">Tm</span>) שבה כמחצית ממולקולות ה-DNA הדו-גדילי
+              (הפריימר והתבנית) נפרדות זו מזו.
+            </p>
+            <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3 text-slate-100 font-mono text-sm">
+              Tm = 2 × (A + T) + 4 × (G + C)
+            </div>
+            <div className="space-y-2 text-slate-200 leading-relaxed">
+              <p>
+                <span className="font-bold text-blue-200">למה 2 ו-4?</span> ההבדל נובע ממספר קשרי המימן:
+              </p>
+              <p>
+                <span className="font-bold text-blue-200">A-T:</span> 2 קשרי מימן, ולכן כל זוג תורם בערך
+                <span className="font-mono"> 2°C </span>
+                ליציבות התרמית.
+              </p>
+              <p>
+                <span className="font-bold text-blue-200">G-C:</span> 3 קשרי מימן, קשר חזק יותר, ולכן כל זוג תורם בערך
+                <span className="font-mono"> 4°C</span>.
+              </p>
+            </div>
+            <div className="rounded-xl border border-blue-500/25 bg-blue-500/10 p-3 space-y-1 text-slate-200">
+              <p>
+                בניתוח הרצף כאן מתקבל <span className="font-mono text-blue-200">Tm = {tm}°C</span>, כלומר פריימר יציב יחסית.
+              </p>
+              <p>
+                לכן טמפרטורת <span className="font-mono">Annealing (Ta)</span> מומלצת סביב
+                <span className="font-mono text-blue-200"> {tm - 5}°C</span>.
+              </p>
+              <p className="text-sm text-slate-300">
+                גבוה מדי (קרוב ל-{tm}) עלול למנוע קישור פריימר; נמוך מדי (למשל 45°C) עלול ליצור קישור לא-ספציפי ו-primer dimers.
+              </p>
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-3">
             <button
               onClick={validateThermalProfile}
