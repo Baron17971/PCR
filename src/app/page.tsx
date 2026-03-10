@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function Home() {
   const [phase, setPhase] = useState<SimulationPhase>('landing');
 
-  const phases: SimulationPhase[] = ['landing', 'preparation', 'pcr-running', 'replication-comparison', 'pcr-principles-game', 'completed', 'gene-expression-lab', 'pcr-applications'];
+  const phases: SimulationPhase[] = ['landing', 'preparation', 'pcr-running', 'replication-comparison', 'completed', 'gene-expression-lab', 'pcr-applications', 'pcr-principles-game'];
   const currentIndex = phases.indexOf(phase);
 
   const goToNext = () => {
@@ -54,11 +54,11 @@ export default function Home() {
         )}
 
         {phase === 'replication-comparison' && (
-          <ReplicationComparisonActivity onComplete={() => setPhase('pcr-principles-game')} />
+          <ReplicationComparisonActivity onComplete={() => setPhase('completed')} />
         )}
 
         {phase === 'pcr-principles-game' && (
-          <PcrPrinciplesGame onComplete={() => setPhase('completed')} />
+          <PcrPrinciplesGame onComplete={() => setPhase('landing')} />
         )}
 
         {phase === 'completed' && (
@@ -95,7 +95,7 @@ export default function Home() {
         )}
 
         {phase === 'pcr-applications' && (
-          <PcrApplicationsPage onComplete={() => setPhase('landing')} />
+          <PcrApplicationsPage onComplete={() => setPhase('pcr-principles-game')} />
         )}
       </div>
 

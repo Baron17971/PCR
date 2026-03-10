@@ -331,7 +331,7 @@ export default function PcrPrinciplesGame({ onComplete }: PcrPrinciplesGameProps
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl transition-all inline-flex items-center gap-2"
             >
               <FlaskConical className="w-5 h-5" />
-              המשך לשלב הבא
+              סיום וחזרה לפתיחה
             </button>
           </motion.div>
         )}

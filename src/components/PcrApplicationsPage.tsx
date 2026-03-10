@@ -174,14 +174,14 @@ export default function PcrApplicationsPage({ onComplete }: PcrApplicationsPageP
 
       <div className="rounded-2xl border border-slate-700/40 bg-slate-900/35 p-4 flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
         <p className="text-slate-300 font-medium">
-          זהו השלב האחרון. לאחר העיון ביישומים ניתן לחזור לדף הפתיחה.
+          לאחר העיון ביישומים, המשיכו למשחק האתגר המסכם על עקרונות PCR.
         </p>
         <button
           onClick={onComplete}
           className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl transition-all flex items-center gap-2 w-fit"
         >
           <ArrowRightCircle className="w-5 h-5" />
-          סיום וחזרה לפתיחה
+          המשך למשחק האתגר
         </button>
       </div>
 
