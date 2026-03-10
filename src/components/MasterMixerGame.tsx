@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Dna,
   FlaskConical,
-  Play,
   RefreshCcw,
   Target,
   Thermometer,
@@ -27,8 +26,9 @@ type ReagentId =
 
 type Step = 1 | 2 | 3 | 4;
 type AnnealingStatus = 'optimal' | 'high' | 'low';
-type OutcomeType = 'clean-band' | 'smear' | 'no-band';
 type ThermalFeedbackLevel = 'green' | 'yellow' | 'red' | 'info';
+type GelIssueType = 'no-band' | 'smear' | 'multi-band';
+type TroubleshootingFeedbackLevel = 'success' | 'error' | 'info';
 
 interface Reagent {
   id: ReagentId;
@@ -40,27 +40,25 @@ interface Reagent {
 interface MasterMixerGameProps {
   onComplete: () => void;
 }
-
-const TOTAL_CYCLES = 30;
 const THERMAL_FEEDBACK_TEXT = {
-  green: 'אור ירוק: ביצועים מעולים - הפריימר שלך מאוזן ומצוין!.',
+  green: '׳׳•׳¨ ׳™׳¨׳•׳§: ׳‘׳™׳¦׳•׳¢׳™׳ ׳׳¢׳•׳׳™׳ - ׳”׳₪׳¨׳™׳™׳׳¨ ׳©׳׳ ׳׳׳•׳–׳ ׳•׳׳¦׳•׳™׳!.',
   yellow:
-    'אור צהוב: זהירות - סכנה לקשרים לא ספציפיים (יותר מדי רעש) בשל קירור משמעותי של המערכת.',
+    '׳׳•׳¨ ׳¦׳”׳•׳‘: ׳–׳”׳™׳¨׳•׳× - ׳¡׳›׳ ׳” ׳׳§׳©׳¨׳™׳ ׳׳ ׳¡׳₪׳¦׳™׳₪׳™׳™׳ (׳™׳•׳×׳¨ ׳׳“׳™ ׳¨׳¢׳©) ׳‘׳©׳ ׳§׳™׳¨׳•׳¨ ׳׳©׳׳¢׳•׳×׳™ ׳©׳ ׳”׳׳¢׳¨׳›׳×.',
   red:
-    'אור אדום: אזהרה - פריימר "דביק" - הוא עלול להיצמד לעצמו (ליצור פלונטרים) במקום להיצמד לדגימה שלך.'
+    '׳׳•׳¨ ׳׳“׳•׳: ׳׳–׳”׳¨׳” - ׳₪׳¨׳™׳™׳׳¨ "׳“׳‘׳™׳§" - ׳”׳•׳ ׳¢׳׳•׳ ׳׳”׳™׳¦׳׳“ ׳׳¢׳¦׳׳• (׳׳™׳¦׳•׳¨ ׳₪׳׳•׳ ׳˜׳¨׳™׳) ׳‘׳׳§׳•׳ ׳׳”׳™׳¦׳׳“ ׳׳“׳’׳™׳׳” ׳©׳׳.'
 } as const;
 
 const REAGENTS: Reagent[] = [
-  { id: 'template-dna', label: 'Template DNA', required: true, shortNote: 'תבנית המטרה' },
-  { id: 'ligase', label: 'DNA Ligase', required: false, shortNote: 'לא נחוץ ל-PCR' },
-  { id: 'helicase', label: 'Helicase', required: false, shortNote: 'אנזים שכפול בתא, לא נחוץ ל-PCR' },
-  { id: 'primers', label: 'Primers', required: true, shortNote: 'מגדירים את גבולות ההגברה' },
-  { id: 'rna-polymerase', label: 'RNA Polymerase', required: false, shortNote: 'לא נחוץ ל-PCR' },
-  { id: 'dntps', label: 'dNTPs', required: true, shortNote: 'אבני הבניין של ה-DNA' },
-  { id: 'taq', label: 'Taq Polymerase', required: true, shortNote: 'אנזים עמיד לחום' },
-  { id: 'mgcl2', label: 'MgCl₂', required: true, shortNote: 'קו-פקטור לפולימראז' },
-  { id: 'buffer', label: 'Buffer', required: true, shortNote: 'שומר תנאים אופטימליים' },
-  { id: 'ddw', label: 'DDW (Water)', required: true, shortNote: 'איזון ריכוזים לנפח סופי' },
+  { id: 'template-dna', label: 'Template DNA', required: true, shortNote: '׳×׳‘׳ ׳™׳× ׳”׳׳˜׳¨׳”' },
+  { id: 'ligase', label: 'DNA Ligase', required: false, shortNote: '׳׳ ׳ ׳—׳•׳¥ ׳-PCR' },
+  { id: 'helicase', label: 'Helicase', required: false, shortNote: '׳׳ ׳–׳™׳ ׳©׳›׳₪׳•׳ ׳‘׳×׳, ׳׳ ׳ ׳—׳•׳¥ ׳-PCR' },
+  { id: 'primers', label: 'Primers', required: true, shortNote: '׳׳’׳“׳™׳¨׳™׳ ׳׳× ׳’׳‘׳•׳׳•׳× ׳”׳”׳’׳‘׳¨׳”' },
+  { id: 'rna-polymerase', label: 'RNA Polymerase', required: false, shortNote: '׳׳ ׳ ׳—׳•׳¥ ׳-PCR' },
+  { id: 'dntps', label: 'dNTPs', required: true, shortNote: '׳׳‘׳ ׳™ ׳”׳‘׳ ׳™׳™׳ ׳©׳ ׳”-DNA' },
+  { id: 'taq', label: 'Taq Polymerase', required: true, shortNote: '׳׳ ׳–׳™׳ ׳¢׳׳™׳“ ׳׳—׳•׳' },
+  { id: 'mgcl2', label: 'MgClג‚‚', required: true, shortNote: '׳§׳•-׳₪׳§׳˜׳•׳¨ ׳׳₪׳•׳׳™׳׳¨׳׳–' },
+  { id: 'buffer', label: 'Buffer', required: true, shortNote: '׳©׳•׳׳¨ ׳×׳ ׳׳™׳ ׳׳•׳₪׳˜׳™׳׳׳™׳™׳' },
+  { id: 'ddw', label: 'DDW (Water)', required: true, shortNote: '׳׳™׳–׳•׳ ׳¨׳™׳›׳•׳–׳™׳ ׳׳ ׳₪׳— ׳¡׳•׳₪׳™' },
 ];
 
 const REQUIRED_REAGENTS = REAGENTS.filter((reagent) => reagent.required).map((reagent) => reagent.id);
@@ -69,23 +67,23 @@ const PRIMER_SEQUENCE = 'ATGCGTACCGGATTCGATGC';
 const EXTRA_PRACTICES = [
   {
     id: 'practice-2',
-    title: 'תרגיל 2',
+    title: '׳×׳¨׳’׳™׳ 2',
     sequence: 'TTAATATTAATATTAATATT',
-    note: 'רצף עשיר בבסיסי A-T'
+    note: '׳¨׳¦׳£ ׳¢׳©׳™׳¨ ׳‘׳‘׳¡׳™׳¡׳™ A-T'
   },
   {
     id: 'practice-3',
-    title: 'תרגיל 3',
+    title: '׳×׳¨׳’׳™׳ 3',
     sequence: 'GCGTCCGCGGCGCGTCCGCG',
-    note: 'רצף עשיר בבסיסי G-C'
+    note: '׳¨׳¦׳£ ׳¢׳©׳™׳¨ ׳‘׳‘׳¡׳™׳¡׳™ G-C'
   }
 ] as const;
 const THERMAL_PRACTICES = [
   {
     id: 'practice-1',
-    title: 'תרגיל 1',
+    title: '׳×׳¨׳’׳™׳ 1',
     sequence: PRIMER_SEQUENCE,
-    note: 'רצף פריימר בסיסי'
+    note: '׳¨׳¦׳£ ׳₪׳¨׳™׳™׳׳¨ ׳‘׳¡׳™׳¡׳™'
   },
   ...EXTRA_PRACTICES
 ] as const;
@@ -128,6 +126,107 @@ const PRACTICE_TEMPERATURE_RANGES: Record<
   }
 };
 
+const TROUBLESHOOTING_SCENARIOS = [
+  {
+    id: 'run-1',
+    title: '׳”׳¨׳¦׳” 1',
+    gelIssue: 'no-band' as GelIssueType,
+    summary: '׳׳ ׳”׳×׳§׳‘׳ ׳₪׳¡ ׳‘׳›׳׳ ׳‘׳’׳³׳.',
+    context:
+      '׳ ׳¨׳׳™׳× ׳‘׳׳¨ ׳’׳³׳ ׳ ׳§׳™׳™׳” ׳׳׳ ׳×׳•׳¦׳¨. ׳›׳ ׳”׳׳¨׳›׳™׳‘׳™׳ ׳ ׳•׳¡׳₪׳•, ׳׳‘׳ ׳™׳™׳×׳›׳ ׳©׳׳ ׳–׳™׳ ׳”׳׳₪׳×׳— ׳׳ ׳”׳™׳” ׳₪׳¢׳™׳.',
+    successText: '׳ ׳›׳•׳. ׳׳׳ Taq Polymerase ׳₪׳¢׳™׳ ׳׳ ׳×׳×׳‘׳¦׳¢ ׳”׳׳¨׳›׳”, ׳•׳׳›׳ ׳׳ ׳™׳×׳§׳‘׳ ׳₪׳¡.',
+    correctOptionId: 'run1-check-taq',
+    options: [
+      {
+        id: 'run1-raise-annealing',
+        label: '׳׳”׳¢׳׳•׳× ׳׳׳•׳“ ׳׳× ׳˜׳׳₪׳¨׳˜׳•׳¨׳× ׳”-Annealing',
+        feedback: '׳׳ ׳ ׳›׳•׳. ׳”׳¢׳׳׳” ׳ ׳•׳¡׳₪׳× ׳©׳ Annealing ׳¢׳׳•׳׳” ׳׳”׳—׳׳™׳© ׳”׳™׳§׳©׳¨׳•׳× ׳₪׳¨׳™׳™׳׳¨׳™׳.'
+      },
+      {
+        id: 'run1-check-taq',
+        label: '׳׳׳׳× ׳©׳”׳•׳¡׳£ Taq Polymerase ׳₪׳¢׳™׳',
+        feedback: '׳×׳©׳•׳‘׳” ׳ ׳›׳•׳ ׳”.'
+      },
+      {
+        id: 'run1-lower-extension',
+        label: '׳׳”׳•׳¨׳™׳“ ׳׳× ׳˜׳׳₪׳¨׳˜׳•׳¨׳× ׳”׳”׳׳¨׳›׳” ׳-60ֲ°C',
+        feedback: '׳׳ ׳ ׳›׳•׳. Taq ׳¢׳•׳‘׳“ ׳׳•׳₪׳˜׳™׳׳׳™׳× ׳¡׳‘׳™׳‘ 72ֲ°C.'
+      },
+      {
+        id: 'run1-add-ligase',
+        label: '׳׳”׳•׳¡׳™׳£ DNA Ligase ׳׳¨׳™׳׳§׳¦׳™׳”',
+        feedback: '׳׳ ׳ ׳›׳•׳. Ligase ׳׳ ׳₪׳•׳×׳¨ ׳›׳©׳ PCR ׳¨׳’׳™׳.'
+      }
+    ]
+  },
+  {
+    id: 'run-2',
+    title: '׳”׳¨׳¦׳” 2',
+    gelIssue: 'smear' as GelIssueType,
+    summary: '׳”׳×׳§׳‘׳׳” ׳׳¨׳™׳—׳” (Smear) ׳‘׳׳§׳•׳ ׳₪׳¡ ׳—׳“.',
+    context:
+      '׳ ׳¨׳׳” ׳×׳•׳¦׳¨ ׳׳₪׳•׳–׳¨ ׳׳׳•׳¨׳ ׳”׳׳¡׳׳•׳. ׳׳¨׳•׳‘ ׳–׳” ׳׳¢׳™׳“ ׳¢׳ ׳”׳’׳‘׳¨׳” ׳׳ ׳¡׳₪׳¦׳™׳₪׳™׳× ׳׳• ׳¡׳˜׳¨׳™׳׳™׳•׳× ׳—׳׳©׳”.',
+    successText:
+      '׳ ׳›׳•׳. ׳”׳¢׳׳׳” ׳׳×׳•׳ ׳” ׳©׳ Annealing ׳׳©׳₪׳¨׳× ׳¡׳₪׳¦׳™׳₪׳™׳•׳× ׳•׳׳₪׳—׳™׳×׳” ׳×׳•׳¦׳¨׳™׳ ׳׳ ׳¡׳₪׳¦׳™׳₪׳™׳™׳.',
+    correctOptionId: 'run2-optimize-annealing',
+    options: [
+      {
+        id: 'run2-reduce-cycles',
+        label: '׳׳”׳•׳¨׳™׳“ ׳׳× ׳׳¡׳₪׳¨ ׳”׳׳—׳–׳•׳¨׳™׳ ׳-10 ׳‘׳׳‘׳“',
+        feedback: '׳׳ ׳׳“׳•׳™׳§. ׳–׳” ׳¢׳©׳•׳™ ׳׳”׳—׳׳™׳© ׳׳•׳× ׳׳ ׳׳ ׳₪׳•׳×׳¨ ׳‘׳”׳›׳¨׳— ׳—׳•׳¡׳¨ ׳¡׳₪׳¦׳™׳₪׳™׳•׳×.'
+      },
+      {
+        id: 'run2-optimize-annealing',
+        label: '׳׳”׳¢׳׳•׳× ׳׳¢׳˜ ׳׳× ׳˜׳׳₪׳¨׳˜׳•׳¨׳× ׳”-Annealing',
+        feedback: '׳×׳©׳•׳‘׳” ׳ ׳›׳•׳ ׳”.'
+      },
+      {
+        id: 'run2-add-helicase',
+        label: '׳׳”׳•׳¡׳™׳£ Helicase ׳›׳“׳™ ׳׳₪׳×׳•׳— ׳׳× ׳”-DNA',
+        feedback: '׳׳ ׳ ׳›׳•׳. ׳‘-PCR ׳”׳“׳ ׳˜׳•׳¨׳¦׳™׳” ׳”׳×׳¨׳׳™׳× ׳׳—׳׳™׳₪׳” Helicase.'
+      },
+      {
+        id: 'run2-change-dna-template',
+        label: '׳׳”׳—׳׳™׳£ ׳׳× ׳×׳‘׳ ׳™׳× ׳”-DNA ׳‘׳׳™ ׳׳©׳ ׳•׳× ׳×׳ ׳׳™׳',
+        feedback: '׳׳ ׳ ׳›׳•׳. ׳§׳•׳“׳ ׳׳×׳§׳ ׳™׳ ׳׳× ׳×׳ ׳׳™ ׳”׳”׳¨׳¦׳”.'
+      }
+    ]
+  },
+  {
+    id: 'run-3',
+    title: '׳”׳¨׳¦׳” 3',
+    gelIssue: 'multi-band' as GelIssueType,
+    summary: '׳”׳×׳§׳‘׳׳• ׳›׳׳” ׳₪׳¡׳™׳ ׳©׳•׳ ׳™׳.',
+    context:
+      '׳”׳’׳‘׳¨׳” ׳׳׳•׳§׳“׳× ׳׳ ׳”׳•׳©׳’׳” ׳•׳ ׳•׳¦׳¨׳™׳ ׳×׳•׳¦׳¨׳™׳ ׳׳¨׳•׳‘׳™׳. ׳”׳‘׳¢׳™׳” ׳”׳ ׳₪׳•׳¦׳”: ׳×׳›׳ ׳•׳ ׳₪׳¨׳™׳™׳׳¨׳™׳ ׳—׳׳©.',
+    successText:
+      '׳ ׳›׳•׳. ׳₪׳¨׳™׳™׳׳¨׳™׳ ׳¡׳₪׳¦׳™׳₪׳™׳™׳ ׳™׳•׳×׳¨ ׳׳₪׳—׳™׳×׳™׳ ׳§׳©׳™׳¨׳” ׳׳׳–׳•׳¨׳™׳ ׳׳ ׳¨׳¦׳•׳™׳™׳ ׳•׳׳‘׳™׳׳™׳ ׳׳₪׳¡ ׳™׳—׳™׳“.',
+    correctOptionId: 'run3-redesign-primers',
+    options: [
+      {
+        id: 'run3-increase-mgcl2',
+        label: '׳׳”׳¢׳׳•׳× MgCl2 ׳‘׳¦׳•׳¨׳” ׳—׳“׳”',
+        feedback: '׳׳ ׳ ׳›׳•׳. ׳¢׳•׳“׳£ MgCl2 ׳¢׳׳•׳ ׳“׳•׳•׳§׳ ׳׳”׳’׳‘׳™׳¨ ׳×׳•׳¦׳¨׳™׳ ׳׳ ׳¡׳₪׳¦׳™׳₪׳™׳™׳.'
+      },
+      {
+        id: 'run3-redesign-primers',
+        label: '׳׳×׳›׳ ׳ ׳׳—׳“׳© ׳₪׳¨׳™׳™׳׳¨׳™׳ ׳¢׳ ׳¡׳₪׳¦׳™׳₪׳™׳•׳× ׳’׳‘׳•׳”׳” ׳™׳•׳×׳¨',
+        feedback: '׳×׳©׳•׳‘׳” ׳ ׳›׳•׳ ׳”.'
+      },
+      {
+        id: 'run3-lower-denaturation',
+        label: '׳׳”׳•׳¨׳™׳“ ׳“׳ ׳˜׳•׳¨׳¦׳™׳” ׳׳×׳—׳× ׳-85ֲ°C',
+        feedback: '׳׳ ׳ ׳›׳•׳. ׳“׳ ׳˜׳•׳¨׳¦׳™׳” ׳ ׳׳•׳›׳” ׳¢׳׳•׳׳” ׳׳”׳—׳׳™׳¨ ׳׳× ׳”׳‘׳¢׳™׳”.'
+      },
+      {
+        id: 'run3-switch-buffer',
+        label: '׳׳”׳—׳׳™׳£ Buffer ׳׳׳ ׳©׳™׳ ׳•׳™ ׳‘׳₪׳¨׳™׳™׳׳¨׳™׳',
+        feedback: '׳׳ ׳ ׳›׳•׳. ׳›׳׳ ׳©׳•׳¨׳© ׳”׳‘׳¢׳™׳” ׳”׳•׳ ׳”׳×׳׳׳× ׳₪׳¨׳™׳™׳׳¨׳™׳.'
+      }
+    ]
+  }
+] as const;
+
 export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const [step, setStep] = useState<Step>(1);
 
@@ -145,27 +244,17 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const [continuationPrimerChoice, setContinuationPrimerChoice] = useState<(typeof THERMAL_PRACTICES)[number]['id'] | null>(null);
   const [showContinuationPrompt, setShowContinuationPrompt] = useState(false);
   const [showScientificExplanation, setShowScientificExplanation] = useState(false);
-  const [showContaminationModal, setShowContaminationModal] = useState(false);
   const [activePracticeId, setActivePracticeId] = useState<(typeof THERMAL_PRACTICES)[number]['id']>('practice-1');
   const [solvedPracticeIds, setSolvedPracticeIds] = useState<Set<(typeof THERMAL_PRACTICES)[number]['id']>>(new Set());
 
-  const [raceStarted, setRaceStarted] = useState(false);
-  const [currentCycle, setCurrentCycle] = useState(1);
-  const [windowOpen, setWindowOpen] = useState(false);
-  const [raceStatus, setRaceStatus] = useState('לחץ על "התחל מרוץ"');
-  const [perfectHits, setPerfectHits] = useState(0);
-  const [mutations, setMutations] = useState(0);
+  const [activeScenarioId, setActiveScenarioId] = useState<(typeof TROUBLESHOOTING_SCENARIOS)[number]['id']>('run-1');
+  const [scenarioSelections, setScenarioSelections] = useState<
+    Partial<Record<(typeof TROUBLESHOOTING_SCENARIOS)[number]['id'], string>>
+  >({});
+  const [scenarioSolvedIds, setScenarioSolvedIds] = useState<Set<(typeof TROUBLESHOOTING_SCENARIOS)[number]['id']>>(new Set());
+  const [scenarioFeedback, setScenarioFeedback] = useState<{ level: TroubleshootingFeedbackLevel; text: string } | null>(null);
 
-  const [outcome, setOutcome] = useState<OutcomeType | null>(null);
-
-  const preDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const openWindowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const advanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const continuationPromptTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const raceActiveRef = useRef(false);
-  const cycleRef = useRef(1);
-  const clickedThisCycleRef = useRef(false);
-  const earlyPenaltyRef = useRef(false);
 
   const thermalPracticeStats = useMemo(() => {
     return THERMAL_PRACTICES.map((practice) => {
@@ -198,8 +287,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const wrongReagents = Array.from(addedReagents).filter(
     (id) => !REAGENTS.find((reagent) => reagent.id === id)?.required
   );
-  const hasTaq = addedReagents.has('taq');
-  const hasDDW = addedReagents.has('ddw');
   const contaminationTooHigh = contamination >= 30;
   const step1Ready = missingRequired.length === 0 && wrongReagents.length === 0 && tipFresh && !contaminationTooHigh;
   const contaminationVisuals = useMemo(() => {
@@ -228,40 +315,21 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       : thermoConfig.annealing < activeTemperatureRanges.annealing[0]
         ? 'low'
         : 'optimal';
-
-  const efficiency = useMemo(() => {
-    const hitScore = (perfectHits / TOTAL_CYCLES) * 100;
-    const contaminationPenalty = contamination * 0.35;
-    const mutationPenalty = mutations * 1.4;
-    const wrongPenalty = wrongReagents.length * 8;
-    return clamp(Math.round(hitScore - contaminationPenalty - mutationPenalty - wrongPenalty), 0, 100);
-  }, [perfectHits, contamination, mutations, wrongReagents.length]);
-
-  const clearRaceTimers = () => {
-    if (preDelayTimeoutRef.current) clearTimeout(preDelayTimeoutRef.current);
-    if (openWindowTimeoutRef.current) clearTimeout(openWindowTimeoutRef.current);
-    if (advanceTimeoutRef.current) clearTimeout(advanceTimeoutRef.current);
-    preDelayTimeoutRef.current = null;
-    openWindowTimeoutRef.current = null;
-    advanceTimeoutRef.current = null;
-  };
+  const activeScenarioIndex = TROUBLESHOOTING_SCENARIOS.findIndex((scenario) => scenario.id === activeScenarioId);
+  const activeScenario = TROUBLESHOOTING_SCENARIOS[activeScenarioIndex >= 0 ? activeScenarioIndex : 0];
+  const solvedScenarioCount = scenarioSolvedIds.size;
+  const allScenariosSolved = solvedScenarioCount === TROUBLESHOOTING_SCENARIOS.length;
+  const activeScenarioSelection = scenarioSelections[activeScenario.id] ?? null;
+  const activeScenarioOption = activeScenario.options.find((option) => option.id === activeScenarioSelection);
 
   useEffect(() => {
     return () => {
-      raceActiveRef.current = false;
-      clearRaceTimers();
       if (continuationPromptTimeoutRef.current) {
         clearTimeout(continuationPromptTimeoutRef.current);
         continuationPromptTimeoutRef.current = null;
       }
     };
   }, []);
-
-  useEffect(() => {
-    if (contaminationTooHigh) {
-      setShowContaminationModal(true);
-    }
-  }, [contaminationTooHigh]);
 
   useEffect(() => {
     if (continuationPromptTimeoutRef.current) {
@@ -339,7 +407,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     if (!temperaturesAreValid) {
       setThermoFeedback({
         level: 'info',
-        text: `הזנה שגויה של טמפרטורות עבור ${activePractice.title}. חשבו מחדש את הטמפרטורות לפי נתוני התרגיל ונסו שוב.`
+        text: `׳”׳–׳ ׳” ׳©׳’׳•׳™׳” ׳©׳ ׳˜׳׳₪׳¨׳˜׳•׳¨׳•׳× ׳¢׳‘׳•׳¨ ${activePractice.title}. ׳—׳©׳‘׳• ׳׳—׳“׳© ׳׳× ׳”׳˜׳׳₪׳¨׳˜׳•׳¨׳•׳× ׳׳₪׳™ ׳ ׳×׳•׳ ׳™ ׳”׳×׳¨׳’׳™׳ ׳•׳ ׳¡׳• ׳©׳•׳‘.`
       });
       return;
     }
@@ -360,9 +428,9 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   };
 
   const getPrimerLabel = (practiceId: (typeof THERMAL_PRACTICES)[number]['id']) => {
-    if (practiceId === 'practice-1') return 'פריימר 1';
-    if (practiceId === 'practice-2') return 'פריימר 2';
-    return 'פריימר 3';
+    if (practiceId === 'practice-1') return '׳₪׳¨׳™׳™׳׳¨ 1';
+    if (practiceId === 'practice-2') return '׳₪׳¨׳™׳™׳׳¨ 2';
+    return '׳₪׳¨׳™׳™׳׳¨ 3';
   };
 
   const handleContinuationPrimerChoice = (practiceId: (typeof THERMAL_PRACTICES)[number]['id']) => {
@@ -370,108 +438,82 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     if (practiceId === 'practice-1') {
       setThermoFeedback({
         level: 'green',
-        text: 'בחירה נכונה. פריימר 1 הוא הבחירה המתאימה להמשך לשלב הבא.'
+        text: '׳‘׳—׳™׳¨׳” ׳ ׳›׳•׳ ׳”. ׳₪׳¨׳™׳™׳׳¨ 1 ׳”׳•׳ ׳”׳‘׳—׳™׳¨׳” ׳”׳׳×׳׳™׳׳” ׳׳”׳׳©׳ ׳׳©׳׳‘ ׳”׳‘׳.'
       });
       setShowContinuationPrompt(false);
       return;
     }
     setThermoFeedback({
       level: 'red',
-      text: 'בחירתך שגויה. תוכל/י לחזור לתרגילים כדי לבחון שוב מיהו הפריימר האידיאלי.'
+      text: '׳‘׳—׳™׳¨׳×׳ ׳©׳’׳•׳™׳”. ׳×׳•׳›׳/׳™ ׳׳—׳–׳•׳¨ ׳׳×׳¨׳’׳™׳׳™׳ ׳›׳“׳™ ׳׳‘׳—׳•׳ ׳©׳•׳‘ ׳׳™׳”׳• ׳”׳₪׳¨׳™׳™׳׳¨ ׳”׳׳™׳“׳™׳׳׳™.'
     });
   };
 
-  const startCycle = (cycle: number) => {
-    if (!raceActiveRef.current) return;
-    if (cycle > TOTAL_CYCLES) {
-      raceActiveRef.current = false;
-      setWindowOpen(false);
-      setRaceStarted(false);
+  const isScenarioUnlocked = (scenarioId: (typeof TROUBLESHOOTING_SCENARIOS)[number]['id']) => {
+    const scenarioIndex = TROUBLESHOOTING_SCENARIOS.findIndex((scenario) => scenario.id === scenarioId);
+    if (scenarioIndex <= 0) return true;
+    return scenarioSolvedIds.has(TROUBLESHOOTING_SCENARIOS[scenarioIndex - 1].id);
+  };
 
-      const noBand =
-        !hasTaq ||
-        !hasDDW ||
-        missingRequired.length > 0 ||
-        !denaturationValid ||
-        annealingStatus === 'high';
-      const smear =
-        annealingStatus === 'low' ||
-        contamination >= 60 ||
-        perfectHits < 18 ||
-        wrongReagents.length > 0 ||
-        !extensionValid;
+  const selectScenario = (scenarioId: (typeof TROUBLESHOOTING_SCENARIOS)[number]['id']) => {
+    if (!isScenarioUnlocked(scenarioId)) {
+      return;
+    }
+    setActiveScenarioId(scenarioId);
+    setScenarioFeedback(null);
+  };
 
-      if (noBand) setOutcome('no-band');
-      else if (smear) setOutcome('smear');
-      else setOutcome('clean-band');
+  const selectScenarioOption = (optionId: string) => {
+    setScenarioSelections((prev) => ({
+      ...prev,
+      [activeScenario.id]: optionId
+    }));
+    setScenarioFeedback(null);
+  };
 
-      setStep(4);
-      setRaceStatus('הריצה הסתיימה');
+  const validateScenarioChoice = () => {
+    if (!activeScenarioSelection) {
+      setScenarioFeedback({
+        level: 'info',
+        text: 'בחרו תיקון אחד לפני הבדיקה.'
+      });
       return;
     }
 
-    cycleRef.current = cycle;
-    clickedThisCycleRef.current = false;
-    earlyPenaltyRef.current = false;
-    setCurrentCycle(cycle);
-    setWindowOpen(false);
-    setRaceStatus(`Cycle ${cycle}: המתן לחלון ההתארכות...`);
-
-    const preDelay = 260 + Math.floor(Math.random() * 440);
-    preDelayTimeoutRef.current = setTimeout(() => {
-      if (!raceActiveRef.current) return;
-      setWindowOpen(true);
-      setRaceStatus(`Cycle ${cycle}: לחץ עכשיו לסיום הארכה`);
-
-      openWindowTimeoutRef.current = setTimeout(() => {
-        if (!raceActiveRef.current) return;
-        setWindowOpen(false);
-        if (!clickedThisCycleRef.current) {
-          setMutations((prev) => prev + 1);
-          setRaceStatus(`Cycle ${cycle}: פספוס - התווספה מוטציה`);
-        }
-        advanceTimeoutRef.current = setTimeout(() => startCycle(cycle + 1), 170);
-      }, 260);
-    }, preDelay);
-  };
-
-  const startRace = () => {
-    if (step !== 3) return;
-    raceActiveRef.current = true;
-    setRaceStarted(true);
-    setWindowOpen(false);
-    setPerfectHits(0);
-    setMutations(0);
-    setCurrentCycle(1);
-    setOutcome(null);
-    clearRaceTimers();
-    startCycle(1);
-  };
-
-  const handleTimingClick = () => {
-    if (!raceActiveRef.current || !raceStarted) return;
-
-    if (windowOpen && !clickedThisCycleRef.current) {
-      clickedThisCycleRef.current = true;
-      setPerfectHits((prev) => prev + 1);
-      setWindowOpen(false);
-      setRaceStatus(`Cycle ${cycleRef.current}: פגיעה מושלמת - הכפלה מלאה`);
-
-      if (openWindowTimeoutRef.current) clearTimeout(openWindowTimeoutRef.current);
-      advanceTimeoutRef.current = setTimeout(() => startCycle(cycleRef.current + 1), 120);
+    if (activeScenarioSelection === activeScenario.correctOptionId) {
+      setScenarioSolvedIds((prev) => {
+        const next = new Set(prev);
+        next.add(activeScenario.id);
+        return next;
+      });
+      setScenarioFeedback({
+        level: 'success',
+        text: activeScenario.successText
+      });
       return;
     }
 
-    if (!windowOpen && !earlyPenaltyRef.current) {
-      earlyPenaltyRef.current = true;
-      setMutations((prev) => prev + 1);
-      setRaceStatus(`Cycle ${cycleRef.current}: לחיצה לא בזמן - נרשמה מוטציה`);
+    setScenarioFeedback({
+      level: 'error',
+      text: activeScenarioOption?.feedback ?? 'בחירה לא נכונה. נסו שוב.'
+    });
+  };
+
+  const jumpToNextScenario = () => {
+    const nextIndex = Math.min(TROUBLESHOOTING_SCENARIOS.length - 1, activeScenarioIndex + 1);
+    const nextScenarioId = TROUBLESHOOTING_SCENARIOS[nextIndex].id;
+    if (!isScenarioUnlocked(nextScenarioId)) {
+      return;
     }
+    selectScenario(nextScenarioId);
+  };
+
+  const jumpToPreviousScenario = () => {
+    const previousIndex = Math.max(0, activeScenarioIndex - 1);
+    selectScenario(TROUBLESHOOTING_SCENARIOS[previousIndex].id);
   };
 
   const resetEntireGame = () => {
-    raceActiveRef.current = false;
-    clearRaceTimers();
     setStep(1);
     setAddedReagents(new Set());
     setDraggedReagentId(null);
@@ -486,67 +528,44 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       continuationPromptTimeoutRef.current = null;
     }
     setShowScientificExplanation(false);
-    setShowContaminationModal(false);
     setActivePracticeId('practice-1');
     setSolvedPracticeIds(new Set());
-    setRaceStarted(false);
-    setCurrentCycle(1);
-    setWindowOpen(false);
-    setRaceStatus('לחץ על "התחל מרוץ"');
-    setPerfectHits(0);
-    setMutations(0);
-    setOutcome(null);
+    setActiveScenarioId('run-1');
+    setScenarioSelections({});
+    setScenarioSolvedIds(new Set());
+    setScenarioFeedback(null);
   };
 
-  const outcomeMessage =
-    outcome === 'clean-band'
-      ? 'מצטיין ביוטכנולוגיה! קיבלת תוצר נקי.'
-      : outcome === 'smear'
-        ? 'טמפרטורת ה-Annealing הייתה נמוכה מדי.'
-        : 'שכחת להוסיף Taq Polymerase או שהדנטורציה לא הייתה מלאה.';
-
   const mainStages: Array<{ id: Step; label: string }> = [
-    { id: 1, label: 'שלב 1: רכיבים' },
-    { id: 2, label: 'שלב 2: טרמוסייקלר' },
-    { id: 3, label: 'שלב 3: המרוץ למיליון' },
-    { id: 4, label: 'תוצאות ג׳ל' }
+    { id: 1, label: '׳©׳׳‘ 1: ׳¨׳›׳™׳‘׳™׳' },
+    { id: 2, label: '׳©׳׳‘ 2: ׳˜׳¨׳׳•׳¡׳™׳™׳§׳׳¨' },
+    { id: 3, label: '׳©׳׳‘ 3: PCR Troubleshooting' },
+    { id: 4, label: '׳¡׳™׳›׳•׳ ׳”׳¨׳¦׳•׳×' }
   ];
   const canNavigateToMainStage = (targetStage: Step) => {
     if (contaminationTooHigh) return targetStage === 1;
     if (targetStage === 1 || targetStage === 2) return true;
     if (targetStage === 3) return canProceedToStep3;
-    return outcome !== null;
+    return allScenariosSolved;
   };
-  const isRaceLocked = raceStarted && step === 3;
   const goToMainStage = (targetStage: Step) => {
     if (targetStage === step) return;
     if (contaminationTooHigh) {
-      setShowContaminationModal(true);
       return;
     }
-    if (isRaceLocked) return;
     if (!canNavigateToMainStage(targetStage)) return;
     setStep(targetStage);
   };
-
-  const additionalOutcomeNotes = [
-    missingRequired.length > 0 ? `חסרים רכיבים: ${missingRequired.map((id) => reagentById(id)?.label ?? id).join(', ')}` : null,
-    !hasDDW ? 'DDW לא נוסף: הריכוזים בתגובה גבוהים מדי.' : null,
-    contamination >= 60 ? 'מד הזיהום גבוה: סטריליות לא נשמרה לאורך הפיפטציה.' : null,
-    wrongReagents.length > 0
-      ? `נוספו רכיבים לא נחוצים: ${wrongReagents.map((id) => reagentById(id)?.label ?? id).join(', ')}`
-      : null
-  ].filter(Boolean) as string[];
 
   return (
     <div className="glass-pcr-card rounded-[2.5rem] border border-slate-700/30 p-6 md:p-8 space-y-6" dir="rtl">
       <div className="text-right space-y-3">
         <h2 className="text-3xl font-black text-white flex items-center gap-3 justify-start">
           <Beaker className="w-8 h-8 text-blue-400" />
-          The Master Mixer (אשף המאסטר-מיקס)
+          The Master Mixer (׳׳©׳£ ׳”׳׳׳¡׳˜׳¨-׳׳™׳§׳¡)
         </h2>
         <p className="text-lg text-slate-300 leading-relaxed">
-          בנו ריאקציית PCR מושלמת, תכננו את הטרמוסייקלר, ונצחו את מרוץ ההגברה ל-30 מחזורים.
+          בנו ריאקציית PCR מדויקת, כוונו את הטרמוסייקלר, ופתרו 3 תרחישי תקלות אמיתיים כדי להבין סיבה-תוצאה.
         </p>
       </div>
 
@@ -554,7 +573,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
         {mainStages.map((stage) => {
           const isCurrentStage = step === stage.id;
           const isStageAllowed = isCurrentStage || canNavigateToMainStage(stage.id);
-          const isDisabled = !isStageAllowed || (isRaceLocked && stage.id !== 3);
+          const isDisabled = !isStageAllowed;
           return (
           <button
             key={stage.id}
@@ -578,7 +597,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
           <div className="sticky top-2 z-20 rounded-2xl border border-blue-500/35 bg-slate-900/85 p-3">
             <div className="flex items-start justify-between gap-3">
               <span className="text-slate-200 font-bold text-sm md:text-base leading-relaxed">
-                מד זיהום (Contamination) - שימו לב, אם תבחרו במרכיבים שגויים, הזיהום יגדל.
+                ׳׳“ ׳–׳™׳”׳•׳ (Contamination) - ׳©׳™׳׳• ׳׳‘, ׳׳ ׳×׳‘׳—׳¨׳• ׳‘׳׳¨׳›׳™׳‘׳™׳ ׳©׳’׳•׳™׳™׳, ׳”׳–׳™׳”׳•׳ ׳™׳’׳“׳.
               </span>
               <span className={`font-black ${contaminationVisuals.text} shrink-0`}>
                 {contamination}%
@@ -598,12 +617,12 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               animate={{ opacity: 1, y: 0 }}
               className="absolute top-24 left-1/2 -translate-x-1/2 z-30 w-[calc(100%-1.5rem)] rounded-2xl border border-amber-300/65 bg-slate-900 shadow-2xl p-3 flex items-center justify-between gap-3"
             >
-              <p className="text-sm text-amber-100 font-bold">נוסף רכיב. החלף Tip לפני בחירה הבאה.</p>
+              <p className="text-sm text-amber-100 font-bold">׳ ׳•׳¡׳£ ׳¨׳›׳™׳‘. ׳”׳—׳׳£ Tip ׳׳₪׳ ׳™ ׳‘׳—׳™׳¨׳” ׳”׳‘׳׳”.</p>
               <button
                 onClick={replaceTip}
                 className="px-3 py-1.5 rounded-lg border border-amber-300/70 bg-amber-500/25 hover:bg-amber-500/35 text-amber-50 text-sm font-bold whitespace-nowrap"
               >
-                החלף Tip
+                ׳”׳—׳׳£ Tip
               </button>
             </motion.div>
           )}
@@ -611,9 +630,9 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="rounded-2xl border border-blue-500/35 bg-slate-900/50 p-4">
-                <h3 className="text-xl font-black text-white mb-2">שלב 1: The Pipetting Challenge</h3>
+                <h3 className="text-xl font-black text-white mb-2">׳©׳׳‘ 1: The Pipetting Challenge</h3>
                 <p className="text-slate-300">
-                  גרור/י רכיבים מהמקרר אל מבחנת Eppendorf. חובה להחליף Tip בין רכיב לרכיב כדי לשמור סטריליות.
+                  ׳’׳¨׳•׳¨/׳™ ׳¨׳›׳™׳‘׳™׳ ׳׳”׳׳§׳¨׳¨ ׳׳ ׳׳‘׳—׳ ׳× Eppendorf. ׳—׳•׳‘׳” ׳׳”׳—׳׳™׳£ Tip ׳‘׳™׳ ׳¨׳›׳™׳‘ ׳׳¨׳›׳™׳‘ ׳›׳“׳™ ׳׳©׳׳•׳¨ ׳¡׳˜׳¨׳™׳׳™׳•׳×.
                 </p>
               </div>
 
@@ -646,7 +665,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                             disabled={!tipFresh}
                             className="text-xs px-2 py-1 rounded-lg border border-blue-500/35 hover:border-blue-400 text-slate-200 disabled:opacity-45 disabled:cursor-not-allowed"
                           >
-                            הוסף
+                            ׳”׳•׳¡׳£
                           </button>
                         )}
                       </div>
@@ -665,8 +684,8 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             >
               <div className="flex items-center justify-between">
                 <div className="text-right">
-                  <p className="text-white font-black">מבחנת Master Mix</p>
-                  <p className="text-xs text-slate-400">גרור לכאן רכיבים מהמקרר</p>
+                  <p className="text-white font-black">׳׳‘׳—׳ ׳× Master Mix</p>
+                  <p className="text-xs text-slate-400">׳’׳¨׳•׳¨ ׳׳›׳׳ ׳¨׳›׳™׳‘׳™׳ ׳׳”׳׳§׳¨׳¨</p>
                 </div>
                 <Dna className="w-6 h-6 text-blue-300" />
               </div>
@@ -678,13 +697,13 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                     <button
                       onClick={() => removeReagent(id)}
                       className="w-3 h-3 rounded-full border border-blue-300/40 text-[8px] leading-none hover:bg-blue-400/20"
-                      aria-label={`הסר ${reagentById(id)?.label ?? id}`}
+                      aria-label={`׳”׳¡׳¨ ${reagentById(id)?.label ?? id}`}
                     >
-                      ×
+                      ֳ—
                     </button>
                   </span>
                 ))}
-                {addedReagents.size === 0 && <span className="text-slate-500 text-sm">אין רכיבים במבחנה עדיין</span>}
+                {addedReagents.size === 0 && <span className="text-slate-500 text-sm">׳׳™׳ ׳¨׳›׳™׳‘׳™׳ ׳‘׳׳‘׳—׳ ׳” ׳¢׳“׳™׳™׳</span>}
               </div>
 
               <div className="absolute bottom-3 right-3">
@@ -693,7 +712,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                   onClick={() => setStep(2)}
                   className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold px-5 py-2.5 rounded-xl"
                 >
-                  המשך לשלב 2
+                  ׳”׳׳©׳ ׳׳©׳׳‘ 2
                 </button>
               </div>
             </div>
@@ -706,7 +725,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
         <div className="rounded-2xl border border-slate-700/50 bg-slate-900/55 p-5 space-y-5">
           <h3 className="text-xl font-black text-white flex items-center gap-2">
             <Thermometer className="w-6 h-6 text-blue-300" />
-            שלב 2: Thermal Cycling Logic
+            ׳©׳׳‘ 2: Thermal Cycling Logic
           </h3>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -733,24 +752,24 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                             : 'border-slate-700 bg-slate-900/60 text-slate-300 hover:border-blue-400/60'
                         } ${!isUnlocked ? 'opacity-45 cursor-not-allowed' : ''}`}
                       >
-                        {practice.title} {isSolved ? '✓' : ''}
+                        {practice.title} {isSolved ? 'ג“' : ''}
                       </button>
                     );
                   })}
                 </div>
 
                 <div className="rounded-xl border border-slate-700/70 bg-slate-950/80 p-4 space-y-2">
-                  <p className="text-slate-100 font-bold">רצף פריימר לאנליזה ({activePractice.title})</p>
+                  <p className="text-slate-100 font-bold">׳¨׳¦׳£ ׳₪׳¨׳™׳™׳׳¨ ׳׳׳ ׳׳™׳–׳” ({activePractice.title})</p>
                   <p className="text-xs text-slate-400">{activePractice.note}</p>
                   <p className="font-mono text-blue-200 break-all">{activePractice.sequence}</p>
                   <p className="text-sm text-slate-300">
                     GC%: <span className="font-bold text-emerald-300">{activePractice.gcPercent}%</span>
                   </p>
                   <p className="text-sm text-slate-300">
-                    בסיסים: A={activePractice.aCount}, T={activePractice.tCount}, G={activePractice.gCount}, C={activePractice.cCount}
+                    ׳‘׳¡׳™׳¡׳™׳: A={activePractice.aCount}, T={activePractice.tCount}, G={activePractice.gCount}, C={activePractice.cCount}
                   </p>
                   <p className="text-sm text-slate-300">
-                    סכומים לחישוב:{' '}
+                    ׳¡׳›׳•׳׳™׳ ׳׳—׳™׳©׳•׳‘:{' '}
                     <bdi dir="ltr">
                       (A+T)={activePractice.atCount}, (G+C)={activePractice.gcCount}
                     </bdi>
@@ -760,7 +779,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                       onClick={() => setShowScientificExplanation(true)}
                       className="px-4 py-2 rounded-xl border border-violet-400/40 bg-violet-500/15 hover:bg-violet-500/25 text-violet-100 text-sm font-bold"
                     >
-                      פתח הסבר מדעי
+                      ׳₪׳×׳— ׳”׳¡׳‘׳¨ ׳׳“׳¢׳™
                     </button>
                   </div>
                 </div>
@@ -776,7 +795,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                     disabled={activePracticeIndex <= 0}
                     className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    תרגיל קודם
+                    ׳×׳¨׳’׳™׳ ׳§׳•׳“׳
                   </button>
                   <button
                     onClick={() => {
@@ -791,16 +810,16 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                     }
                     className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    תרגיל הבא
+                    ׳×׳¨׳’׳™׳ ׳”׳‘׳
                   </button>
-                  <span className="text-xs text-slate-300">התקדמות: {solvedPracticeCount}/{thermalPracticeStats.length}</span>
+                  <span className="text-xs text-slate-300">׳”׳×׳§׳“׳׳•׳×: {solvedPracticeCount}/{thermalPracticeStats.length}</span>
                 </div>
               </div>
             </div>
 
             <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4 space-y-4">
               <div className="space-y-2">
-                <label className="text-sm text-slate-200 font-bold">Denaturation (°C)</label>
+                <label className="text-sm text-slate-200 font-bold">Denaturation (ֲ°C)</label>
                 <input
                   type="number"
                   value={thermoConfig.denaturation}
@@ -812,7 +831,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm text-slate-200 font-bold">Annealing (°C)</label>
+                <label className="text-sm text-slate-200 font-bold">Annealing (ֲ°C)</label>
                 <input
                   type="number"
                   value={thermoConfig.annealing}
@@ -824,7 +843,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm text-slate-200 font-bold">Extension (°C)</label>
+                <label className="text-sm text-slate-200 font-bold">Extension (ֲ°C)</label>
                 <input
                   type="number"
                   value={thermoConfig.extension}
@@ -858,21 +877,21 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               onClick={validateThermalProfile}
               className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-xl"
             >
-              בדוק פרופיל טרמי
+              ׳‘׳“׳•׳§ ׳₪׳¨׳•׳₪׳™׳ ׳˜׳¨׳׳™
             </button>
             <button
               disabled={!canProceedToStep3}
               onClick={() => setStep(3)}
               className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold px-5 py-2.5 rounded-xl"
             >
-              המשך לשלב 3
+              ׳”׳׳©׳ ׳׳©׳׳‘ 3
             </button>
             {allPracticesSolved && !showContinuationPrompt && !canProceedToStep3 && (
               <button
                 onClick={() => setShowContinuationPrompt(true)}
                 className="bg-violet-600 hover:bg-violet-500 text-white font-bold px-5 py-2.5 rounded-xl"
               >
-                חזרה לשאלה
+                ׳—׳–׳¨׳” ׳׳©׳׳׳”
               </button>
             )}
           </div>
@@ -890,7 +909,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                 className="w-full max-w-2xl rounded-3xl border border-blue-500/45 bg-slate-950/95 shadow-2xl p-5 space-y-4"
                 onClick={(event) => event.stopPropagation()}
               >
-                <h4 className="text-xl font-black text-blue-100 text-right">עם איזה פריימר תרצה להמשיך?</h4>
+                <h4 className="text-xl font-black text-blue-100 text-right">׳¢׳ ׳׳™׳–׳” ׳₪׳¨׳™׳™׳׳¨ ׳×׳¨׳¦׳” ׳׳”׳׳©׳™׳?</h4>
                 <div className="flex flex-wrap gap-2">
                   {thermalPracticeStats.map((practice) => {
                     const isSelected = continuationPrimerChoice === practice.id;
@@ -912,8 +931,8 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                 {continuationPrimerChoice && (
                   <p className={`text-xs font-bold ${continuationPrimerChoice === 'practice-1' ? 'text-emerald-300' : 'text-red-300'}`}>
                     {continuationPrimerChoice === 'practice-1'
-                      ? 'בחירה נכונה. אפשר לעבור לשלב הבא.'
-                      : 'בחירתך שגויה. תוכל/י לחזור לתרגילים כדי לבחון שוב מיהו הפריימר האידיאלי.'}
+                      ? '׳‘׳—׳™׳¨׳” ׳ ׳›׳•׳ ׳”. ׳׳₪׳©׳¨ ׳׳¢׳‘׳•׳¨ ׳׳©׳׳‘ ׳”׳‘׳.'
+                      : '׳‘׳—׳™׳¨׳×׳ ׳©׳’׳•׳™׳”. ׳×׳•׳›׳/׳™ ׳׳—׳–׳•׳¨ ׳׳×׳¨׳’׳™׳׳™׳ ׳›׳“׳™ ׳׳‘׳—׳•׳ ׳©׳•׳‘ ׳׳™׳”׳• ׳”׳₪׳¨׳™׳™׳׳¨ ׳”׳׳™׳“׳™׳׳׳™.'}
                   </p>
                 )}
                 <div className="pt-1">
@@ -924,7 +943,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                     }}
                     className="px-4 py-2 rounded-xl border border-slate-600 bg-slate-900/70 hover:border-blue-400 text-slate-200 text-sm font-bold"
                   >
-                    חזרה לתרגילים
+                    ׳—׳–׳¨׳” ׳׳×׳¨׳’׳™׳׳™׳
                   </button>
                 </div>
               </motion.div>
@@ -949,47 +968,47 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                   <button
                     onClick={() => setShowScientificExplanation(false)}
                     className="text-slate-400 hover:text-white transition-colors p-1"
-                    aria-label="סגור חלון הסבר"
+                    aria-label="׳¡׳’׳•׳¨ ׳—׳׳•׳ ׳”׳¡׳‘׳¨"
                   >
                     <XCircle className="w-6 h-6" />
                   </button>
                   <h4 className="text-xl font-black text-violet-200 text-right">
-                    הסבר מדעי: נוסחת וואלס (Wallace Rule)
+                    ׳”׳¡׳‘׳¨ ׳׳“׳¢׳™: ׳ ׳•׳¡׳—׳× ׳•׳•׳׳׳¡ (Wallace Rule)
                   </h4>
                 </div>
 
                 <div className="p-5 space-y-3 text-right">
                   <p className="text-slate-200 leading-relaxed">
-                    זהו אחד החישובים הבסיסיים והחשובים בביוטכנולוגיה. הנוסחה מעריכה את
-                    טמפרטורת ההיתוך (<span className="font-mono">Tm</span>) שבה כמחצית ממולקולות ה-DNA הדו-גדילי
-                    (הפריימר והתבנית) נפרדות זו מזו.
+                    ׳–׳”׳• ׳׳—׳“ ׳”׳—׳™׳©׳•׳‘׳™׳ ׳”׳‘׳¡׳™׳¡׳™׳™׳ ׳•׳”׳—׳©׳•׳‘׳™׳ ׳‘׳‘׳™׳•׳˜׳›׳ ׳•׳׳•׳’׳™׳”. ׳”׳ ׳•׳¡׳—׳” ׳׳¢׳¨׳™׳›׳” ׳׳×
+                    ׳˜׳׳₪׳¨׳˜׳•׳¨׳× ׳”׳”׳™׳×׳•׳ (<span className="font-mono">Tm</span>) ׳©׳‘׳” ׳›׳׳—׳¦׳™׳× ׳׳׳•׳׳§׳•׳׳•׳× ׳”-DNA ׳”׳“׳•-׳’׳“׳™׳׳™
+                    (׳”׳₪׳¨׳™׳™׳׳¨ ׳•׳”׳×׳‘׳ ׳™׳×) ׳ ׳₪׳¨׳“׳•׳× ׳–׳• ׳׳–׳•.
                   </p>
 
                   <div className="rounded-xl border border-slate-700/60 bg-slate-900/70 p-3 text-slate-100 font-mono text-sm">
-                    Tm = 2 × (A + T) + 4 × (G + C)
+                    Tm = 2 ֳ— (A + T) + 4 ֳ— (G + C)
                   </div>
 
                   <div className="space-y-2 text-slate-200 leading-relaxed">
                     <p>
-                      <span className="font-bold text-blue-200">מדוע היחס הוא 2 ו-4?</span> ההבדל נובע ממספר קשרי המימן:
+                      <span className="font-bold text-blue-200">׳׳“׳•׳¢ ׳”׳™׳—׳¡ ׳”׳•׳ 2 ׳•-4?</span> ׳”׳”׳‘׳“׳ ׳ ׳•׳‘׳¢ ׳׳׳¡׳₪׳¨ ׳§׳©׳¨׳™ ׳”׳׳™׳׳:
                     </p>
                     <p>
-                      <span className="font-bold text-blue-200">A ו-T:</span> ביניהם 2 קשרי מימן, ולכן כל זוג תורם בערך
-                      <span className="font-mono"> 2°C</span> ליציבות התרמית.
+                      <span className="font-bold text-blue-200">A ׳•-T:</span> ׳‘׳™׳ ׳™׳”׳ 2 ׳§׳©׳¨׳™ ׳׳™׳׳, ׳•׳׳›׳ ׳›׳ ׳–׳•׳’ ׳×׳•׳¨׳ ׳‘׳¢׳¨׳
+                      <span className="font-mono"> 2ֲ°C</span> ׳׳™׳¦׳™׳‘׳•׳× ׳”׳×׳¨׳׳™׳×.
                     </p>
                     <p>
-                      <span className="font-bold text-blue-200">G ו-C:</span> ביניהם 3 קשרי מימן, קשר חזק ויציב יותר, ולכן כל זוג תורם בערך
-                      <span className="font-mono"> 4°C</span>.
+                      <span className="font-bold text-blue-200">G ׳•-C:</span> ׳‘׳™׳ ׳™׳”׳ 3 ׳§׳©׳¨׳™ ׳׳™׳׳, ׳§׳©׳¨ ׳—׳–׳§ ׳•׳™׳¦׳™׳‘ ׳™׳•׳×׳¨, ׳•׳׳›׳ ׳›׳ ׳–׳•׳’ ׳×׳•׳¨׳ ׳‘׳¢׳¨׳
+                      <span className="font-mono"> 4ֲ°C</span>.
                     </p>
                   </div>
 
                   <div className="rounded-xl border border-blue-500/25 bg-blue-500/10 p-3 space-y-1 text-slate-200">
                     <p>
-                      לאחר חישוב <span className="font-mono">Tm</span> לכל פריימר, מקובל לקבוע את טמפרטורת
-                      <span className="font-mono"> Annealing (Ta)</span> מעט נמוכה יותר.
+                      ׳׳׳—׳¨ ׳—׳™׳©׳•׳‘ <span className="font-mono">Tm</span> ׳׳›׳ ׳₪׳¨׳™׳™׳׳¨, ׳׳§׳•׳‘׳ ׳׳§׳‘׳•׳¢ ׳׳× ׳˜׳׳₪׳¨׳˜׳•׳¨׳×
+                      <span className="font-mono"> Annealing (Ta)</span> ׳׳¢׳˜ ׳ ׳׳•׳›׳” ׳™׳•׳×׳¨.
                     </p>
                     <p className="text-sm text-slate-300">
-                      Ta גבוהה מדי עלולה למנוע קישור פריימר; Ta נמוכה מדי עלולה ליצור קישור לא-ספציפי ו-primer dimers.
+                      Ta ׳’׳‘׳•׳”׳” ׳׳“׳™ ׳¢׳׳•׳׳” ׳׳׳ ׳•׳¢ ׳§׳™׳©׳•׳¨ ׳₪׳¨׳™׳™׳׳¨; Ta ׳ ׳׳•׳›׳” ׳׳“׳™ ׳¢׳׳•׳׳” ׳׳™׳¦׳•׳¨ ׳§׳™׳©׳•׳¨ ׳׳-׳¡׳₪׳¦׳™׳₪׳™ ׳•-primer dimers.
                     </p>
                   </div>
                 </div>
@@ -999,120 +1018,175 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
         </div>
       )}
 
-      {step === 3 && (
+                  {step === 3 && (
         <div className="rounded-2xl border border-slate-700/50 bg-slate-900/55 p-5 space-y-5">
           <h3 className="text-xl font-black text-white flex items-center gap-2">
             <Target className="w-6 h-6 text-violet-300" />
-            שלב 3: The Amplification Race (30 Cycles)
+            שלב 3: PCR Troubleshooting (3 הרצות)
           </h3>
           <p className="text-slate-300 text-sm leading-relaxed">
-            לחיצה בזמן = הכפלה מושלמת (2^n). פספוס או לחיצה מוקדמת = מוטציה/עצירת שרשרת.
+            בכל הרצה מתקבלת תוצאת ג׳ל בעייתית. בחרו את התיקון היחיד שמתאים לסיבת התקלה.
           </p>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
-              <p className="text-slate-300 text-sm mb-1">Cycle נוכחי</p>
-              <p className="text-3xl font-black text-blue-300">{currentCycle}</p>
+          <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {TROUBLESHOOTING_SCENARIOS.map((scenario, index) => {
+                const isActive = scenario.id === activeScenario.id;
+                const isSolved = scenarioSolvedIds.has(scenario.id);
+                const isUnlocked = index === 0 || scenarioSolvedIds.has(TROUBLESHOOTING_SCENARIOS[index - 1].id);
+                return (
+                  <button
+                    key={scenario.id}
+                    onClick={() => selectScenario(scenario.id)}
+                    disabled={!isUnlocked}
+                    className={[
+                      'px-3 py-1.5 rounded-lg border text-xs font-bold',
+                      isActive
+                        ? 'border-blue-400 bg-blue-500/20 text-blue-100'
+                        : 'border-slate-700 bg-slate-900/60 text-slate-300 hover:border-blue-400/60',
+                      !isUnlocked ? 'opacity-45 cursor-not-allowed' : ''
+                    ].join(' ')}
+                  >
+                    {scenario.title} {isSolved ? '✓' : ''}
+                  </button>
+                );
+              })}
             </div>
-            <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
-              <p className="text-slate-300 text-sm mb-1">פגיעות מושלמות</p>
-              <p className="text-3xl font-black text-emerald-300">{perfectHits}</p>
+            <p className="text-xs text-slate-300">
+              התקדמות בהרצות: {solvedScenarioCount}/{TROUBLESHOOTING_SCENARIOS.length}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-4 space-y-3">
+              <p className="text-slate-100 font-bold">
+                {activeScenario.title}: {activeScenario.summary}
+              </p>
+              <p className="text-sm text-slate-300 leading-relaxed">{activeScenario.context}</p>
+
+              <div className="relative h-52 rounded-xl border border-slate-700 bg-gradient-to-b from-slate-900 to-slate-950 overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-10 bg-slate-800/70 border-b border-slate-700" />
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-4 rounded-sm bg-slate-700" />
+
+                {activeScenario.gelIssue === 'no-band' && (
+                  <div className="absolute left-1/2 -translate-x-1/2 top-32 w-24 h-2 rounded-full bg-slate-500/25" />
+                )}
+
+                {activeScenario.gelIssue === 'smear' && (
+                  <div className="absolute left-1/2 -translate-x-1/2 top-16 w-20 h-28 rounded-full bg-gradient-to-b from-blue-200/80 via-blue-300/40 to-transparent blur-[1px]" />
+                )}
+
+                {activeScenario.gelIssue === 'multi-band' && (
+                  <>
+                    <div className="absolute left-1/2 -translate-x-1/2 top-[4.5rem] w-20 h-2 rounded-full bg-amber-200/90 shadow-[0_0_10px_rgba(253,230,138,0.6)]" />
+                    <div className="absolute left-1/2 -translate-x-1/2 top-28 w-28 h-2 rounded-full bg-emerald-200/90 shadow-[0_0_10px_rgba(110,231,183,0.55)]" />
+                    <div className="absolute left-1/2 -translate-x-1/2 top-36 w-16 h-2 rounded-full bg-blue-200/90 shadow-[0_0_10px_rgba(147,197,253,0.55)]" />
+                  </>
+                )}
+              </div>
             </div>
-            <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
-              <p className="text-slate-300 text-sm mb-1">מוטציות / פספוסים</p>
-              <p className="text-3xl font-black text-red-300">{mutations}</p>
+
+            <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-4 space-y-3">
+              <p className="text-slate-100 font-bold">בחרו תיקון אחד:</p>
+              <div className="space-y-2">
+                {activeScenario.options.map((option) => {
+                  const isSelected = activeScenarioSelection === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      onClick={() => selectScenarioOption(option.id)}
+                      className={[
+                        'w-full text-right px-3 py-2 rounded-lg border text-sm font-medium transition-colors',
+                        isSelected
+                          ? 'border-blue-400 bg-blue-500/15 text-blue-100'
+                          : 'border-slate-700 bg-slate-900/70 text-slate-200 hover:border-blue-400/60'
+                      ].join(' ')}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-wrap gap-3 pt-2">
+                <button
+                  onClick={validateScenarioChoice}
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-xl"
+                >
+                  בדוק בחירה
+                </button>
+              </div>
+
+              {scenarioFeedback && (
+                <div
+                  className={[
+                    'rounded-xl border px-4 py-3 text-sm font-medium',
+                    scenarioFeedback.level === 'success'
+                      ? 'border-emerald-400/45 bg-emerald-500/10 text-emerald-200'
+                      : scenarioFeedback.level === 'error'
+                        ? 'border-red-400/45 bg-red-500/10 text-red-100'
+                        : 'border-amber-400/45 bg-amber-500/10 text-amber-100'
+                  ].join(' ')}
+                >
+                  {scenarioFeedback.text}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-700 bg-slate-950/70 p-5 text-center space-y-3">
-            <p className={`text-lg font-bold ${windowOpen ? 'text-emerald-300' : 'text-slate-300'}`}>{raceStatus}</p>
-            <div className="h-3 rounded-full bg-slate-800 overflow-hidden">
-              <div
-                className={`h-full transition-all duration-150 ${windowOpen ? 'bg-emerald-400' : 'bg-blue-500/50'}`}
-                style={{ width: `${(currentCycle / TOTAL_CYCLES) * 100}%` }}
-              />
-            </div>
-
-            <div className="flex flex-wrap justify-center gap-3 pt-2">
-              <button
-                onClick={startRace}
-                disabled={raceStarted}
-                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold px-5 py-2.5 rounded-xl inline-flex items-center gap-2"
-              >
-                <Play className="w-4 h-4" />
-                התחל מרוץ
-              </button>
-              <button
-                onClick={handleTimingClick}
-                disabled={!raceStarted}
-                className={`font-bold px-5 py-2.5 rounded-xl text-white inline-flex items-center gap-2 ${
-                  windowOpen ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-violet-600 hover:bg-violet-500'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                <Dna className="w-4 h-4" />
-                לחץ לסיום הארכה
-              </button>
-            </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={jumpToPreviousScenario}
+              disabled={activeScenarioIndex <= 0}
+              className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              הרצה קודמת
+            </button>
+            <button
+              onClick={jumpToNextScenario}
+              disabled={
+                activeScenarioIndex >= TROUBLESHOOTING_SCENARIOS.length - 1 ||
+                !scenarioSolvedIds.has(activeScenario.id)
+              }
+              className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              הרצה הבאה
+            </button>
+            <button
+              onClick={() => setStep(4)}
+              disabled={!allScenariosSolved}
+              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold px-5 py-2.5 rounded-xl"
+            >
+              המשך לשלב 4
+            </button>
           </div>
         </div>
       )}
 
-      {step === 4 && outcome && (
+      {step === 4 && allScenariosSolved && (
         <div className="rounded-2xl border border-slate-700/50 bg-slate-900/55 p-5 space-y-5">
-          <h3 className="text-2xl font-black text-white">תוצאות המשחק ותמונת ג׳ל</h3>
+          <h3 className="text-2xl font-black text-white">סיכום דיבאגינג PCR</h3>
+          <p className="text-slate-300 text-sm">שלוש ההרצות נפתרו. זהו מיפוי הקשיים והתיקונים שבחרת.</p>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div className="rounded-2xl border border-slate-700 bg-slate-950/70 p-4">
-              <p className="text-slate-200 font-bold mb-3">אלקטרופורזה - תוצר סופי</p>
-              <div className="relative h-52 rounded-xl bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-700 overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-10 bg-slate-800/70 border-b border-slate-700" />
-                <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-4 rounded-sm bg-slate-700" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {TROUBLESHOOTING_SCENARIOS.map((scenario) => {
+              const chosenOptionId = scenarioSelections[scenario.id];
+              const chosenOption = scenario.options.find((option) => option.id === chosenOptionId);
+              const isCorrect = chosenOptionId === scenario.correctOptionId;
+              const correctOption = scenario.options.find((option) => option.id === scenario.correctOptionId);
 
-                {outcome === 'clean-band' && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-28 w-28 h-3 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(52,211,153,0.8)]" />
-                )}
-
-                {outcome === 'smear' && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-16 w-20 h-28 rounded-full bg-gradient-to-b from-blue-200/80 via-blue-300/40 to-transparent blur-[1px]" />
-                )}
-
-                {outcome === 'no-band' && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-30 w-24 h-2 rounded-full bg-slate-500/25" />
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-700 bg-slate-950/70 p-4 space-y-4">
-              <p className="text-lg font-black text-white">{outcomeMessage}</p>
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-xl border border-slate-700 bg-slate-900/80 p-3">
-                  <p className="text-slate-400">יעילות כוללת</p>
-                  <p className="text-2xl font-black text-blue-300">{efficiency}%</p>
+              return (
+                <div key={'summary-' + scenario.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4 space-y-3">
+                  <p className="text-slate-100 font-bold">{scenario.title}</p>
+                  <p className="text-sm text-slate-300">{scenario.summary}</p>
+                  <p className={['text-xs font-bold', isCorrect ? 'text-emerald-300' : 'text-red-300'].join(' ')}>
+                    {isCorrect ? 'בחירה נכונה' : 'נדרש תיקון נוסף'}
+                  </p>
+                  <p className="text-xs text-slate-300">נבחר: {chosenOption?.label ?? 'לא נבחר'}</p>
+                  <p className="text-xs text-slate-400">תיקון מדויק: {correctOption?.label}</p>
                 </div>
-                <div className="rounded-xl border border-slate-700 bg-slate-900/80 p-3">
-                  <p className="text-slate-400">מד זיהום</p>
-                  <p className="text-2xl font-black text-amber-300">{contamination}%</p>
-                </div>
-                <div className="rounded-xl border border-slate-700 bg-slate-900/80 p-3">
-                  <p className="text-slate-400">פגיעות בזמן</p>
-                  <p className="text-2xl font-black text-emerald-300">{perfectHits}/{TOTAL_CYCLES}</p>
-                </div>
-                <div className="rounded-xl border border-slate-700 bg-slate-900/80 p-3">
-                  <p className="text-slate-400">מוטציות</p>
-                  <p className="text-2xl font-black text-red-300">{mutations}</p>
-                </div>
-              </div>
-
-              {additionalOutcomeNotes.length > 0 && (
-                <div className="rounded-xl border border-slate-700 bg-slate-900/80 p-3 space-y-1">
-                  <p className="text-slate-200 font-bold text-sm">הערות לשיפור:</p>
-                  {additionalOutcomeNotes.map((note) => (
-                    <p key={note} className="text-xs text-slate-300 leading-relaxed">• {note}</p>
-                  ))}
-                </div>
-              )}
-            </div>
+              );
+            })}
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -1134,7 +1208,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
         </div>
       )}
 
-      {showContaminationModal && (
+      {contaminationTooHigh && (
         <motion.div
           className="fixed inset-0 z-[99] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
           initial={{ opacity: 0 }}
@@ -1146,16 +1220,16 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             className="w-full max-w-md rounded-2xl border border-red-500/45 bg-slate-950/95 p-5 text-right space-y-3 shadow-2xl"
           >
-            <h4 className="text-xl font-black text-red-200">עצור: זיהום גבוה</h4>
+            <h4 className="text-xl font-black text-red-200">׳¢׳¦׳•׳¨: ׳–׳™׳”׳•׳ ׳’׳‘׳•׳”</h4>
             <p className="text-slate-200 leading-relaxed">
-              הגעת ל-30% זיהום ומעלה. לא ניתן להמשיך בתהליך.
+              ׳”׳’׳¢׳× ׳-30% ׳–׳™׳”׳•׳ ׳•׳׳¢׳׳”. ׳׳ ׳ ׳™׳×׳ ׳׳”׳׳©׳™׳ ׳‘׳×׳”׳׳™׳.
             </p>
-            <p className="text-sm font-bold text-red-200">התחל מחדש - הזיהום רב מידי!</p>
+            <p className="text-sm font-bold text-red-200">׳”׳×׳—׳ ׳׳—׳“׳© - ׳”׳–׳™׳”׳•׳ ׳¨׳‘ ׳׳™׳“׳™!</p>
             <button
               onClick={resetEntireGame}
               className="w-full bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-2.5 rounded-xl"
             >
-              התחל מחדש
+              ׳”׳×׳—׳ ׳׳—׳“׳©
             </button>
           </motion.div>
         </motion.div>
@@ -1164,3 +1238,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     </div>
   );
 }
+
+
+
+
