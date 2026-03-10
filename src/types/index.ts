@@ -1,4 +1,4 @@
-export type SimulationPhase = 'preparation' | 'pcr-running' | 'completed';
+export type SimulationPhase = 'preparation' | 'pcr-running' | 'completed' | 'gene-expression-lab';
 
 export type IngredientId = 'dna' | 'primers' | 'taq' | 'dntps' | 'buffer' | 'rna-pol' | 'helicase' | 'ribosome';
 
@@ -14,7 +14,7 @@ export interface Ingredient {
 export const INGREDIENTS: Ingredient[] = [
   {
     id: 'dna',
-    name: 'תבנית DNA (DNA Template)',
+    name: 'תבנית DNA',
     shortName: 'DNA',
     description: 'מולקולת ה-DNA המקורית שממנה אנו רוצים לשכפל מקטע ספציפי.',
     isRequired: true,
