@@ -323,9 +323,8 @@ function ScenarioGelPanel({
 
   return (
     <div className={`rounded-xl border border-slate-700 bg-slate-950/70 ${compact ? 'p-3 space-y-2' : 'p-4 space-y-3'}`}>
-      <div className="flex items-center justify-between text-[11px] text-slate-300">
+      <div className="flex items-center text-[11px] text-slate-300">
         <span className="font-bold text-slate-100">Gel Electrophoresis (Simulated)</span>
-        <span>Ladder • Positive Control • Negative Control • Sample</span>
       </div>
 
       <div className={`relative rounded-xl border border-slate-700 overflow-hidden ${compact ? 'h-52' : 'h-56'}`}>
