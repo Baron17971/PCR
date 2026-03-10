@@ -480,12 +480,29 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       </div>
 
       {step === 1 && (
-        <div className="relative">
+        <div className="relative space-y-4">
+          <div className="sticky top-2 z-20 rounded-2xl border border-blue-500/35 bg-slate-900/85 p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-200 font-bold">מד זיהום (Contamination)</span>
+              <span className={`font-black ${contamination < 30 ? 'text-emerald-300' : contamination <= 60 ? 'text-amber-300' : 'text-red-300'}`}>
+                {contamination}%
+              </span>
+            </div>
+            <div className="mt-2 h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div
+                className={`h-full transition-all ${
+                  contamination < 30 ? 'bg-emerald-400' : contamination <= 60 ? 'bg-amber-400' : 'bg-red-500'
+                }`}
+                style={{ width: `${contamination}%` }}
+              />
+            </div>
+          </div>
+
           {!tipFresh && !contaminationTooHigh && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="absolute top-3 left-1/2 -translate-x-1/2 z-30 w-[calc(100%-1.5rem)] rounded-2xl border border-amber-300/65 bg-slate-900 shadow-2xl p-3 flex items-center justify-between gap-3"
+              className="absolute top-20 left-1/2 -translate-x-1/2 z-30 w-[calc(100%-1.5rem)] rounded-2xl border border-amber-300/65 bg-slate-900 shadow-2xl p-3 flex items-center justify-between gap-3"
             >
               <p className="text-sm text-amber-100 font-bold">נוסף רכיב. החלף Tip לפני בחירה הבאה.</p>
               <button
@@ -579,23 +596,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             </div>
 
             <div className="rounded-2xl border border-blue-500/35 bg-slate-900/60 p-4 space-y-3">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-200 font-bold">מד זיהום (Contamination)</span>
-                  <span className={`font-black ${contamination < 30 ? 'text-emerald-300' : contamination <= 60 ? 'text-amber-300' : 'text-red-300'}`}>
-                    {contamination}%
-                  </span>
-                </div>
-                <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
-                  <div
-                    className={`h-full transition-all ${
-                      contamination < 30 ? 'bg-emerald-400' : contamination <= 60 ? 'bg-amber-400' : 'bg-red-500'
-                    }`}
-                    style={{ width: `${contamination}%` }}
-                  />
-                </div>
-              </div>
-
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm">
                   <p className="text-slate-300">Tip נוכחי:</p>
