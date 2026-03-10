@@ -377,7 +377,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     }
     setThermoFeedback({
       level: 'red',
-      text: 'בחירה שגויה. רק פריימר 1 יוביל לשלב הבא.'
+      text: 'בחירתך שגויה. תוכל/י לחזור לתרגילים כדי לבחון שוב מיהו הפריימר האידיאלי.'
     });
   };
 
@@ -905,7 +905,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                   <p className={`text-xs font-bold ${continuationPrimerChoice === 'practice-1' ? 'text-emerald-300' : 'text-red-300'}`}>
                     {continuationPrimerChoice === 'practice-1'
                       ? 'בחירה נכונה. אפשר לעבור לשלב הבא.'
-                      : 'כדי להמשיך חובה לבחור בפריימר 1.'}
+                      : 'בחירתך שגויה. תוכל/י לחזור לתרגילים כדי לבחון שוב מיהו הפריימר האידיאלי.'}
                   </p>
                 )}
               </motion.div>
