@@ -107,7 +107,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const [addedReagents, setAddedReagents] = useState<Set<ReagentId>>(new Set());
   const [draggedReagentId, setDraggedReagentId] = useState<ReagentId | null>(null);
   const [tipFresh, setTipFresh] = useState(true);
-  const [tipReminder, setTipReminder] = useState('');
   const [contamination, setContamination] = useState(0);
 
   const [thermoConfig, setThermoConfig] = useState({
@@ -213,7 +212,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     if (step !== 1) return;
     if (addedReagents.has(id)) return;
     if (!tipFresh) {
-      setTipReminder('לפני הוספת רכיב נוסף יש להחליף Tip.');
       return;
     }
 
@@ -229,7 +227,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     }
 
     setTipFresh(false);
-    setTipReminder('החלף Tip לפני הוספת הרכיב הבא.');
   };
 
   const removeReagent = (id: ReagentId) => {
@@ -252,7 +249,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
   const replaceTip = () => {
     setTipFresh(true);
-    setTipReminder('');
   };
 
   const validateThermalProfile = () => {
@@ -387,7 +383,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     setAddedReagents(new Set());
     setDraggedReagentId(null);
     setTipFresh(true);
-    setTipReminder('');
     setContamination(0);
     setThermoConfig({ denaturation: 90, annealing: 45, extension: 68 });
     setThermoMessage('');
@@ -532,7 +527,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                       draggable={!isAdded && tipFresh}
                       onDragStart={() => {
                         if (!tipFresh) {
-                          setTipReminder('לפני הוספת רכיב נוסף יש להחליף Tip.');
                           return;
                         }
                         setDraggedReagentId(reagent.id);
@@ -603,25 +597,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                   המשך לשלב 2
                 </button>
               </div>
-            </div>
-
-            <div className="space-y-3 pt-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm">
-                  <p className="text-slate-300">Tip נוכחי:</p>
-                  <p className={`font-bold ${tipFresh ? 'text-emerald-300' : 'text-red-300'}`}>{tipFresh ? 'נקי' : 'בשימוש'}</p>
-                </div>
-                <button
-                  onClick={replaceTip}
-                  className="px-4 py-2 rounded-xl border border-slate-600 hover:border-blue-400 bg-slate-800 text-slate-100 text-sm font-bold"
-                >
-                  החלף Tip
-                </button>
-              </div>
-
-              {tipReminder && (
-                <p className="text-xs text-amber-300">{tipReminder}</p>
-              )}
             </div>
             </div>
           </div>
