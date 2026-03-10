@@ -171,6 +171,18 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const hasDDW = addedReagents.has('ddw');
   const contaminationTooHigh = contamination >= 30;
   const step1Ready = missingRequired.length === 0 && wrongReagents.length === 0 && tipFresh && !contaminationTooHigh;
+  const contaminationVisuals = useMemo(() => {
+    if (contamination >= 30) {
+      return { text: 'text-red-300', bar: 'bg-red-500' };
+    }
+    if (contamination >= 20) {
+      return { text: 'text-orange-300', bar: 'bg-orange-400' };
+    }
+    if (contamination >= 10) {
+      return { text: 'text-yellow-300', bar: 'bg-yellow-400' };
+    }
+    return { text: 'text-emerald-300', bar: 'bg-emerald-400' };
+  }, [contamination]);
 
   const annealingStatus = getAnnealingStatus(thermoConfig.annealing, activePractice.tm);
   const denaturationValid = thermoConfig.denaturation >= 94 && thermoConfig.denaturation <= 95;
@@ -479,15 +491,13 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
           <div className="sticky top-2 z-20 rounded-2xl border border-blue-500/35 bg-slate-900/85 p-3">
             <div className="flex items-center justify-between">
               <span className="text-slate-200 font-bold">מד זיהום (Contamination)</span>
-              <span className={`font-black ${contamination < 30 ? 'text-emerald-300' : contamination <= 60 ? 'text-amber-300' : 'text-red-300'}`}>
+              <span className={`font-black ${contaminationVisuals.text}`}>
                 {contamination}%
               </span>
             </div>
             <div className="mt-2 h-2 rounded-full bg-slate-800 overflow-hidden">
               <div
-                className={`h-full transition-all ${
-                  contamination < 30 ? 'bg-emerald-400' : contamination <= 60 ? 'bg-amber-400' : 'bg-red-500'
-                }`}
+                className={`h-full transition-all ${contaminationVisuals.bar}`}
                 style={{ width: `${contamination}%` }}
               />
             </div>
