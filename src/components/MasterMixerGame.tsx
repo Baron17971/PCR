@@ -504,7 +504,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
           The Master Mixer (אשף המאסטר-מיקס)
         </h2>
         <p className="text-lg text-slate-300 leading-relaxed">
-          בנו ריאקציית PCR מושלמת, תכננו את הטרמוסייקלר, ונצחו את מרוץ ההגברה ל-30 מחזורים.
+          תכננו, הריצו ונתחו: המסע שלכם משלב המאסטר-מיקס ועד לפתרון בעיות בזמן אמת
         </p>
       </div>
 
