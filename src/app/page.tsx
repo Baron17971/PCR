@@ -48,7 +48,7 @@ export default function Home() {
         )}
 
         {phase === 'pcr-running' && (
-          <ThermalCycler onComplete={() => setPhase('replication-comparison')} />
+          <ThermalCycler />
         )}
 
         {phase === 'replication-comparison' && (

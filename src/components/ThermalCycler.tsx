@@ -1,6 +1,6 @@
 "use client";
 import React from 'react';
-import { ChevronRight, Thermometer, Zap, Share2, TrendingUp } from 'lucide-react';
+import { Thermometer, Zap, Share2, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import DNAAnimation from './DNAAnimation';
 
@@ -28,7 +28,7 @@ const PCR_STEPS = [
   }
 ];
 
-export default function ThermalCycler({ onComplete }: { onComplete: () => void }) {
+export default function ThermalCycler() {
   return (
     <div className="flex flex-col gap-6">
       {/* Simulation Content Area */}
@@ -76,15 +76,6 @@ export default function ThermalCycler({ onComplete }: { onComplete: () => void }
         <div className="flex-[1.4] glass-pcr-card rounded-3xl shadow-4xl flex flex-col border border-slate-700/30 overflow-hidden">
           <DNAAnimation />
         </div>
-      </div>
-
-      <div className="flex justify-start" dir="rtl">
-        <button
-          onClick={onComplete}
-          className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-3 rounded-2xl transition-all shadow-[0_10px_25px_rgba(59,130,246,0.25)]"
-        >
-          סיימתי את האנימציה - מעבר לפעילות השוואה
-        </button>
       </div>
 
     </div>
