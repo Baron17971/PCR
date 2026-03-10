@@ -776,9 +776,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   ];
   const canNavigateToMainStage = (targetStage: Step) => {
     if (contaminationTooHigh) return targetStage === 1;
-    if (targetStage === 1 || targetStage === 2) return true;
-    if (targetStage === 3) return canProceedToStep3;
-    return allScenariosSolved;
+    return true;
   };
   const goToMainStage = (targetStage: Step) => {
     if (targetStage === step) return;
@@ -1408,7 +1406,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
         </div>
       )}
 
-      {step === 4 && allScenariosSolved && (
+      {step === 4 && (
         <div className="rounded-2xl border border-slate-700/50 bg-slate-900/55 p-5 space-y-5">
           <h3 className="text-2xl font-black text-white">סיכום דיבאגינג PCR</h3>
           <p className="text-slate-300 text-sm">השלמתם שלוש הרצות שונות ובחרתם תיקון מתאים לכל תקלה.</p>
