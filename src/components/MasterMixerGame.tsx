@@ -58,6 +58,20 @@ const REAGENTS: Reagent[] = [
 const REQUIRED_REAGENTS = REAGENTS.filter((reagent) => reagent.required).map((reagent) => reagent.id);
 
 const PRIMER_SEQUENCE = 'ATGCGTACCGGATTCGATGC';
+const EXTRA_PRACTICES = [
+  {
+    id: 'practice-2',
+    title: 'תרגול נוסף 1',
+    sequence: 'TTAATATTAATATTAATATT',
+    note: 'רצף עשיר בבסיסי A-T'
+  },
+  {
+    id: 'practice-3',
+    title: 'תרגול נוסף 2',
+    sequence: 'GCGTCCGCGGCGCGTCCGCG',
+    note: 'רצף עשיר בבסיסי G-C'
+  }
+] as const;
 
 function countBases(sequence: string) {
   const upper = sequence.toUpperCase();
@@ -118,6 +132,22 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const gcCount = baseCounts.gCount + baseCounts.cCount;
   const tm = 2 * atCount + 4 * gcCount;
   const gcPercent = Math.round((gcCount / PRIMER_SEQUENCE.length) * 100);
+  const extraPracticeStats = useMemo(() => {
+    return EXTRA_PRACTICES.map((practice) => {
+      const counts = countBases(practice.sequence);
+      const at = counts.aCount + counts.tCount;
+      const gc = counts.gCount + counts.cCount;
+      const tmValue = 2 * at + 4 * gc;
+      const gcValue = Math.round((gc / practice.sequence.length) * 100);
+      return {
+        ...practice,
+        tm: tmValue,
+        gcPercent: gcValue,
+        annealingMin: tmValue - 5,
+        annealingMax: tmValue
+      };
+    });
+  }, []);
 
   const missingRequired = REQUIRED_REAGENTS.filter((id) => !addedReagents.has(id));
   const wrongReagents = Array.from(addedReagents).filter(
@@ -517,21 +547,40 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
           </h3>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4 space-y-2">
-              <p className="text-slate-100 font-bold">רצף פריימר לאנליזה</p>
-              <p className="font-mono text-blue-200 break-all">{PRIMER_SEQUENCE}</p>
-              <p className="text-sm text-slate-300">GC%: <span className="font-bold text-emerald-300">{gcPercent}%</span></p>
-              <p className="text-sm text-slate-300">
-                חישוב Tm מהיר: 2 × (A+T) + 4 × (G+C) = <span className="font-bold text-violet-300">{tm}°C</span>
-              </p>
-              <p className="text-xs text-slate-500">טווח Annealing מומלץ: {tm - 5}°C עד {tm}°C</p>
-              <div className="pt-2">
-                <button
-                  onClick={() => setShowScientificExplanation(true)}
-                  className="px-4 py-2 rounded-xl border border-violet-400/40 bg-violet-500/15 hover:bg-violet-500/25 text-violet-100 text-sm font-bold"
-                >
-                  פתח הסבר מדעי
-                </button>
+            <div className="space-y-3">
+              <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4 space-y-2">
+                <p className="text-slate-100 font-bold">רצף פריימר לאנליזה (תרגול 1)</p>
+                <p className="font-mono text-blue-200 break-all">{PRIMER_SEQUENCE}</p>
+                <p className="text-sm text-slate-300">GC%: <span className="font-bold text-emerald-300">{gcPercent}%</span></p>
+                <p className="text-sm text-slate-300">
+                  חישוב Tm מהיר: 2 × (A+T) + 4 × (G+C) = <span className="font-bold text-violet-300">{tm}°C</span>
+                </p>
+                <p className="text-xs text-slate-500">טווח Annealing מומלץ: {tm - 5}°C עד {tm}°C</p>
+                <div className="pt-2">
+                  <button
+                    onClick={() => setShowScientificExplanation(true)}
+                    className="px-4 py-2 rounded-xl border border-violet-400/40 bg-violet-500/15 hover:bg-violet-500/25 text-violet-100 text-sm font-bold"
+                  >
+                    פתח הסבר מדעי
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {extraPracticeStats.map((practice) => (
+                  <div key={practice.id} className="rounded-xl border border-slate-700 bg-slate-950/60 p-3 space-y-1">
+                    <p className="text-slate-100 font-bold text-sm">{practice.title}</p>
+                    <p className="text-[11px] text-slate-400">{practice.note}</p>
+                    <p className="font-mono text-blue-200 break-all text-sm">{practice.sequence}</p>
+                    <p className="text-xs text-slate-300">GC%: <span className="font-bold text-emerald-300">{practice.gcPercent}%</span></p>
+                    <p className="text-xs text-slate-300">
+                      Tm: <span className="font-bold text-violet-300">{practice.tm}°C</span>
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Annealing מומלץ: {practice.annealingMin}°C עד {practice.annealingMax}°C
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
 
