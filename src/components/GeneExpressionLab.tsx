@@ -109,7 +109,7 @@ export default function GeneExpressionLab() {
                     </li>
                     <li className="flex gap-3 items-start text-right">
                       <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs shrink-0 mt-0.5 font-bold shadow-md shadow-blue-500/20">2</div>
-                      <span className="leading-relaxed flex-1 font-medium">מה היית מצפה לראות בהרצה של תוצאות PCR מתא לבלב לתא שריר?</span>
+                      <span className="leading-relaxed flex-1 font-medium">מה היית מצפה לראות בהרצה של תוצאות PCR מתא לבלב ותא שריר?</span>
                     </li>
                     <li className="flex gap-3 items-start text-right">
                       <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs shrink-0 mt-0.5 font-bold shadow-md shadow-blue-500/20">3</div>
