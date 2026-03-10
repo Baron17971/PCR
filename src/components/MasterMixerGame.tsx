@@ -397,6 +397,25 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
         ? 'טמפרטורת ה-Annealing הייתה נמוכה מדי.'
         : 'שכחת להוסיף Taq Polymerase או שהדנטורציה לא הייתה מלאה.';
 
+  const mainStages: Array<{ id: Step; label: string }> = [
+    { id: 1, label: 'שלב 1: רכיבים' },
+    { id: 2, label: 'שלב 2: טרמוסייקלר' },
+    { id: 3, label: 'שלב 3: המרוץ למיליון' },
+    { id: 4, label: 'תוצאות ג׳ל' }
+  ];
+  const canNavigateToMainStage = (targetStage: Step) => {
+    if (targetStage === 1 || targetStage === 2) return true;
+    if (targetStage === 3) return allPracticesSolved;
+    return outcome !== null;
+  };
+  const isRaceLocked = raceStarted && step === 3;
+  const goToMainStage = (targetStage: Step) => {
+    if (targetStage === step) return;
+    if (isRaceLocked) return;
+    if (!canNavigateToMainStage(targetStage)) return;
+    setStep(targetStage);
+  };
+
   const additionalOutcomeNotes = [
     missingRequired.length > 0 ? `חסרים רכיבים: ${missingRequired.map((id) => reagentById(id)?.label ?? id).join(', ')}` : null,
     !hasDDW ? 'DDW לא נוסף: הריכוזים בתגובה גבוהים מדי.' : null,
@@ -419,25 +438,26 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        {[
-          { id: 1, label: 'שלב 1: רכיבים' },
-          { id: 2, label: 'שלב 2: טרמוסייקלר' },
-          { id: 3, label: 'שלב 3: המרוץ למיליון' },
-          { id: 4, label: 'תוצאות ג׳ל' }
-        ].map((stage) => (
-          <div
+        {mainStages.map((stage) => {
+          const isCurrentStage = step === stage.id;
+          const isStageAllowed = isCurrentStage || canNavigateToMainStage(stage.id);
+          const isDisabled = !isStageAllowed || (isRaceLocked && stage.id !== 3);
+          return (
+          <button
             key={stage.id}
+            onClick={() => goToMainStage(stage.id)}
+            disabled={isDisabled}
             className={`rounded-xl border px-3 py-2 text-sm font-bold text-center ${
-              step === stage.id
+              isCurrentStage
                 ? 'border-blue-400 bg-blue-500/20 text-blue-100'
-                : step > stage.id
+                : isStageAllowed
                   ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200'
                   : 'border-slate-700 bg-slate-900/50 text-slate-400'
-            }`}
+            } ${isDisabled ? 'cursor-not-allowed opacity-50' : 'hover:border-blue-400/70 transition-colors'}`}
           >
             {stage.label}
-          </div>
-        ))}
+          </button>
+        )})}
       </div>
 
       {step === 1 && (
