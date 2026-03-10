@@ -222,22 +222,22 @@ const buildLadderBands = (): GelBandModel[] =>
 const buildScenarioGelLanes = (issue: TroubleshootIssue): GelLaneModel[] => {
   if (issue === 'no-band') {
     return [
-      { id: 'ladder', label: 'Size Marker', bands: buildLadderBands() },
+      { id: 'ladder', label: 'Ladder', bands: buildLadderBands() },
       {
         id: 'positive',
-        label: 'Positive Ctrl',
+        label: 'Positive Control',
         bands: [{ top: 48, thickness: 3, tone: 'faint' }]
       },
-      { id: 'negative', label: 'Negative Ctrl', bands: [] },
+      { id: 'negative', label: 'Negative Control', bands: [] },
       { id: 'sample', label: 'Sample', bands: [] }
     ];
   }
 
   if (issue === 'smear') {
     return [
-      { id: 'ladder', label: 'Size Marker', bands: buildLadderBands() },
-      { id: 'positive', label: 'Positive Ctrl', bands: [{ top: 48, thickness: 4, tone: 'control' }] },
-      { id: 'negative', label: 'Negative Ctrl', bands: [] },
+      { id: 'ladder', label: 'Ladder', bands: buildLadderBands() },
+      { id: 'positive', label: 'Positive Control', bands: [{ top: 48, thickness: 4, tone: 'control' }] },
+      { id: 'negative', label: 'Negative Control', bands: [] },
       {
         id: 'sample',
         label: 'Sample',
@@ -248,9 +248,9 @@ const buildScenarioGelLanes = (issue: TroubleshootIssue): GelLaneModel[] => {
   }
 
   return [
-    { id: 'ladder', label: 'Size Marker', bands: buildLadderBands() },
-    { id: 'positive', label: 'Positive Ctrl', bands: [{ top: 48, thickness: 4, tone: 'control' }] },
-    { id: 'negative', label: 'Negative Ctrl', bands: [] },
+    { id: 'ladder', label: 'Ladder', bands: buildLadderBands() },
+    { id: 'positive', label: 'Positive Control', bands: [{ top: 48, thickness: 4, tone: 'control' }] },
+    { id: 'negative', label: 'Negative Control', bands: [] },
     {
       id: 'sample',
       label: 'Sample',
@@ -268,18 +268,18 @@ const controlStatusByIssue: Record<
   Array<{ label: string; value: string; tone: 'ok' | 'warn' | 'bad' }>
 > = {
   'no-band': [
-    { label: 'Positive Ctrl', value: 'No clear band (failed)', tone: 'bad' },
-    { label: 'Negative Ctrl', value: 'Clean lane', tone: 'ok' },
+    { label: 'Positive Control', value: 'No clear band (failed)', tone: 'bad' },
+    { label: 'Negative Control', value: 'Clean lane', tone: 'ok' },
     { label: 'Sample', value: 'No product', tone: 'bad' }
   ],
   smear: [
-    { label: 'Positive Ctrl', value: 'Single sharp band', tone: 'ok' },
-    { label: 'Negative Ctrl', value: 'Clean lane', tone: 'ok' },
+    { label: 'Positive Control', value: 'Single sharp band', tone: 'ok' },
+    { label: 'Negative Control', value: 'Clean lane', tone: 'ok' },
     { label: 'Sample', value: 'Smear / low specificity', tone: 'warn' }
   ],
   'multi-band': [
-    { label: 'Positive Ctrl', value: 'Single expected band', tone: 'ok' },
-    { label: 'Negative Ctrl', value: 'Clean lane', tone: 'ok' },
+    { label: 'Positive Control', value: 'Single expected band', tone: 'ok' },
+    { label: 'Negative Control', value: 'Clean lane', tone: 'ok' },
     { label: 'Sample', value: 'Multiple non-specific bands', tone: 'warn' }
   ]
 };
@@ -298,21 +298,28 @@ function ScenarioGelPanel({
     <div className={`rounded-xl border border-slate-700 bg-slate-950/70 ${compact ? 'p-3 space-y-2' : 'p-4 space-y-3'}`}>
       <div className="flex items-center justify-between text-[11px] text-slate-300">
         <span className="font-bold text-slate-100">Gel Electrophoresis (Simulated)</span>
-        <span>Ladder + Controls + Sample</span>
+        <span>Ladder • Positive Control • Negative Control • Sample</span>
       </div>
 
       <div className={`relative rounded-xl border border-slate-700 overflow-hidden ${compact ? 'h-52' : 'h-56'}`}>
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-blue-950/80 to-slate-950" />
         <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,rgba(148,163,184,0.35)_1px,transparent_0)] [background-size:12px_12px]" />
 
-        <div className="absolute top-0 left-0 right-0 h-12 bg-slate-800/75 border-b border-slate-600/70" />
-        <div className="absolute top-2 left-14 right-3 grid grid-cols-4 gap-4">
+        <div className="absolute top-0 left-0 right-0 h-14 bg-slate-800/75 border-b border-slate-600/70" />
+        <div className="absolute top-0.5 left-14 right-3 grid grid-cols-4 gap-4 text-[9px] text-slate-200/90">
+          {lanes.map((lane) => (
+            <span key={`well-name-${lane.id}`} className="text-center truncate">
+              {lane.label}
+            </span>
+          ))}
+        </div>
+        <div className="absolute top-4 left-14 right-3 grid grid-cols-4 gap-4">
           {lanes.map((lane) => (
             <div key={`well-${lane.id}`} className="h-6 rounded-b-xl border border-slate-500/65 bg-slate-600/80" />
           ))}
         </div>
 
-        <div className="absolute top-14 bottom-3 left-1 right-3">
+        <div className="absolute top-16 bottom-3 left-1 right-3">
           {GEL_SIZE_MARKERS.map((marker) => (
             <div key={marker.label} className="absolute left-0 right-0" style={{ top: `${marker.top}%` }}>
               <span className="absolute left-0 -translate-y-1/2 text-[10px] text-slate-400">{marker.label}</span>
@@ -321,7 +328,7 @@ function ScenarioGelPanel({
           ))}
         </div>
 
-        <div className="absolute top-14 bottom-4 left-14 right-3 grid grid-cols-4 gap-4">
+        <div className="absolute top-16 bottom-4 left-14 right-3 grid grid-cols-4 gap-4">
           {lanes.map((lane) => (
             <div key={lane.id} className="relative rounded-md border border-slate-700/45 bg-slate-900/35 overflow-hidden">
               {lane.smear && (
@@ -1312,26 +1319,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               <p className="text-slate-100 font-bold">{activeScenario.title}: {activeScenario.summary}</p>
               <p className="text-sm text-slate-300 leading-relaxed">{activeScenario.context}</p>
 
-              <div className="relative h-52 rounded-xl border border-slate-700 bg-gradient-to-b from-slate-900 to-slate-950 overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-10 bg-slate-800/70 border-b border-slate-700" />
-                <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-4 rounded-sm bg-slate-700" />
-
-                {activeScenario.issue === 'no-band' && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-32 w-24 h-2 rounded-full bg-slate-500/25" />
-                )}
-
-                {activeScenario.issue === 'smear' && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-16 w-20 h-28 rounded-full bg-gradient-to-b from-blue-200/80 via-blue-300/40 to-transparent blur-[1px]" />
-                )}
-
-                {activeScenario.issue === 'multi-band' && (
-                  <>
-                    <div className="absolute left-1/2 -translate-x-1/2 top-[4.5rem] w-20 h-2 rounded-full bg-amber-200/90 shadow-[0_0_10px_rgba(253,230,138,0.6)]" />
-                    <div className="absolute left-1/2 -translate-x-1/2 top-28 w-28 h-2 rounded-full bg-emerald-200/90 shadow-[0_0_10px_rgba(110,231,183,0.55)]" />
-                    <div className="absolute left-1/2 -translate-x-1/2 top-36 w-16 h-2 rounded-full bg-blue-200/90 shadow-[0_0_10px_rgba(147,197,253,0.55)]" />
-                  </>
-                )}
-              </div>
+              <ScenarioGelPanel issue={activeScenario.issue} />
             </div>
 
             <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-4 space-y-3">
