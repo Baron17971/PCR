@@ -502,7 +502,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="absolute top-20 left-1/2 -translate-x-1/2 z-30 w-[calc(100%-1.5rem)] rounded-2xl border border-amber-300/65 bg-slate-900 shadow-2xl p-3 flex items-center justify-between gap-3"
+              className="absolute top-24 left-1/2 -translate-x-1/2 z-30 w-[calc(100%-1.5rem)] rounded-2xl border border-amber-300/65 bg-slate-900 shadow-2xl p-3 flex items-center justify-between gap-3"
             >
               <p className="text-sm text-amber-100 font-bold">נוסף רכיב. החלף Tip לפני בחירה הבאה.</p>
               <button
