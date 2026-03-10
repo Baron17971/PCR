@@ -45,14 +45,14 @@ const TOTAL_CYCLES = 30;
 
 const REAGENTS: Reagent[] = [
   { id: 'template-dna', label: 'Template DNA', required: true, shortNote: 'תבנית המטרה' },
+  { id: 'ligase', label: 'DNA Ligase', required: false, shortNote: 'לא נחוץ ל-PCR' },
   { id: 'primers', label: 'Primers', required: true, shortNote: 'מגדירים את גבולות ההגברה' },
+  { id: 'rna-polymerase', label: 'RNA Polymerase', required: false, shortNote: 'לא נחוץ ל-PCR' },
   { id: 'dntps', label: 'dNTPs', required: true, shortNote: 'אבני הבניין של ה-DNA' },
   { id: 'taq', label: 'Taq Polymerase', required: true, shortNote: 'אנזים עמיד לחום' },
-  { id: 'buffer', label: 'Buffer', required: true, shortNote: 'שומר תנאים אופטימליים' },
   { id: 'mgcl2', label: 'MgCl₂', required: true, shortNote: 'קו-פקטור לפולימראז' },
+  { id: 'buffer', label: 'Buffer', required: true, shortNote: 'שומר תנאים אופטימליים' },
   { id: 'ddw', label: 'DDW (Water)', required: true, shortNote: 'איזון ריכוזים לנפח סופי' },
-  { id: 'ligase', label: 'DNA Ligase', required: false, shortNote: 'לא נחוץ ל-PCR' },
-  { id: 'rna-polymerase', label: 'RNA Polymerase', required: false, shortNote: 'לא נחוץ ל-PCR' }
 ];
 
 const REQUIRED_REAGENTS = REAGENTS.filter((reagent) => reagent.required).map((reagent) => reagent.id);
@@ -107,6 +107,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const [addedReagents, setAddedReagents] = useState<Set<ReagentId>>(new Set());
   const [draggedReagentId, setDraggedReagentId] = useState<ReagentId | null>(null);
   const [tipFresh, setTipFresh] = useState(true);
+  const [tipReminder, setTipReminder] = useState('');
   const [contamination, setContamination] = useState(0);
   const [pipettingLog, setPipettingLog] = useState<string[]>([]);
 
@@ -169,7 +170,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   );
   const hasTaq = addedReagents.has('taq');
   const hasDDW = addedReagents.has('ddw');
-  const step1Ready = missingRequired.length === 0 && wrongReagents.length === 0;
+  const step1Ready = missingRequired.length === 0 && wrongReagents.length === 0 && tipFresh;
 
   const annealingStatus = getAnnealingStatus(thermoConfig.annealing, activePractice.tm);
   const denaturationValid = thermoConfig.denaturation >= 94 && thermoConfig.denaturation <= 95;
@@ -204,6 +205,10 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const addReagent = (id: ReagentId) => {
     if (step !== 1) return;
     if (addedReagents.has(id)) return;
+    if (!tipFresh) {
+      setTipReminder('לפני הוספת רכיב נוסף יש להחליף Tip.');
+      return;
+    }
 
     setAddedReagents((prev) => {
       const next = new Set(prev);
@@ -212,14 +217,12 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     });
 
     const reagent = reagentById(id);
-    if (!tipFresh) {
-      setContamination((prev) => clamp(prev + 14, 0, 100));
-    }
     if (reagent && !reagent.required) {
       setContamination((prev) => clamp(prev + 10, 0, 100));
     }
 
     setTipFresh(false);
+    setTipReminder('החלף Tip לפני הוספת הרכיב הבא.');
     setPipettingLog((prev) => [reagent?.label ?? id, ...prev].slice(0, 6));
   };
 
@@ -373,6 +376,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     setAddedReagents(new Set());
     setDraggedReagentId(null);
     setTipFresh(true);
+    setTipReminder('');
     setContamination(0);
     setPipettingLog([]);
     setThermoConfig({ denaturation: 90, annealing: 45, extension: 68 });
@@ -442,7 +446,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       {step === 1 && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <div className="space-y-4">
-            <div className="rounded-2xl border border-slate-700/50 bg-slate-900/50 p-4">
+            <div className="rounded-2xl border border-blue-500/35 bg-slate-900/50 p-4">
               <h3 className="text-xl font-black text-white mb-2">שלב 1: The Pipetting Challenge</h3>
               <p className="text-slate-300">
                 גרור/י רכיבים מהמקרר אל מבחנת Eppendorf. חובה להחליף Tip בין רכיב לרכיב כדי לשמור סטריליות.
@@ -455,14 +459,18 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                 return (
                   <div
                     key={reagent.id}
-                    draggable={!isAdded}
-                    onDragStart={() => setDraggedReagentId(reagent.id)}
+                    draggable={!isAdded && tipFresh}
+                    onDragStart={() => {
+                      if (!tipFresh) {
+                        setTipReminder('לפני הוספת רכיב נוסף יש להחליף Tip.');
+                        return;
+                      }
+                      setDraggedReagentId(reagent.id);
+                    }}
                     className={`rounded-xl border p-3 text-right ${
                       isAdded
-                        ? 'border-emerald-500/40 bg-emerald-500/10'
-                        : reagent.required
-                          ? 'border-slate-700 bg-slate-900/70'
-                          : 'border-amber-500/30 bg-amber-500/10'
+                        ? 'border-blue-400/70 bg-blue-500/20'
+                        : 'border-blue-500/35 bg-slate-900/70 hover:border-blue-400/60'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -472,7 +480,8 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                       ) : (
                         <button
                           onClick={() => addReagent(reagent.id)}
-                          className="text-xs px-2 py-1 rounded-lg border border-slate-600 hover:border-blue-400 text-slate-200"
+                          disabled={!tipFresh}
+                          className="text-xs px-2 py-1 rounded-lg border border-blue-500/35 hover:border-blue-400 text-slate-200 disabled:opacity-45 disabled:cursor-not-allowed"
                         >
                           הוסף
                         </button>
@@ -489,7 +498,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             <div
               onDrop={handleDropToTube}
               onDragOver={(event) => event.preventDefault()}
-              className="rounded-2xl border border-slate-700/50 bg-slate-950/70 p-5 min-h-[240px] flex flex-col gap-4"
+              className="rounded-2xl border border-blue-500/35 bg-slate-950/70 p-5 min-h-[240px] flex flex-col gap-4"
             >
               <div className="flex items-center justify-between">
                 <div className="text-right">
@@ -501,11 +510,11 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
               <div className="flex flex-wrap gap-2">
                 {Array.from(addedReagents).map((id) => (
-                  <span key={id} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border border-blue-400/30 bg-blue-500/15 text-blue-100">
+                  <span key={id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold border border-blue-400/40 bg-blue-500/15 text-blue-100">
                     {reagentById(id)?.label ?? id}
                     <button
                       onClick={() => removeReagent(id)}
-                      className="w-4 h-4 rounded-full border border-blue-300/40 text-[10px] leading-none hover:bg-blue-400/20"
+                      className="w-3.5 h-3.5 rounded-full border border-blue-300/40 text-[9px] leading-none hover:bg-blue-400/20"
                       aria-label={`הסר ${reagentById(id)?.label ?? id}`}
                     >
                       ×
@@ -516,7 +525,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-700/50 bg-slate-900/60 p-4 space-y-3">
+            <div className="rounded-2xl border border-blue-500/35 bg-slate-900/60 p-4 space-y-3">
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-200 font-bold">מד זיהום (Contamination)</span>
@@ -540,12 +549,19 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                   <p className={`font-bold ${tipFresh ? 'text-emerald-300' : 'text-red-300'}`}>{tipFresh ? 'נקי' : 'בשימוש'}</p>
                 </div>
                 <button
-                  onClick={() => setTipFresh(true)}
+                  onClick={() => {
+                    setTipFresh(true);
+                    setTipReminder('');
+                  }}
                   className="px-4 py-2 rounded-xl border border-slate-600 hover:border-blue-400 bg-slate-800 text-slate-100 text-sm font-bold"
                 >
                   החלף Tip
                 </button>
               </div>
+
+              {tipReminder && (
+                <p className="text-xs text-amber-300">{tipReminder}</p>
+              )}
 
               <div>
                 <p className="text-slate-300 text-sm font-bold mb-1">רכיבים אחרונים שנוספו:</p>
