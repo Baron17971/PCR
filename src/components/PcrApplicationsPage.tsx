@@ -17,7 +17,8 @@ type ApplicationId =
   | 'genetic-screening'
   | 'forensics'
   | 'food-safety'
-  | 'gene-expression';
+  | 'gene-expression'
+  | 'fossil-research';
 
 interface PcrApplication {
   id: ApplicationId;
@@ -103,6 +104,20 @@ const APPLICATIONS: PcrApplication[] = [
       'מריצים qPCR לגן המטרה ולגן ייחוס.',
       'מחשבים ביטוי יחסי ומסיקים הבדלים ביולוגיים.'
     ]
+  },
+  {
+    id: 'fossil-research',
+    title: 'חקר מאובנים ו-DNA עתיק',
+    shortDescription: 'שחזור מידע גנטי מממצאים עתיקים לצורך מחקר אבולוציוני.',
+    pcrMethod: 'Ancient DNA PCR / qPCR',
+    sampleType: 'אבקת עצם/שן מאובנת או משקעים עתיקים',
+    readout: 'אימות מקטעים עתיקים והשוואה לרצפים מודרניים',
+    steps: [
+      'מבודדים חומר גנטי בכמות נמוכה מאוד מדגימות מאובן.',
+      'עובדים בתנאי סטריליות קפדניים כדי לצמצם זיהום DNA מודרני.',
+      'מגבירים מקטעים קצרים ומתאימים לחומר גנטי מפורק.',
+      'משווים את הרצפים שהתקבלו למאגרי ייחוס לצורך הסקת קרבה אבולוציונית.'
+    ]
   }
 ];
 
@@ -111,6 +126,7 @@ function appIcon(id: ApplicationId) {
   if (id === 'genetic-screening') return <Fingerprint className="w-5 h-5 text-cyan-300" />;
   if (id === 'forensics') return <ShieldCheck className="w-5 h-5 text-violet-300" />;
   if (id === 'food-safety') return <FlaskConical className="w-5 h-5 text-emerald-300" />;
+  if (id === 'fossil-research') return <Dna className="w-5 h-5 text-amber-300" />;
   return <Microscope className="w-5 h-5 text-blue-300" />;
 }
 
@@ -158,14 +174,14 @@ export default function PcrApplicationsPage({ onComplete }: PcrApplicationsPageP
 
       <div className="rounded-2xl border border-slate-700/40 bg-slate-900/35 p-4 flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
         <p className="text-slate-300 font-medium">
-          לאחר שעיינתם ביישומים, המשיכו לשלב הבא בסימולציה.
+          זהו השלב האחרון. לאחר העיון ביישומים ניתן לחזור לדף הפתיחה.
         </p>
         <button
           onClick={onComplete}
           className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl transition-all flex items-center gap-2 w-fit"
         >
           <ArrowRightCircle className="w-5 h-5" />
-          המשך לשלב הבא
+          סיום וחזרה לפתיחה
         </button>
       </div>
 
