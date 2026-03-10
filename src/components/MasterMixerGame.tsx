@@ -487,12 +487,12 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="absolute top-2 left-2 right-2 z-30 rounded-xl border border-amber-400/55 bg-amber-500/10 shadow-xl p-3 flex items-center justify-between gap-3"
+              className="absolute top-3 right-3 z-30 w-full max-w-md rounded-2xl border border-amber-300/65 bg-slate-900 shadow-2xl p-3 flex items-center justify-between gap-3"
             >
               <p className="text-sm text-amber-100 font-bold">נוסף רכיב. החלף Tip לפני בחירה הבאה.</p>
               <button
                 onClick={replaceTip}
-                className="px-3 py-1.5 rounded-lg border border-amber-300/60 bg-amber-500/20 hover:bg-amber-500/30 text-amber-50 text-sm font-bold whitespace-nowrap"
+                className="px-3 py-1.5 rounded-lg border border-amber-300/70 bg-amber-500/25 hover:bg-amber-500/35 text-amber-50 text-sm font-bold whitespace-nowrap"
               >
                 החלף Tip
               </button>
