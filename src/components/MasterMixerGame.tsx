@@ -23,6 +23,7 @@ type ReagentId =
   | 'buffer'
   | 'mgcl2'
   | 'ddw'
+  | 'helicase'
   | 'ligase'
   | 'rna-polymerase';
 
@@ -46,6 +47,7 @@ const TOTAL_CYCLES = 30;
 const REAGENTS: Reagent[] = [
   { id: 'template-dna', label: 'Template DNA', required: true, shortNote: 'תבנית המטרה' },
   { id: 'ligase', label: 'DNA Ligase', required: false, shortNote: 'לא נחוץ ל-PCR' },
+  { id: 'helicase', label: 'Helicase', required: false, shortNote: 'אנזים שכפול בתא, לא נחוץ ל-PCR' },
   { id: 'primers', label: 'Primers', required: true, shortNote: 'מגדירים את גבולות ההגברה' },
   { id: 'rna-polymerase', label: 'RNA Polymerase', required: false, shortNote: 'לא נחוץ ל-PCR' },
   { id: 'dntps', label: 'dNTPs', required: true, shortNote: 'אבני הבניין של ה-DNA' },
@@ -169,7 +171,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   );
   const hasTaq = addedReagents.has('taq');
   const hasDDW = addedReagents.has('ddw');
-  const contaminationTooHigh = contamination > 30;
+  const contaminationTooHigh = contamination >= 30;
   const step1Ready = missingRequired.length === 0 && wrongReagents.length === 0 && tipFresh && !contaminationTooHigh;
 
   const annealingStatus = getAnnealingStatus(thermoConfig.annealing, activePractice.tm);
@@ -547,14 +549,14 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-200 font-bold">מד זיהום (Contamination)</span>
-                  <span className={`font-black ${contamination <= 30 ? 'text-emerald-300' : contamination <= 60 ? 'text-amber-300' : 'text-red-300'}`}>
+                  <span className={`font-black ${contamination < 30 ? 'text-emerald-300' : contamination <= 60 ? 'text-amber-300' : 'text-red-300'}`}>
                     {contamination}%
                   </span>
                 </div>
                 <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
                   <div
                     className={`h-full transition-all ${
-                      contamination <= 30 ? 'bg-emerald-400' : contamination <= 60 ? 'bg-amber-400' : 'bg-red-500'
+                      contamination < 30 ? 'bg-emerald-400' : contamination <= 60 ? 'bg-amber-400' : 'bg-red-500'
                     }`}
                     style={{ width: `${contamination}%` }}
                   />
@@ -583,7 +585,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
               {contaminationTooHigh && (
                 <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 space-y-2">
-                  <p className="text-sm font-bold text-red-200">מד הזיהום גבוה מ-30%. יש להתחיל מחדש.</p>
+                  <p className="text-sm font-bold text-red-200">התחל מחדש - הזיהום רב מידי!</p>
                   <button
                     onClick={resetEntireGame}
                     className="px-3 py-1.5 rounded-lg border border-red-400/50 bg-red-500/20 hover:bg-red-500/30 text-red-100 text-xs font-bold"
