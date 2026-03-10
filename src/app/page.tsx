@@ -4,6 +4,7 @@ import PreparationStage from '@/components/PreparationStage';
 import ThermalCycler from '@/components/ThermalCycler';
 import GeneExpressionLab from '@/components/GeneExpressionLab';
 import ReplicationComparisonActivity from '@/components/ReplicationComparisonActivity';
+import PcrPrinciplesGame from '@/components/PcrPrinciplesGame';
 import PcrApplicationsPage from '@/components/PcrApplicationsPage';
 import WelcomeScreen from '@/components/WelcomeScreen';
 import { SimulationPhase } from '@/types';
@@ -13,7 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function Home() {
   const [phase, setPhase] = useState<SimulationPhase>('landing');
 
-  const phases: SimulationPhase[] = ['landing', 'preparation', 'pcr-running', 'replication-comparison', 'completed', 'gene-expression-lab', 'pcr-applications'];
+  const phases: SimulationPhase[] = ['landing', 'preparation', 'pcr-running', 'replication-comparison', 'pcr-principles-game', 'completed', 'gene-expression-lab', 'pcr-applications'];
   const currentIndex = phases.indexOf(phase);
 
   const goToNext = () => {
@@ -53,7 +54,11 @@ export default function Home() {
         )}
 
         {phase === 'replication-comparison' && (
-          <ReplicationComparisonActivity onComplete={() => setPhase('completed')} />
+          <ReplicationComparisonActivity onComplete={() => setPhase('pcr-principles-game')} />
+        )}
+
+        {phase === 'pcr-principles-game' && (
+          <PcrPrinciplesGame onComplete={() => setPhase('completed')} />
         )}
 
         {phase === 'completed' && (
