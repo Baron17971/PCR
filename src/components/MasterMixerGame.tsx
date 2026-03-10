@@ -659,7 +659,10 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                     בסיסים: A={activePractice.aCount}, T={activePractice.tCount}, G={activePractice.gCount}, C={activePractice.cCount}
                   </p>
                   <p className="text-sm text-slate-300">
-                    סכומים לחישוב: (A+T)={activePractice.atCount}, (G+C)={activePractice.gcCount}
+                    סכומים לחישוב:{' '}
+                    <bdi dir="ltr">
+                      (A+T)={activePractice.atCount}, (G+C)={activePractice.gcCount}
+                    </bdi>
                   </p>
                   <div className="pt-2">
                     <button
