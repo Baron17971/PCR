@@ -174,6 +174,223 @@ const TROUBLESHOOTING_SCENARIOS = [
   }
 ] as const;
 
+type GelBandTone = 'ladder' | 'target' | 'control' | 'warning' | 'faint';
+
+interface GelBandModel {
+  top: number;
+  thickness: number;
+  tone: GelBandTone;
+}
+
+interface GelSmearModel {
+  top: number;
+  bottom: number;
+  tone: Exclude<GelBandTone, 'ladder' | 'control'>;
+}
+
+interface GelLaneModel {
+  id: string;
+  label: string;
+  bands: GelBandModel[];
+  smear?: GelSmearModel;
+}
+
+const GEL_SIZE_MARKERS = [
+  { label: '1000 bp', top: 12 },
+  { label: '700 bp', top: 23 },
+  { label: '500 bp', top: 36 },
+  { label: '300 bp', top: 53 },
+  { label: '200 bp', top: 66 },
+  { label: '100 bp', top: 80 }
+] as const;
+
+const GEL_BAND_TONE_CLASS: Record<GelBandTone, string> = {
+  ladder: 'bg-blue-200/95 shadow-[0_0_10px_rgba(191,219,254,0.85)]',
+  target: 'bg-emerald-200/95 shadow-[0_0_12px_rgba(110,231,183,0.8)]',
+  control: 'bg-cyan-200/95 shadow-[0_0_11px_rgba(165,243,252,0.8)]',
+  warning: 'bg-amber-200/95 shadow-[0_0_12px_rgba(253,230,138,0.85)]',
+  faint: 'bg-slate-200/50 shadow-[0_0_8px_rgba(226,232,240,0.45)]'
+};
+
+const buildLadderBands = (): GelBandModel[] =>
+  GEL_SIZE_MARKERS.map((marker) => ({
+    top: marker.top,
+    thickness: marker.label === '500 bp' ? 4 : 3,
+    tone: 'ladder'
+  }));
+
+const buildScenarioGelLanes = (issue: TroubleshootIssue): GelLaneModel[] => {
+  if (issue === 'no-band') {
+    return [
+      { id: 'ladder', label: 'Size Marker', bands: buildLadderBands() },
+      {
+        id: 'positive',
+        label: 'Positive Ctrl',
+        bands: [{ top: 48, thickness: 3, tone: 'faint' }]
+      },
+      { id: 'negative', label: 'Negative Ctrl', bands: [] },
+      { id: 'sample', label: 'Sample', bands: [] }
+    ];
+  }
+
+  if (issue === 'smear') {
+    return [
+      { id: 'ladder', label: 'Size Marker', bands: buildLadderBands() },
+      { id: 'positive', label: 'Positive Ctrl', bands: [{ top: 48, thickness: 4, tone: 'control' }] },
+      { id: 'negative', label: 'Negative Ctrl', bands: [] },
+      {
+        id: 'sample',
+        label: 'Sample',
+        bands: [{ top: 50, thickness: 4, tone: 'warning' }],
+        smear: { top: 20, bottom: 84, tone: 'warning' }
+      }
+    ];
+  }
+
+  return [
+    { id: 'ladder', label: 'Size Marker', bands: buildLadderBands() },
+    { id: 'positive', label: 'Positive Ctrl', bands: [{ top: 48, thickness: 4, tone: 'control' }] },
+    { id: 'negative', label: 'Negative Ctrl', bands: [] },
+    {
+      id: 'sample',
+      label: 'Sample',
+      bands: [
+        { top: 30, thickness: 4, tone: 'warning' },
+        { top: 48, thickness: 4, tone: 'warning' },
+        { top: 63, thickness: 4, tone: 'target' }
+      ]
+    }
+  ];
+};
+
+const controlStatusByIssue: Record<
+  TroubleshootIssue,
+  Array<{ label: string; value: string; tone: 'ok' | 'warn' | 'bad' }>
+> = {
+  'no-band': [
+    { label: 'Positive Ctrl', value: 'No clear band (failed)', tone: 'bad' },
+    { label: 'Negative Ctrl', value: 'Clean lane', tone: 'ok' },
+    { label: 'Sample', value: 'No product', tone: 'bad' }
+  ],
+  smear: [
+    { label: 'Positive Ctrl', value: 'Single sharp band', tone: 'ok' },
+    { label: 'Negative Ctrl', value: 'Clean lane', tone: 'ok' },
+    { label: 'Sample', value: 'Smear / low specificity', tone: 'warn' }
+  ],
+  'multi-band': [
+    { label: 'Positive Ctrl', value: 'Single expected band', tone: 'ok' },
+    { label: 'Negative Ctrl', value: 'Clean lane', tone: 'ok' },
+    { label: 'Sample', value: 'Multiple non-specific bands', tone: 'warn' }
+  ]
+};
+
+function ScenarioGelPanel({
+  issue,
+  compact = false
+}: {
+  issue: TroubleshootIssue;
+  compact?: boolean;
+}) {
+  const lanes = buildScenarioGelLanes(issue);
+  const statuses = controlStatusByIssue[issue];
+
+  return (
+    <div className={`rounded-xl border border-slate-700 bg-slate-950/70 ${compact ? 'p-3 space-y-2' : 'p-4 space-y-3'}`}>
+      <div className="flex items-center justify-between text-[11px] text-slate-300">
+        <span className="font-bold text-slate-100">Gel Electrophoresis (Simulated)</span>
+        <span>Ladder + Controls + Sample</span>
+      </div>
+
+      <div className={`relative rounded-xl border border-slate-700 overflow-hidden ${compact ? 'h-52' : 'h-56'}`}>
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-blue-950/80 to-slate-950" />
+        <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,rgba(148,163,184,0.35)_1px,transparent_0)] [background-size:12px_12px]" />
+
+        <div className="absolute top-0 left-0 right-0 h-12 bg-slate-800/75 border-b border-slate-600/70" />
+        <div className="absolute top-2 left-14 right-3 grid grid-cols-4 gap-4">
+          {lanes.map((lane) => (
+            <div key={`well-${lane.id}`} className="h-6 rounded-b-xl border border-slate-500/65 bg-slate-600/80" />
+          ))}
+        </div>
+
+        <div className="absolute top-14 bottom-3 left-1 right-3">
+          {GEL_SIZE_MARKERS.map((marker) => (
+            <div key={marker.label} className="absolute left-0 right-0" style={{ top: `${marker.top}%` }}>
+              <span className="absolute left-0 -translate-y-1/2 text-[10px] text-slate-400">{marker.label}</span>
+              <div className="absolute left-14 right-0 border-t border-slate-500/30" />
+            </div>
+          ))}
+        </div>
+
+        <div className="absolute top-14 bottom-4 left-14 right-3 grid grid-cols-4 gap-4">
+          {lanes.map((lane) => (
+            <div key={lane.id} className="relative rounded-md border border-slate-700/45 bg-slate-900/35 overflow-hidden">
+              {lane.smear && (
+                <motion.div
+                  className={`absolute left-[18%] right-[18%] rounded-full blur-[2px] ${
+                    lane.smear.tone === 'warning'
+                      ? 'bg-gradient-to-b from-amber-200/70 via-amber-300/45 to-transparent'
+                      : 'bg-gradient-to-b from-slate-200/55 via-slate-300/35 to-transparent'
+                  }`}
+                  style={{
+                    top: `${lane.smear.top}%`,
+                    height: `${Math.max(8, lane.smear.bottom - lane.smear.top)}%`
+                  }}
+                  initial={{ opacity: 0.45 }}
+                  animate={{ opacity: [0.35, 0.8, 0.5] }}
+                  transition={{ duration: 1.6, repeat: Infinity, repeatType: 'mirror' }}
+                />
+              )}
+
+              {lane.bands.map((band, index) => (
+                <motion.div
+                  key={`${lane.id}-band-${index}-${band.top}`}
+                  className={`absolute left-[16%] right-[16%] rounded-full ${GEL_BAND_TONE_CLASS[band.tone]}`}
+                  style={{
+                    top: `${band.top}%`,
+                    height: `${band.thickness}px`
+                  }}
+                  initial={{ opacity: 0.2, scaleX: 0.75 }}
+                  animate={{ opacity: [0.45, 1, 0.6], scaleX: [0.88, 1, 0.92] }}
+                  transition={{ duration: 1.35, delay: index * 0.08, repeat: Infinity, repeatType: 'mirror' }}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-[3.5rem_1fr] items-center gap-2 pr-1">
+        <span className="text-[10px] text-slate-500">Lanes</span>
+        <div className="grid grid-cols-4 gap-4 text-[10px] text-slate-300">
+          {lanes.map((lane) => (
+            <span key={`lane-label-${lane.id}`} className="text-center">
+              {lane.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        {statuses.map((status) => (
+          <div
+            key={`${status.label}-${status.value}`}
+            className={`rounded-lg border px-2.5 py-2 text-[11px] ${
+              status.tone === 'ok'
+                ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-100'
+                : status.tone === 'warn'
+                  ? 'border-amber-400/40 bg-amber-500/10 text-amber-100'
+                  : 'border-red-400/40 bg-red-500/10 text-red-100'
+            }`}
+          >
+            <p className="font-bold">{status.label}</p>
+            <p className="opacity-90">{status.value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const [step, setStep] = useState<Step>(1);
 
@@ -1219,6 +1436,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                 <div key={'summary-' + scenario.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4 space-y-3">
                   <p className="text-slate-100 font-bold">{scenario.title}</p>
                   <p className="text-sm text-slate-300">{scenario.summary}</p>
+                  <ScenarioGelPanel issue={scenario.issue} compact />
                   <p className={['text-xs font-bold', isCorrect ? 'text-emerald-300' : 'text-red-300'].join(' ')}>
                     {isCorrect ? 'בחירה נכונה' : 'דורש חיזוק'}
                   </p>
