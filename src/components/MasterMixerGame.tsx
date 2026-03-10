@@ -202,6 +202,22 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const [scenarioFeedback, setScenarioFeedback] = useState<{ level: TroubleshootFeedbackLevel; text: string } | null>(null);
 
   const continuationPromptTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoAdvancePracticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoAdvanceScenarioTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearAutoAdvancePracticeTimeout = () => {
+    if (autoAdvancePracticeTimeoutRef.current) {
+      clearTimeout(autoAdvancePracticeTimeoutRef.current);
+      autoAdvancePracticeTimeoutRef.current = null;
+    }
+  };
+
+  const clearAutoAdvanceScenarioTimeout = () => {
+    if (autoAdvanceScenarioTimeoutRef.current) {
+      clearTimeout(autoAdvanceScenarioTimeoutRef.current);
+      autoAdvanceScenarioTimeoutRef.current = null;
+    }
+  };
 
   const thermalPracticeStats = useMemo(() => {
     return THERMAL_PRACTICES.map((practice) => {
@@ -271,6 +287,14 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
   useEffect(() => {
     return () => {
+      if (autoAdvancePracticeTimeoutRef.current) {
+        clearTimeout(autoAdvancePracticeTimeoutRef.current);
+        autoAdvancePracticeTimeoutRef.current = null;
+      }
+      if (autoAdvanceScenarioTimeoutRef.current) {
+        clearTimeout(autoAdvanceScenarioTimeoutRef.current);
+        autoAdvanceScenarioTimeoutRef.current = null;
+      }
       if (continuationPromptTimeoutRef.current) {
         clearTimeout(continuationPromptTimeoutRef.current);
         continuationPromptTimeoutRef.current = null;
@@ -343,6 +367,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   };
 
   const validateThermalProfile = () => {
+    clearAutoAdvancePracticeTimeout();
     setShowContinuationPrompt(false);
     const feedbackByPractice: Record<(typeof THERMAL_PRACTICES)[number]['id'], { level: ThermalFeedbackLevel; text: string }> = {
       'practice-1': { level: 'green', text: THERMAL_FEEDBACK_TEXT.green },
@@ -371,6 +396,15 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
         next.add(activePractice.id);
         return next;
       });
+    }
+
+    if (activePracticeIndex < thermalPracticeStats.length - 1) {
+      const nextPracticeId = thermalPracticeStats[activePracticeIndex + 1].id;
+      autoAdvancePracticeTimeoutRef.current = setTimeout(() => {
+        setActivePracticeId(nextPracticeId);
+        setThermoFeedback(null);
+        setShowContinuationPrompt(false);
+      }, 900);
     }
   };
 
@@ -404,6 +438,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
   const selectScenario = (scenarioId: (typeof TROUBLESHOOTING_SCENARIOS)[number]['id']) => {
     if (!isScenarioUnlocked(scenarioId)) return;
+    clearAutoAdvanceScenarioTimeout();
     setActiveScenarioId(scenarioId);
     setScenarioFeedback(null);
   };
@@ -417,6 +452,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   };
 
   const validateScenarioChoice = () => {
+    clearAutoAdvanceScenarioTimeout();
     if (!activeScenarioSelection) {
       setScenarioFeedback({ level: 'info', text: 'יש לבחור תיקון אחד לפני הבדיקה.' });
       return;
@@ -429,6 +465,18 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
         return next;
       });
       setScenarioFeedback({ level: 'success', text: activeScenario.successText });
+      if (activeScenarioIndex < TROUBLESHOOTING_SCENARIOS.length - 1) {
+        const nextScenarioId = TROUBLESHOOTING_SCENARIOS[activeScenarioIndex + 1].id;
+        autoAdvanceScenarioTimeoutRef.current = setTimeout(() => {
+          setActiveScenarioId(nextScenarioId);
+          setScenarioFeedback(null);
+        }, 900);
+      } else {
+        autoAdvanceScenarioTimeoutRef.current = setTimeout(() => {
+          setStep(4);
+          setScenarioFeedback(null);
+        }, 900);
+      }
       return;
     }
 
@@ -439,6 +487,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   };
 
   const jumpToNextScenario = () => {
+    clearAutoAdvanceScenarioTimeout();
     const nextIndex = Math.min(TROUBLESHOOTING_SCENARIOS.length - 1, activeScenarioIndex + 1);
     const nextScenarioId = TROUBLESHOOTING_SCENARIOS[nextIndex].id;
     if (!isScenarioUnlocked(nextScenarioId)) return;
@@ -447,17 +496,21 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   };
 
   const jumpToPreviousScenario = () => {
+    clearAutoAdvanceScenarioTimeout();
     const prevIndex = Math.max(0, activeScenarioIndex - 1);
     setActiveScenarioId(TROUBLESHOOTING_SCENARIOS[prevIndex].id);
     setScenarioFeedback(null);
   };
 
-  const resetEntireGame = () => {
-    setStep(1);
+  const resetStage1Data = () => {
     setAddedReagents(new Set());
     setDraggedReagentId(null);
     setTipFresh(true);
     setContamination(0);
+  };
+
+  const resetStage2Data = () => {
+    clearAutoAdvancePracticeTimeout();
     setThermoConfig({ denaturation: 90, annealing: 45, extension: 68 });
     setThermoFeedback(null);
     setContinuationPrimerChoice(null);
@@ -469,10 +522,26 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     setShowScientificExplanation(false);
     setActivePracticeId('practice-1');
     setSolvedPracticeIds(new Set());
+  };
+
+  const resetStage3Data = () => {
+    clearAutoAdvanceScenarioTimeout();
     setActiveScenarioId('run-1');
     setScenarioSelections({});
     setSolvedScenarioIds(new Set());
     setScenarioFeedback(null);
+  };
+
+  const resetStage4Data = () => {
+    resetStage3Data();
+    setStep(3);
+  };
+
+  const resetEntireGame = () => {
+    setStep(1);
+    resetStage1Data();
+    resetStage2Data();
+    resetStage3Data();
   };
 
   const mainStages: Array<{ id: Step; label: string }> = [
@@ -493,8 +562,14 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       return;
     }
     if (!canNavigateToMainStage(targetStage)) return;
+    if (targetStage !== 2) {
+      clearAutoAdvancePracticeTimeout();
+    }
+    if (targetStage !== 3) {
+      clearAutoAdvanceScenarioTimeout();
+    }
     setStep(targetStage);
-  };
+  };
 
   return (
     <div className="glass-pcr-card rounded-[2.5rem] border border-slate-700/30 p-6 md:p-8 space-y-6" dir="rtl">
@@ -654,6 +729,14 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                   המשך לשלב 2
                 </button>
               </div>
+              <div className="absolute bottom-3 left-3">
+                <button
+                  onClick={resetStage1Data}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold px-4 py-2 rounded-xl border border-slate-600 text-sm"
+                >
+                  נקה נתוני שלב 1
+                </button>
+              </div>
             </div>
             </div>
           </div>
@@ -681,6 +764,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                         key={practice.id}
                         disabled={!isUnlocked}
                         onClick={() => {
+                          clearAutoAdvancePracticeTimeout();
                           setActivePracticeId(practice.id);
                           setThermoFeedback(null);
                           setShowContinuationPrompt(false);
@@ -726,6 +810,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => {
+                      clearAutoAdvancePracticeTimeout();
                       const previous = Math.max(0, activePracticeIndex - 1);
                       setActivePracticeId(thermalPracticeStats[previous].id);
                       setThermoFeedback(null);
@@ -738,6 +823,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                   </button>
                   <button
                     onClick={() => {
+                      clearAutoAdvancePracticeTimeout();
                       const next = Math.min(thermalPracticeStats.length - 1, activePracticeIndex + 1);
                       setActivePracticeId(thermalPracticeStats[next].id);
                       setThermoFeedback(null);
@@ -813,6 +899,12 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
           <div className="flex flex-wrap gap-3">
             <button
+              onClick={resetStage2Data}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold px-5 py-2.5 rounded-xl border border-slate-600"
+            >
+              נקה נתוני שלב 2
+            </button>
+            <button
               onClick={validateThermalProfile}
               className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2.5 rounded-xl"
             >
@@ -820,7 +912,10 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             </button>
             <button
               disabled={!canProceedToStep3}
-              onClick={() => setStep(3)}
+              onClick={() => {
+                clearAutoAdvancePracticeTimeout();
+                setStep(3);
+              }}
               className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold px-5 py-2.5 rounded-xl"
             >
               המשך לשלב 3
@@ -1072,6 +1167,12 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
           <div className="flex flex-wrap gap-3">
             <button
+              onClick={resetStage3Data}
+              className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold"
+            >
+              נקה נתוני שלב 3
+            </button>
+            <button
               onClick={jumpToPreviousScenario}
               disabled={activeScenarioIndex <= 0}
               className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
@@ -1089,7 +1190,10 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               הרצה הבאה
             </button>
             <button
-              onClick={() => setStep(4)}
+              onClick={() => {
+                clearAutoAdvanceScenarioTimeout();
+                setStep(4);
+              }}
               disabled={!allScenariosSolved}
               className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold px-5 py-2.5 rounded-xl"
             >
@@ -1126,6 +1230,12 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <button
+              onClick={resetStage4Data}
+              className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold"
+            >
+              נקה נתוני שלב 4
+            </button>
             <button
               onClick={resetEntireGame}
               className="bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold px-5 py-2.5 rounded-xl border border-slate-600 inline-flex items-center gap-2"
