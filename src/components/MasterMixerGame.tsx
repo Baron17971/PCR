@@ -482,72 +482,74 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       </div>
 
       {step === 1 && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-blue-500/35 bg-slate-900/50 p-4">
-              <h3 className="text-xl font-black text-white mb-2">שלב 1: The Pipetting Challenge</h3>
-              <p className="text-slate-300">
-                גרור/י רכיבים מהמקרר אל מבחנת Eppendorf. חובה להחליף Tip בין רכיב לרכיב כדי לשמור סטריליות.
-              </p>
-            </div>
+        <div className="relative">
+          {!tipFresh && !contaminationTooHigh && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="absolute top-2 left-2 right-2 z-30 rounded-xl border border-cyan-400/50 bg-slate-950/95 shadow-xl p-3 flex items-center justify-between gap-3"
+            >
+              <p className="text-sm text-cyan-100 font-bold">נוסף רכיב. החלף Tip לפני בחירה הבאה.</p>
+              <button
+                onClick={replaceTip}
+                className="px-3 py-1.5 rounded-lg border border-cyan-300/50 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-50 text-sm font-bold whitespace-nowrap"
+              >
+                החלף Tip
+              </button>
+            </motion.div>
+          )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              {!tipFresh && !contaminationTooHigh && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="col-span-full sticky top-2 z-10 rounded-xl border border-cyan-400/45 bg-cyan-500/10 p-3 flex items-center justify-between gap-3"
-                >
-                  <p className="text-sm text-cyan-100 font-bold">נוסף רכיב. החלף Tip לפני בחירה הבאה.</p>
-                  <button
-                    onClick={replaceTip}
-                    className="px-3 py-1.5 rounded-lg border border-cyan-300/50 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-50 text-sm font-bold whitespace-nowrap"
-                  >
-                    החלף Tip
-                  </button>
-                </motion.div>
-              )}
-              {REAGENTS.map((reagent) => {
-                const isAdded = addedReagents.has(reagent.id);
-                return (
-                  <div
-                    key={reagent.id}
-                    draggable={!isAdded && tipFresh}
-                    onDragStart={() => {
-                      if (!tipFresh) {
-                        setTipReminder('לפני הוספת רכיב נוסף יש להחליף Tip.');
-                        return;
-                      }
-                      setDraggedReagentId(reagent.id);
-                    }}
-                    className={`rounded-xl border p-3 text-right ${
-                      isAdded
-                        ? 'border-blue-400/70 bg-blue-500/20'
-                        : 'border-blue-500/35 bg-slate-900/70 hover:border-blue-400/60'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-slate-100 font-bold">{reagent.label}</span>
-                      {isAdded ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      ) : (
-                        <button
-                          onClick={() => addReagent(reagent.id)}
-                          disabled={!tipFresh}
-                          className="text-xs px-2 py-1 rounded-lg border border-blue-500/35 hover:border-blue-400 text-slate-200 disabled:opacity-45 disabled:cursor-not-allowed"
-                        >
-                          הוסף
-                        </button>
-                      )}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-blue-500/35 bg-slate-900/50 p-4">
+                <h3 className="text-xl font-black text-white mb-2">שלב 1: The Pipetting Challenge</h3>
+                <p className="text-slate-300">
+                  גרור/י רכיבים מהמקרר אל מבחנת Eppendorf. חובה להחליף Tip בין רכיב לרכיב כדי לשמור סטריליות.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                {REAGENTS.map((reagent) => {
+                  const isAdded = addedReagents.has(reagent.id);
+                  return (
+                    <div
+                      key={reagent.id}
+                      draggable={!isAdded && tipFresh}
+                      onDragStart={() => {
+                        if (!tipFresh) {
+                          setTipReminder('לפני הוספת רכיב נוסף יש להחליף Tip.');
+                          return;
+                        }
+                        setDraggedReagentId(reagent.id);
+                      }}
+                      className={`rounded-xl border p-3 text-right ${
+                        isAdded
+                          ? 'border-blue-400/70 bg-blue-500/20'
+                          : 'border-blue-500/35 bg-slate-900/70 hover:border-blue-400/60'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-slate-100 font-bold">{reagent.label}</span>
+                        {isAdded ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        ) : (
+                          <button
+                            onClick={() => addReagent(reagent.id)}
+                            disabled={!tipFresh}
+                            className="text-xs px-2 py-1 rounded-lg border border-blue-500/35 hover:border-blue-400 text-slate-200 disabled:opacity-45 disabled:cursor-not-allowed"
+                          >
+                            הוסף
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">{reagent.shortNote}</p>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">{reagent.shortNote}</p>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-4">
+            <div className="space-y-4">
             <div
               onDrop={handleDropToTube}
               onDragOver={(event) => event.preventDefault()}
@@ -622,6 +624,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                   המשך לשלב 2
                 </button>
               </div>
+            </div>
             </div>
           </div>
         </div>
