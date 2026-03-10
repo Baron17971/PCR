@@ -47,9 +47,9 @@ const REAGENTS: Reagent[] = [
   { id: 'template-dna', label: 'Template DNA', required: true, shortNote: 'תבנית המטרה' },
   { id: 'primers', label: 'Primers', required: true, shortNote: 'מגדירים את גבולות ההגברה' },
   { id: 'dntps', label: 'dNTPs', required: true, shortNote: 'אבני הבניין של ה-DNA' },
-  { id: 'taq', label: 'Taq Polymerase', required: true, shortNote: 'אנזים עמיד חום' },
+  { id: 'taq', label: 'Taq Polymerase', required: true, shortNote: 'אנזים עמיד לחום' },
   { id: 'buffer', label: 'Buffer', required: true, shortNote: 'שומר תנאים אופטימליים' },
-  { id: 'mgcl2', label: 'MgCl2', required: true, shortNote: 'קו-פקטור לפולימראז' },
+  { id: 'mgcl2', label: 'MgCl₂', required: true, shortNote: 'קו-פקטור לפולימראז' },
   { id: 'ddw', label: 'DDW (Water)', required: true, shortNote: 'איזון ריכוזים לנפח סופי' },
   { id: 'ligase', label: 'DNA Ligase', required: false, shortNote: 'לא נחוץ ל-PCR' },
   { id: 'rna-polymerase', label: 'RNA Polymerase', required: false, shortNote: 'לא נחוץ ל-PCR' }
@@ -71,6 +71,15 @@ const EXTRA_PRACTICES = [
     sequence: 'GCGTCCGCGGCGCGTCCGCG',
     note: 'רצף עשיר בבסיסי G-C'
   }
+] as const;
+const THERMAL_PRACTICES = [
+  {
+    id: 'practice-1',
+    title: 'תרגול 1',
+    sequence: PRIMER_SEQUENCE,
+    note: 'רצף פריימר בסיסי'
+  },
+  ...EXTRA_PRACTICES
 ] as const;
 
 function countBases(sequence: string) {
@@ -106,9 +115,10 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     annealing: 45,
     extension: 68
   });
-  const [thermoChecked, setThermoChecked] = useState(false);
   const [thermoMessage, setThermoMessage] = useState('');
   const [showScientificExplanation, setShowScientificExplanation] = useState(false);
+  const [activePracticeId, setActivePracticeId] = useState<(typeof THERMAL_PRACTICES)[number]['id']>('practice-1');
+  const [solvedPracticeIds, setSolvedPracticeIds] = useState<Set<(typeof THERMAL_PRACTICES)[number]['id']>>(new Set());
 
   const [raceStarted, setRaceStarted] = useState(false);
   const [currentCycle, setCurrentCycle] = useState(1);
@@ -127,13 +137,8 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const clickedThisCycleRef = useRef(false);
   const earlyPenaltyRef = useRef(false);
 
-  const baseCounts = useMemo(() => countBases(PRIMER_SEQUENCE), []);
-  const atCount = baseCounts.aCount + baseCounts.tCount;
-  const gcCount = baseCounts.gCount + baseCounts.cCount;
-  const tm = 2 * atCount + 4 * gcCount;
-  const gcPercent = Math.round((gcCount / PRIMER_SEQUENCE.length) * 100);
-  const extraPracticeStats = useMemo(() => {
-    return EXTRA_PRACTICES.map((practice) => {
+  const thermalPracticeStats = useMemo(() => {
+    return THERMAL_PRACTICES.map((practice) => {
       const counts = countBases(practice.sequence);
       const at = counts.aCount + counts.tCount;
       const gc = counts.gCount + counts.cCount;
@@ -142,12 +147,21 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       return {
         ...practice,
         tm: tmValue,
-        gcPercent: gcValue,
-        annealingMin: tmValue - 5,
-        annealingMax: tmValue
+        atCount: at,
+        gcCount: gc,
+        aCount: counts.aCount,
+        tCount: counts.tCount,
+        gCount: counts.gCount,
+        cCount: counts.cCount,
+        gcPercent: gcValue
       };
     });
   }, []);
+  const activePracticeIndex = thermalPracticeStats.findIndex((practice) => practice.id === activePracticeId);
+  const activePractice =
+    thermalPracticeStats[activePracticeIndex >= 0 ? activePracticeIndex : 0];
+  const solvedPracticeCount = solvedPracticeIds.size;
+  const allPracticesSolved = solvedPracticeCount === thermalPracticeStats.length;
 
   const missingRequired = REQUIRED_REAGENTS.filter((id) => !addedReagents.has(id));
   const wrongReagents = Array.from(addedReagents).filter(
@@ -155,9 +169,9 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   );
   const hasTaq = addedReagents.has('taq');
   const hasDDW = addedReagents.has('ddw');
-  const step1Ready = missingRequired.length === 0;
+  const step1Ready = missingRequired.length === 0 && wrongReagents.length === 0;
 
-  const annealingStatus = getAnnealingStatus(thermoConfig.annealing, tm);
+  const annealingStatus = getAnnealingStatus(thermoConfig.annealing, activePractice.tm);
   const denaturationValid = thermoConfig.denaturation >= 94 && thermoConfig.denaturation <= 95;
   const extensionValid = thermoConfig.extension >= 71 && thermoConfig.extension <= 73;
 
@@ -209,6 +223,16 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     setPipettingLog((prev) => [reagent?.label ?? id, ...prev].slice(0, 6));
   };
 
+  const removeReagent = (id: ReagentId) => {
+    if (step !== 1) return;
+    if (!addedReagents.has(id)) return;
+    setAddedReagents((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
   const handleDropToTube = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     if (draggedReagentId) {
@@ -218,29 +242,40 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   };
 
   const validateThermalProfile = () => {
-    setThermoChecked(true);
-
     if (!denaturationValid) {
-      setThermoMessage('דנטורציה לא אופטימלית: מומלץ 94-95°C כדי לפתוח את הגדילים באופן מלא.');
+      setThermoMessage('הפרופיל לא תקין: טמפרטורת הדנטורציה אינה מתאימה.');
       return;
     }
 
     if (!extensionValid) {
-      setThermoMessage('טמפרטורת Extension לא אופטימלית: בחר 72°C (בטווח 71-73°C).');
+      setThermoMessage('הפרופיל לא תקין: טמפרטורת ה-Extension אינה מתאימה.');
       return;
     }
 
     if (annealingStatus === 'high') {
-      setThermoMessage('Annealing גבוה מדי: לא תהיה הגברה משמעותית כי הפריימרים לא ייקשרו טוב.');
+      setThermoMessage('הפרופיל לא תקין: טמפרטורת Annealing גבוהה מדי עבור התרגול הנוכחי.');
       return;
     }
 
     if (annealingStatus === 'low') {
-      setThermoMessage('Annealing נמוך מדי: צפויים קישורים לא-ספציפיים ויצירת primer-dimers.');
+      setThermoMessage('הפרופיל לא תקין: טמפרטורת Annealing נמוכה מדי עבור התרגול הנוכחי.');
       return;
     }
 
-    setThermoMessage('פרופיל טרמוסייקלר מצוין. אפשר לעבור לשלב המרוץ.');
+    const alreadySolved = solvedPracticeIds.has(activePractice.id);
+    if (!alreadySolved) {
+      setSolvedPracticeIds((prev) => {
+        const next = new Set(prev);
+        next.add(activePractice.id);
+        return next;
+      });
+    }
+    const solvedCountAfterCheck = alreadySolved ? solvedPracticeCount : solvedPracticeCount + 1;
+    if (solvedCountAfterCheck === thermalPracticeStats.length) {
+      setThermoMessage('מעולה. כל שלושת התרגולים נפתרו נכון, אפשר לעבור לשלב 3.');
+      return;
+    }
+    setThermoMessage(`${activePractice.title} נפתר נכון. עברו לתרגול הבא.`);
   };
 
   const startCycle = (cycle: number) => {
@@ -341,9 +376,10 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     setContamination(0);
     setPipettingLog([]);
     setThermoConfig({ denaturation: 90, annealing: 45, extension: 68 });
-    setThermoChecked(false);
     setThermoMessage('');
     setShowScientificExplanation(false);
+    setActivePracticeId('practice-1');
+    setSolvedPracticeIds(new Set());
     setRaceStarted(false);
     setCurrentCycle(1);
     setWindowOpen(false);
@@ -465,8 +501,15 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
               <div className="flex flex-wrap gap-2">
                 {Array.from(addedReagents).map((id) => (
-                  <span key={id} className="px-3 py-1 rounded-full text-xs font-bold border border-blue-400/30 bg-blue-500/15 text-blue-100">
+                  <span key={id} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border border-blue-400/30 bg-blue-500/15 text-blue-100">
                     {reagentById(id)?.label ?? id}
+                    <button
+                      onClick={() => removeReagent(id)}
+                      className="w-4 h-4 rounded-full border border-blue-300/40 text-[10px] leading-none hover:bg-blue-400/20"
+                      aria-label={`הסר ${reagentById(id)?.label ?? id}`}
+                    >
+                      ×
+                    </button>
                   </span>
                 ))}
                 {addedReagents.size === 0 && <span className="text-slate-500 text-sm">אין רכיבים במבחנה עדיין</span>}
@@ -528,12 +571,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                   המשך לשלב 2
                 </button>
               </div>
-
-              {!step1Ready && (
-                <p className="text-xs text-amber-300">
-                  חסרים רכיבים חובה: {missingRequired.map((id) => reagentById(id)?.label ?? id).join(', ')}
-                </p>
-              )}
             </div>
           </div>
         </div>
@@ -548,39 +585,78 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="space-y-3">
-              <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4 space-y-2">
-                <p className="text-slate-100 font-bold">רצף פריימר לאנליזה (תרגול 1)</p>
-                <p className="font-mono text-blue-200 break-all">{PRIMER_SEQUENCE}</p>
-                <p className="text-sm text-slate-300">GC%: <span className="font-bold text-emerald-300">{gcPercent}%</span></p>
-                <p className="text-sm text-slate-300">
-                  חישוב Tm מהיר: 2 × (A+T) + 4 × (G+C) = <span className="font-bold text-violet-300">{tm}°C</span>
-                </p>
-                <p className="text-xs text-slate-500">טווח Annealing מומלץ: {tm - 5}°C עד {tm}°C</p>
-                <div className="pt-2">
-                  <button
-                    onClick={() => setShowScientificExplanation(true)}
-                    className="px-4 py-2 rounded-xl border border-violet-400/40 bg-violet-500/15 hover:bg-violet-500/25 text-violet-100 text-sm font-bold"
-                  >
-                    פתח הסבר מדעי
-                  </button>
+              <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {thermalPracticeStats.map((practice) => {
+                    const isActive = practice.id === activePractice.id;
+                    const isSolved = solvedPracticeIds.has(practice.id);
+                    return (
+                      <button
+                        key={practice.id}
+                        onClick={() => {
+                          setActivePracticeId(practice.id);
+                          setThermoMessage('');
+                        }}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${
+                          isActive
+                            ? 'border-blue-400 bg-blue-500/20 text-blue-100'
+                            : 'border-slate-700 bg-slate-900/60 text-slate-300 hover:border-blue-400/60'
+                        }`}
+                      >
+                        {practice.title} {isSolved ? '✓' : ''}
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {extraPracticeStats.map((practice) => (
-                  <div key={practice.id} className="rounded-xl border border-slate-700 bg-slate-950/60 p-3 space-y-1">
-                    <p className="text-slate-100 font-bold text-sm">{practice.title}</p>
-                    <p className="text-[11px] text-slate-400">{practice.note}</p>
-                    <p className="font-mono text-blue-200 break-all text-sm">{practice.sequence}</p>
-                    <p className="text-xs text-slate-300">GC%: <span className="font-bold text-emerald-300">{practice.gcPercent}%</span></p>
-                    <p className="text-xs text-slate-300">
-                      Tm: <span className="font-bold text-violet-300">{practice.tm}°C</span>
-                    </p>
-                    <p className="text-[11px] text-slate-500">
-                      Annealing מומלץ: {practice.annealingMin}°C עד {practice.annealingMax}°C
-                    </p>
+                <div className="rounded-xl border border-slate-700/70 bg-slate-950/80 p-4 space-y-2">
+                  <p className="text-slate-100 font-bold">רצף פריימר לאנליזה ({activePractice.title})</p>
+                  <p className="text-xs text-slate-400">{activePractice.note}</p>
+                  <p className="font-mono text-blue-200 break-all">{activePractice.sequence}</p>
+                  <p className="text-sm text-slate-300">
+                    GC%: <span className="font-bold text-emerald-300">{activePractice.gcPercent}%</span>
+                  </p>
+                  <p className="text-sm text-slate-300">
+                    בסיסים: A={activePractice.aCount}, T={activePractice.tCount}, G={activePractice.gCount}, C={activePractice.cCount}
+                  </p>
+                  <p className="text-sm text-slate-300">
+                    סכומים לחישוב: (A+T)={activePractice.atCount}, (G+C)={activePractice.gcCount}
+                  </p>
+                  <div className="pt-2">
+                    <button
+                      onClick={() => setShowScientificExplanation(true)}
+                      className="px-4 py-2 rounded-xl border border-violet-400/40 bg-violet-500/15 hover:bg-violet-500/25 text-violet-100 text-sm font-bold"
+                    >
+                      פתח הסבר מדעי
+                    </button>
                   </div>
-                ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const previous = Math.max(0, activePracticeIndex - 1);
+                      setActivePracticeId(thermalPracticeStats[previous].id);
+                      setThermoMessage('');
+                    }}
+                    disabled={activePracticeIndex <= 0}
+                    className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    תרגול קודם
+                  </button>
+                  <button
+                    onClick={() => {
+                      const next = Math.min(thermalPracticeStats.length - 1, activePracticeIndex + 1);
+                      setActivePracticeId(thermalPracticeStats[next].id);
+                      setThermoMessage('');
+                    }}
+                    disabled={activePracticeIndex >= thermalPracticeStats.length - 1}
+                    className="px-3 py-1.5 rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    תרגול הבא
+                  </button>
+                  <span className="text-xs text-slate-300">התקדמות: {solvedPracticeCount}/{thermalPracticeStats.length}</span>
+                </div>
               </div>
             </div>
 
@@ -631,7 +707,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               בדוק פרופיל טרמי
             </button>
             <button
-              disabled={!thermoChecked}
+              disabled={!allPracticesSolved}
               onClick={() => setStep(3)}
               className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold px-5 py-2.5 rounded-xl"
             >
@@ -639,8 +715,8 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             </button>
           </div>
 
-          {thermoChecked && (
-            <p className={`text-sm font-medium ${thermoMessage.includes('מצוין') ? 'text-emerald-300' : 'text-amber-300'}`}>
+          {thermoMessage && (
+            <p className={`text-sm font-medium ${thermoMessage.includes('נפתר נכון') || thermoMessage.includes('מעולה') ? 'text-emerald-300' : 'text-amber-300'}`}>
               {thermoMessage}
             </p>
           )}
@@ -699,14 +775,11 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
                   <div className="rounded-xl border border-blue-500/25 bg-blue-500/10 p-3 space-y-1 text-slate-200">
                     <p>
-                      אם מתקבל <span className="font-mono text-blue-200">Tm = {tm}°C</span>, הפריימר יציב יחסית.
-                    </p>
-                    <p>
-                      לכן טמפרטורת <span className="font-mono">Annealing (Ta)</span> מומלצת סביב
-                      <span className="font-mono text-blue-200"> {tm - 5}°C</span>.
+                      לאחר חישוב <span className="font-mono">Tm</span> לכל פריימר, מקובל לקבוע את טמפרטורת
+                      <span className="font-mono"> Annealing (Ta)</span> מעט נמוכה יותר.
                     </p>
                     <p className="text-sm text-slate-300">
-                      גבוה מדי (קרוב ל-{tm}) עלול למנוע קישור פריימר; נמוך מדי (למשל 45°C) עלול ליצור קישור לא-ספציפי ו-primer dimers.
+                      Ta גבוהה מדי עלולה למנוע קישור פריימר; Ta נמוכה מדי עלולה ליצור קישור לא-ספציפי ו-primer dimers.
                     </p>
                   </div>
                 </div>
