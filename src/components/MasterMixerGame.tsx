@@ -88,6 +88,33 @@ const THERMAL_PRACTICES = [
   ...EXTRA_PRACTICES
 ] as const;
 
+type PracticeId = (typeof THERMAL_PRACTICES)[number]['id'];
+
+interface ThermalConfig {
+  denaturation: number;
+  annealing: number;
+  extension: number;
+}
+
+interface ThermalFeedback {
+  level: ThermalFeedbackLevel;
+  text: string;
+}
+
+const DEFAULT_THERMAL_CONFIG: ThermalConfig = {
+  denaturation: 90,
+  annealing: 45,
+  extension: 68
+};
+
+const PRACTICE_AUTO_ADVANCE_DELAY_MS = 3200;
+
+const createInitialThermalConfigByPractice = (): Record<PracticeId, ThermalConfig> => ({
+  'practice-1': { ...DEFAULT_THERMAL_CONFIG },
+  'practice-2': { ...DEFAULT_THERMAL_CONFIG },
+  'practice-3': { ...DEFAULT_THERMAL_CONFIG }
+});
+
 function countBases(sequence: string) {
   const upper = sequence.toUpperCase();
   const aCount = (upper.match(/A/g) || []).length;
@@ -406,17 +433,15 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const [tipFresh, setTipFresh] = useState(true);
   const [contamination, setContamination] = useState(0);
 
-  const [thermoConfig, setThermoConfig] = useState({
-    denaturation: 90,
-    annealing: 45,
-    extension: 68
-  });
-  const [thermoFeedback, setThermoFeedback] = useState<{ level: ThermalFeedbackLevel; text: string } | null>(null);
-  const [continuationPrimerChoice, setContinuationPrimerChoice] = useState<(typeof THERMAL_PRACTICES)[number]['id'] | null>(null);
+  const [activePracticeId, setActivePracticeId] = useState<PracticeId>('practice-1');
+  const [thermalConfigByPractice, setThermalConfigByPractice] = useState<Record<PracticeId, ThermalConfig>>(
+    createInitialThermalConfigByPractice
+  );
+  const [thermalFeedbackByPractice, setThermalFeedbackByPractice] = useState<Partial<Record<PracticeId, ThermalFeedback>>>({});
+  const [continuationPrimerChoice, setContinuationPrimerChoice] = useState<PracticeId | null>(null);
   const [showContinuationPrompt, setShowContinuationPrompt] = useState(false);
   const [showScientificExplanation, setShowScientificExplanation] = useState(false);
-  const [activePracticeId, setActivePracticeId] = useState<(typeof THERMAL_PRACTICES)[number]['id']>('practice-1');
-  const [solvedPracticeIds, setSolvedPracticeIds] = useState<Set<(typeof THERMAL_PRACTICES)[number]['id']>>(new Set());
+  const [solvedPracticeIds, setSolvedPracticeIds] = useState<Set<PracticeId>>(new Set());
 
   const [activeScenarioId, setActiveScenarioId] = useState<(typeof TROUBLESHOOTING_SCENARIOS)[number]['id']>('run-1');
   const [scenarioSelections, setScenarioSelections] = useState<
@@ -441,6 +466,17 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       clearTimeout(autoAdvanceScenarioTimeoutRef.current);
       autoAdvanceScenarioTimeoutRef.current = null;
     }
+  };
+
+  const setPracticeFeedback = (practiceId: PracticeId, feedback: ThermalFeedback | null) => {
+    setThermalFeedbackByPractice((prev) => {
+      if (feedback) {
+        return { ...prev, [practiceId]: feedback };
+      }
+      const next = { ...prev };
+      delete next[practiceId];
+      return next;
+    });
   };
 
   const thermalPracticeStats = useMemo(() => {
@@ -468,6 +504,9 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     thermalPracticeStats[activePracticeIndex >= 0 ? activePracticeIndex : 0];
   const solvedPracticeCount = solvedPracticeIds.size;
   const allPracticesSolved = solvedPracticeCount === thermalPracticeStats.length;
+  const thermoConfig = thermalConfigByPractice[activePractice.id];
+  const thermoFeedback = thermalFeedbackByPractice[activePractice.id] ?? null;
+  const finalPracticeFeedback = thermalFeedbackByPractice['practice-3'] ?? null;
   const canProceedToStep3 = allPracticesSolved && continuationPrimerChoice === 'practice-1';
 
   const missingRequired = REQUIRED_REAGENTS.filter((id) => !addedReagents.has(id));
@@ -531,7 +570,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       clearTimeout(continuationPromptTimeoutRef.current);
       continuationPromptTimeoutRef.current = null;
     }
-    if (!(allPracticesSolved && thermoFeedback?.level === 'red')) {
+    if (!(allPracticesSolved && finalPracticeFeedback?.level === 'red')) {
       return;
     }
     continuationPromptTimeoutRef.current = setTimeout(() => {
@@ -543,7 +582,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
         continuationPromptTimeoutRef.current = null;
       }
     };
-  }, [allPracticesSolved, thermoFeedback]);
+  }, [allPracticesSolved, finalPracticeFeedback]);
 
   const reagentById = (id: ReagentId) => REAGENTS.find((reagent) => reagent.id === id);
 
@@ -593,7 +632,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
   const validateThermalProfile = () => {
     clearAutoAdvancePracticeTimeout();
     setShowContinuationPrompt(false);
-    const feedbackByPractice: Record<(typeof THERMAL_PRACTICES)[number]['id'], { level: ThermalFeedbackLevel; text: string }> = {
+    const feedbackByPractice: Record<PracticeId, ThermalFeedback> = {
       'practice-1': { level: 'green', text: THERMAL_FEEDBACK_TEXT.green },
       'practice-2': { level: 'yellow', text: THERMAL_FEEDBACK_TEXT.yellow },
       'practice-3': { level: 'red', text: THERMAL_FEEDBACK_TEXT.red }
@@ -601,14 +640,14 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
     const temperaturesAreValid = denaturationValid && extensionValid && annealingStatus === 'optimal';
 
     if (!temperaturesAreValid) {
-      setThermoFeedback({
+      setPracticeFeedback(activePractice.id, {
         level: 'info',
         text: `הזנה שגויה של טמפרטורות עבור ${activePractice.title}. חשבו מחדש את הטמפרטורות לפי נתוני התרגיל ונסו שוב.`
       });
       return;
     }
 
-    setThermoFeedback(feedbackByPractice[activePractice.id]);
+    setPracticeFeedback(activePractice.id, feedbackByPractice[activePractice.id]);
     if (activePractice.id === 'practice-3') {
       setContinuationPrimerChoice(null);
     }
@@ -626,32 +665,22 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
       const nextPracticeId = thermalPracticeStats[activePracticeIndex + 1].id;
       autoAdvancePracticeTimeoutRef.current = setTimeout(() => {
         setActivePracticeId(nextPracticeId);
-        setThermoFeedback(null);
         setShowContinuationPrompt(false);
-      }, 900);
+      }, PRACTICE_AUTO_ADVANCE_DELAY_MS);
     }
   };
 
-  const getPrimerLabel = (practiceId: (typeof THERMAL_PRACTICES)[number]['id']) => {
+  const getPrimerLabel = (practiceId: PracticeId) => {
     if (practiceId === 'practice-1') return 'פריימר 1';
     if (practiceId === 'practice-2') return 'פריימר 2';
     return 'פריימר 3';
   };
 
-  const handleContinuationPrimerChoice = (practiceId: (typeof THERMAL_PRACTICES)[number]['id']) => {
+  const handleContinuationPrimerChoice = (practiceId: PracticeId) => {
     setContinuationPrimerChoice(practiceId);
     if (practiceId === 'practice-1') {
-      setThermoFeedback({
-        level: 'green',
-        text: 'בחירה נכונה. פריימר 1 הוא הבחירה המתאימה להמשך לשלב הבא.'
-      });
       setShowContinuationPrompt(false);
-      return;
     }
-    setThermoFeedback({
-      level: 'red',
-      text: 'בחירתך שגויה. תוכל/י לחזור לתרגילים כדי לבחון שוב מיהו הפריימר האידיאלי.'
-    });
   };
 
   const isScenarioUnlocked = (scenarioId: (typeof TROUBLESHOOTING_SCENARIOS)[number]['id']) => {
@@ -735,8 +764,8 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
 
   const resetStage2Data = () => {
     clearAutoAdvancePracticeTimeout();
-    setThermoConfig({ denaturation: 90, annealing: 45, extension: 68 });
-    setThermoFeedback(null);
+    setThermalConfigByPractice(createInitialThermalConfigByPractice());
+    setThermalFeedbackByPractice({});
     setContinuationPrimerChoice(null);
     setShowContinuationPrompt(false);
     if (continuationPromptTimeoutRef.current) {
@@ -988,7 +1017,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                         onClick={() => {
                           clearAutoAdvancePracticeTimeout();
                           setActivePracticeId(practice.id);
-                          setThermoFeedback(null);
                           setShowContinuationPrompt(false);
                         }}
                         className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${
@@ -1035,7 +1063,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                       clearAutoAdvancePracticeTimeout();
                       const previous = Math.max(0, activePracticeIndex - 1);
                       setActivePracticeId(thermalPracticeStats[previous].id);
-                      setThermoFeedback(null);
                       setShowContinuationPrompt(false);
                     }}
                     disabled={activePracticeIndex <= 0}
@@ -1048,7 +1075,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                       clearAutoAdvancePracticeTimeout();
                       const next = Math.min(thermalPracticeStats.length - 1, activePracticeIndex + 1);
                       setActivePracticeId(thermalPracticeStats[next].id);
-                      setThermoFeedback(null);
                       setShowContinuationPrompt(false);
                     }}
                     disabled={
@@ -1070,9 +1096,14 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                 <input
                   type="number"
                   value={thermoConfig.denaturation}
-                  onChange={(event) =>
-                    setThermoConfig((prev) => ({ ...prev, denaturation: Number(event.target.value) }))
-                  }
+                  onChange={(event) => {
+                    clearAutoAdvancePracticeTimeout();
+                    const nextValue = Number(event.target.value);
+                    setThermalConfigByPractice((prev) => ({
+                      ...prev,
+                      [activePractice.id]: { ...prev[activePractice.id], denaturation: nextValue }
+                    }));
+                  }}
                   className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-100"
                 />
               </div>
@@ -1082,9 +1113,14 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                 <input
                   type="number"
                   value={thermoConfig.annealing}
-                  onChange={(event) =>
-                    setThermoConfig((prev) => ({ ...prev, annealing: Number(event.target.value) }))
-                  }
+                  onChange={(event) => {
+                    clearAutoAdvancePracticeTimeout();
+                    const nextValue = Number(event.target.value);
+                    setThermalConfigByPractice((prev) => ({
+                      ...prev,
+                      [activePractice.id]: { ...prev[activePractice.id], annealing: nextValue }
+                    }));
+                  }}
                   className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-100"
                 />
               </div>
@@ -1094,9 +1130,14 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                 <input
                   type="number"
                   value={thermoConfig.extension}
-                  onChange={(event) =>
-                    setThermoConfig((prev) => ({ ...prev, extension: Number(event.target.value) }))
-                  }
+                  onChange={(event) => {
+                    clearAutoAdvancePracticeTimeout();
+                    const nextValue = Number(event.target.value);
+                    setThermalConfigByPractice((prev) => ({
+                      ...prev,
+                      [activePractice.id]: { ...prev[activePractice.id], extension: nextValue }
+                    }));
+                  }}
                   className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-100"
                 />
               </div>
@@ -1195,7 +1236,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                   <button
                     onClick={() => {
                       setShowContinuationPrompt(false);
-                      setThermoFeedback(null);
                     }}
                     className="px-4 py-2 rounded-xl border border-slate-600 bg-slate-900/70 hover:border-blue-400 text-slate-200 text-sm font-bold"
                   >
