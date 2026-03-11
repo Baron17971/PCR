@@ -25,6 +25,19 @@ interface PracticeQuestion {
   explanation: string;
 }
 
+function RepeatStrip({ count }: { count: number }) {
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {Array.from({ length: count }).map((_, index) => (
+        <span
+          key={`repeat-${count}-${index}`}
+          className="h-4 w-4 rounded-[3px] border border-slate-200/30 bg-cyan-300/80"
+        />
+      ))}
+    </div>
+  );
+}
+
 const QUESTIONS: PracticeQuestion[] = [
   {
     id: 'q1',
@@ -139,11 +152,60 @@ export default function GeneticFingerprintPage({ onComplete }: GeneticFingerprin
             אנלוגיה פשוטה
           </h3>
           <p className="text-slate-300 leading-relaxed">
-            דמיין את ה-DNA כספר: לכולנו יש אותן "מילים" בסיסיות, אבל בעמודים מסוימים יש מילה שחוזרת מספר שונה של פעמים.
-            דפוס החזרות הזה יוצר "חתימה" אישית.
+            דמיין את ה-DNA כספר: לכולנו יש אותן מילים בסיסיות, אבל בעמודים מסוימים יש מילה שחוזרת מספר שונה של פעמים.
+            דפוס החזרות הזה יוצר חתימה אישית.
           </p>
         </article>
       </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <article className="rounded-2xl border border-slate-700/50 bg-slate-900/60 p-5 space-y-3">
+          <h3 className="text-xl font-black text-white">בסיס גנטי של STR</h3>
+          <p className="text-slate-300 leading-relaxed">
+            כל אדם נושא בכל תא מערך כפול של כרומוזומים, ולכן בכל לוקוס קיימים שני אללים. המשמעות היא שאדם יכול להיות
+            הומוזיגוט או הטרוזיגוט לא רק ביחס לגנים מקודדים, אלא גם ביחס למקטעים פולימורפיים מסוג STR.
+          </p>
+        </article>
+
+        <article className="rounded-2xl border border-slate-700/50 bg-slate-900/60 p-5 space-y-4">
+          <h3 className="text-xl font-black text-white">דוגמה: הטרוזיגוט מול הומוזיגוט</h3>
+
+          <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3 space-y-2">
+            <p className="text-cyan-100 font-bold">אדם א׳: הטרוזיגוט (4/6 חזרות)</p>
+            <div className="flex items-center gap-3 text-sm text-slate-300">
+              <span className="w-12">אלל 1:</span>
+              <RepeatStrip count={4} />
+            </div>
+            <div className="flex items-center gap-3 text-sm text-slate-300">
+              <span className="w-12">אלל 2:</span>
+              <RepeatStrip count={6} />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 space-y-2">
+            <p className="text-emerald-100 font-bold">אדם ב׳: הומוזיגוט (5/5 חזרות)</p>
+            <div className="flex items-center gap-3 text-sm text-slate-300">
+              <span className="w-12">אלל 1:</span>
+              <RepeatStrip count={5} />
+            </div>
+            <div className="flex items-center gap-3 text-sm text-slate-300">
+              <span className="w-12">אלל 2:</span>
+              <RepeatStrip count={5} />
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <article className="rounded-2xl border border-slate-700/50 bg-slate-900/60 p-5 space-y-3">
+        <h3 className="text-xl font-black text-white">זרימת העבודה בזיהוי STR</h3>
+        <div className="space-y-2 text-slate-300 leading-relaxed">
+          <p>1. אוספים דגימות DNA מן הקורבן ומהחשודים.</p>
+          <p>2. מגבירים את המקטעים המכילים STR ב-PCR.</p>
+          <p>3. בשיטות לימודיות או פרוטוקולים מסוימים משתמשים גם באנזים הגבלה החותך מחוץ לאזור החזרות.</p>
+          <p>4. מריצים את הדגימות בג׳ל אלקטרופורזה.</p>
+          <p>5. משווים את דפוסי הפסים של דגימת השטח מול הקורבן והחשודים.</p>
+        </div>
+      </article>
 
       <article className="rounded-2xl border border-slate-700/50 bg-slate-900/60 p-5 space-y-3">
         <h3 className="text-xl font-black text-white flex items-center gap-2 justify-start">
@@ -280,4 +342,3 @@ export default function GeneticFingerprintPage({ onComplete }: GeneticFingerprin
     </div>
   );
 }
-
