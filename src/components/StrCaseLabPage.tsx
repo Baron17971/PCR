@@ -322,24 +322,67 @@ const SCENARIOS: Record<CaseId, Scenario> = {
   }
 };
 
-const alleleOffset = (allele: Allele): number => {
-  if (allele === "X") return -3.5;
-  if (allele === "Y") return 3.5;
-  return ((allele % 11) - 5) * 0.85;
+const alleleToNumeric = (allele: Allele): number => {
+  if (typeof allele === "number") return allele;
+  return allele === "X" ? 0 : 1;
 };
 
-function locusBandPositions(genotype: Genotype, rowCenter: number): number[] {
-  const [a1, a2] = genotype;
-  const p1 = rowCenter + alleleOffset(a1);
-  const p2 = rowCenter + alleleOffset(a2);
-  if (p1 === p2) return [p1];
-  return [Math.min(p1, p2), Math.max(p1, p2)];
+function buildLocusBandScale(loci: LocusDefinition[], lanes: GelLane[]): Record<string, Map<number, number>> {
+  const scale: Record<string, Map<number, number>> = {};
+
+  loci.forEach((locus) => {
+    const allAlleles = lanes.flatMap((lane) => {
+      const genotype = lane.profile[locus.id];
+      if (!genotype) return [];
+      return [alleleToNumeric(genotype[0]), alleleToNumeric(genotype[1])];
+    });
+
+    const uniqueSorted = Array.from(new Set(allAlleles)).sort((a, b) => a - b);
+    const rankMap = new Map<number, number>();
+
+    if (uniqueSorted.length === 1) {
+      rankMap.set(uniqueSorted[0], 0.5);
+    } else {
+      uniqueSorted.forEach((alleleValue, index) => {
+        rankMap.set(alleleValue, index / (uniqueSorted.length - 1));
+      });
+    }
+
+    scale[locus.id] = rankMap;
+  });
+
+  return scale;
+}
+
+function locusBandPositions(
+  genotype: Genotype,
+  locusId: string,
+  rowCenter: number,
+  rowHeight: number,
+  locusScale: Record<string, Map<number, number>>
+): number[] {
+  const rankMap = locusScale[locusId];
+  if (!rankMap) return [rowCenter];
+
+  const minY = rowCenter - rowHeight * 0.30;
+  const maxY = rowCenter + rowHeight * 0.30;
+  const span = maxY - minY;
+
+  const yPositions = genotype.map((allele) => {
+    const alleleValue = alleleToNumeric(allele);
+    const rank = rankMap.get(alleleValue) ?? 0.5;
+    return minY + rank * span;
+  });
+
+  if (Math.abs(yPositions[0] - yPositions[1]) < 1) return [yPositions[0]];
+  return [Math.min(yPositions[0], yPositions[1]), Math.max(yPositions[0], yPositions[1])];
 }
 
 function GelImage({ loci, lanes, lociSummary }: { loci: LocusDefinition[]; lanes: GelLane[]; lociSummary: string }) {
   const rowHeight = 42;
-  const rowStart = 40;
+  const rowStart = 36;
   const gelHeight = rowStart + loci.length * rowHeight + 16;
+  const locusScale = buildLocusBandScale(loci, lanes);
 
   return (
     <div className="rounded-2xl border border-slate-600/40 bg-slate-950/70 p-4 space-y-3">
@@ -397,7 +440,7 @@ function GelImage({ loci, lanes, lociSummary }: { loci: LocusDefinition[]; lanes
                           className="absolute left-2 right-2 border-t border-[#9fb3ba]/80"
                           style={{ top: rowCenter }}
                         />
-                        {locusBandPositions(genotype, rowCenter).map((bandY, bandIndex) => (
+                        {locusBandPositions(genotype, locus.id, rowCenter, rowHeight, locusScale).map((bandY, bandIndex) => (
                           <span
                             key={`${lane.id}-${locus.id}-band-${bandIndex}`}
                             className={`absolute left-1/2 -translate-x-1/2 h-[7px] w-[72%] rounded-[2px] border border-[#0588a3] ${BAND_TONE_CLASS[lane.tone]}`}
