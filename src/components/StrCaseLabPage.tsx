@@ -57,10 +57,10 @@ interface FeedbackMessage {
 }
 
 const BAND_TONE_CLASS: Record<BandTone, string> = {
-  mother: "bg-violet-300 shadow-[0_0_16px_rgba(196,181,253,0.85)]",
-  child: "bg-cyan-300 shadow-[0_0_16px_rgba(103,232,249,0.85)]",
-  candidate: "bg-blue-200 shadow-[0_0_14px_rgba(191,219,254,0.8)]",
-  sample: "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.95)]"
+  mother: "bg-[#0ca4c0]",
+  child: "bg-[#0ca4c0]",
+  candidate: "bg-[#0ca4c0]",
+  sample: "bg-[#0ca4c0]"
 };
 
 const PATERNITY_LOCI: LocusDefinition[] = [
@@ -337,37 +337,37 @@ function locusBandPositions(genotype: Genotype, rowCenter: number): number[] {
 }
 
 function GelImage({ loci, lanes, lociSummary }: { loci: LocusDefinition[]; lanes: GelLane[]; lociSummary: string }) {
-  const rowHeight = 34;
-  const rowStart = 18;
-  const gelHeight = rowStart + loci.length * rowHeight + 14;
+  const rowHeight = 42;
+  const rowStart = 40;
+  const gelHeight = rowStart + loci.length * rowHeight + 16;
 
   return (
-    <div className="rounded-2xl border border-slate-700/55 bg-slate-950/70 p-4 space-y-3">
+    <div className="rounded-2xl border border-slate-600/40 bg-slate-950/70 p-4 space-y-3">
       <div className="flex items-center justify-between text-sm">
         <span className="text-slate-300">תמונת ג׳ל (סימולציה)</span>
         <span className="text-slate-500">{lociSummary}</span>
       </div>
 
-      <div className="rounded-xl border border-slate-700/70 bg-gradient-to-b from-blue-950/60 via-blue-950/50 to-slate-950/70 p-3 overflow-auto">
+      <div className="rounded-xl border border-slate-500/70 bg-[#dce8ed] p-3 overflow-auto shadow-inner">
         <div className="min-w-[760px]" dir="ltr">
           <div
-            className="grid gap-2"
-            style={{ gridTemplateColumns: `124px repeat(${lanes.length}, minmax(120px, 1fr))` }}
+            className="grid gap-0"
+            style={{ gridTemplateColumns: `124px repeat(${lanes.length}, minmax(128px, 1fr))` }}
           >
             <div />
             {lanes.map((lane) => (
-              <div key={`label-${lane.id}`} className="text-center text-xs md:text-sm text-slate-200 font-bold">
+              <div key={`label-${lane.id}`} className="text-center text-xs md:text-sm text-slate-700 font-black pb-1">
                 {lane.label}
               </div>
             ))}
 
-            <div className="relative border-r border-slate-700/70 pr-2" style={{ height: gelHeight }}>
+            <div className="relative border-r border-slate-500/70 pr-2 bg-[#eaf1f4]" style={{ height: gelHeight }}>
               {loci.map((locus, index) => {
                 const rowCenter = rowStart + index * rowHeight;
                 return (
                   <span
                     key={`locus-label-${locus.id}`}
-                    className="absolute right-1 -translate-y-1/2 text-[10px] md:text-[11px] text-slate-400"
+                    className="absolute right-1 -translate-y-1/2 text-[10px] md:text-[11px] text-slate-700 font-semibold"
                     style={{ top: rowCenter }}
                   >
                     {locus.label}
@@ -377,12 +377,11 @@ function GelImage({ loci, lanes, lociSummary }: { loci: LocusDefinition[]; lanes
             </div>
 
             {lanes.map((lane) => (
-              <div key={lane.id} className="space-y-2">
-                <div className="h-5 w-[76%] mx-auto rounded-b-xl border border-slate-500/70 bg-slate-500/40" />
+              <div key={lane.id} className="relative border-x border-b border-[#6a7a82] bg-gradient-to-b from-[#d0e0e5] to-[#c7d8de]" style={{ height: gelHeight }}>
+                <div className="absolute left-0 right-0 top-0 h-8 border-b border-[#6a7a82] bg-[#c4d6dc]" />
+                <div className="absolute top-0 left-[18%] right-[18%] h-6 border-x border-b border-[#6a7a82] bg-[#dce8ed]" />
 
-                <div className="relative rounded-lg border border-slate-700/70 bg-slate-900/45 overflow-hidden" style={{ height: gelHeight }}>
-                  <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle,_rgba(125,211,252,0.18)_1px,_transparent_1px)] bg-[length:10px_10px]" />
-
+                <div className="absolute inset-x-0 top-8 bottom-0">
                   {loci.map((locus, index) => {
                     const rowCenter = rowStart + index * rowHeight;
                     const genotype = lane.profile[locus.id];
@@ -391,17 +390,17 @@ function GelImage({ loci, lanes, lociSummary }: { loci: LocusDefinition[]; lanes
                     return (
                       <React.Fragment key={`${lane.id}-${locus.id}`}>
                         <span
-                          className="absolute left-2 right-2 rounded-md border border-slate-700/45 bg-slate-900/30"
+                          className="absolute left-2 right-2 rounded-[3px] border border-[#b4c5cb] bg-[#d9e7ec]/80"
                           style={{ top: rowCenter - rowHeight / 2 + 4, height: rowHeight - 8 }}
                         />
                         <span
-                          className="absolute left-2 right-2 border-t border-slate-600/70"
+                          className="absolute left-2 right-2 border-t border-[#9fb3ba]/80"
                           style={{ top: rowCenter }}
                         />
                         {locusBandPositions(genotype, rowCenter).map((bandY, bandIndex) => (
                           <span
                             key={`${lane.id}-${locus.id}-band-${bandIndex}`}
-                            className={`absolute left-1/2 -translate-x-1/2 h-[5px] w-[72%] rounded-full ${BAND_TONE_CLASS[lane.tone]}`}
+                            className={`absolute left-1/2 -translate-x-1/2 h-[7px] w-[72%] rounded-[2px] border border-[#0588a3] ${BAND_TONE_CLASS[lane.tone]}`}
                             style={{ top: bandY }}
                           />
                         ))}
