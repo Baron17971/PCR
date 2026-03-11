@@ -70,16 +70,7 @@ const PATERNITY_LOCI: LocusDefinition[] = [
   { id: "D8S1179", label: "D8S1179" },
   { id: "D21S11", label: "D21S11" },
   { id: "D18S51", label: "D18S51" },
-  { id: "D5S818", label: "D5S818" },
-  { id: "D13S317", label: "D13S317" },
-  { id: "D7S820", label: "D7S820" },
-  { id: "CSF1PO", label: "CSF1PO" },
-  { id: "TH01", label: "TH01" },
-  { id: "TPOX", label: "TPOX" },
-  { id: "D16S539", label: "D16S539" },
-  { id: "D2S1338", label: "D2S1338" },
-  { id: "D19S433", label: "D19S433" },
-  { id: "D12S391", label: "D12S391" }
+  { id: "D5S818", label: "D5S818" }
 ];
 
 const FORENSIC_LOCI: LocusDefinition[] = [
@@ -89,20 +80,6 @@ const FORENSIC_LOCI: LocusDefinition[] = [
   { id: "D8S1179", label: "D8S1179" },
   { id: "D21S11", label: "D21S11" },
   { id: "D18S51", label: "D18S51" },
-  { id: "D5S818", label: "D5S818" },
-  { id: "D13S317", label: "D13S317" },
-  { id: "D7S820", label: "D7S820" },
-  { id: "CSF1PO", label: "CSF1PO" },
-  { id: "TH01", label: "TH01" },
-  { id: "TPOX", label: "TPOX" },
-  { id: "D16S539", label: "D16S539" },
-  { id: "D2S1338", label: "D2S1338" },
-  { id: "D19S433", label: "D19S433" },
-  { id: "D12S391", label: "D12S391" },
-  { id: "D1S1656", label: "D1S1656" },
-  { id: "D2S441", label: "D2S441" },
-  { id: "D10S1248", label: "D10S1248" },
-  { id: "D22S1045", label: "D22S1045" },
   { id: "AMEL", label: "Amelogenin" }
 ];
 
@@ -305,8 +282,8 @@ const SCENARIOS: Record<CaseId, Scenario> = {
     id: "paternity",
     tabLabel: "בדיקת אבהות",
     title: "יישום 1: בדיקת אבהות לפי STR",
-    subtitle: "סימולציה עם 16 לוקוסים (בתחום המקובל: 15–21 לוקוסים בבדיקות אזרחיות).",
-    lociSummary: "16 לוקוסים",
+    subtitle: "סימולציה לימודית עם 7 לוקוסים מופרדים וברורים (לתרגול ממוקד).",
+    lociSummary: "7 לוקוסים",
     question: "מי האב הביולוגי הסביר ביותר?",
     options: ["אב א", "אב ב", "אב ג"],
     correct: "אב א",
@@ -327,8 +304,8 @@ const SCENARIOS: Record<CaseId, Scenario> = {
     id: "forensics",
     tabLabel: "זיהוי פלילי",
     title: "יישום 2: שיוך דגימה מזירת אירוע",
-    subtitle: "סימולציה עם 20 לוקוסים + Amelogenin, בהתאם למעבר לתקנים מורחבים.",
-    lociSummary: "20 לוקוסים + Amelogenin",
+    subtitle: "סימולציה לימודית עם 7 לוקוסים מופרדים וברורים (כולל Amelogenin).",
+    lociSummary: "7 לוקוסים (כולל Amelogenin)",
     question: "מי החשוד שתואם למוצג?",
     options: ["חשוד 1", "חשוד 2", "חשוד 3"],
     correct: "חשוד 2",
@@ -360,9 +337,9 @@ function locusBandPositions(genotype: Genotype, rowCenter: number): number[] {
 }
 
 function GelImage({ loci, lanes, lociSummary }: { loci: LocusDefinition[]; lanes: GelLane[]; lociSummary: string }) {
-  const rowHeight = 18;
-  const rowStart = 14;
-  const gelHeight = rowStart + loci.length * rowHeight + 10;
+  const rowHeight = 34;
+  const rowStart = 18;
+  const gelHeight = rowStart + loci.length * rowHeight + 14;
 
   return (
     <div className="rounded-2xl border border-slate-700/55 bg-slate-950/70 p-4 space-y-3">
@@ -372,10 +349,10 @@ function GelImage({ loci, lanes, lociSummary }: { loci: LocusDefinition[]; lanes
       </div>
 
       <div className="rounded-xl border border-slate-700/70 bg-gradient-to-b from-blue-950/60 via-blue-950/50 to-slate-950/70 p-3 overflow-auto">
-        <div className="min-w-[720px]" dir="ltr">
+        <div className="min-w-[760px]" dir="ltr">
           <div
             className="grid gap-2"
-            style={{ gridTemplateColumns: `106px repeat(${lanes.length}, minmax(120px, 1fr))` }}
+            style={{ gridTemplateColumns: `124px repeat(${lanes.length}, minmax(120px, 1fr))` }}
           >
             <div />
             {lanes.map((lane) => (
@@ -414,13 +391,17 @@ function GelImage({ loci, lanes, lociSummary }: { loci: LocusDefinition[]; lanes
                     return (
                       <React.Fragment key={`${lane.id}-${locus.id}`}>
                         <span
-                          className="absolute left-2 right-2 border-t border-slate-700/55"
+                          className="absolute left-2 right-2 rounded-md border border-slate-700/45 bg-slate-900/30"
+                          style={{ top: rowCenter - rowHeight / 2 + 4, height: rowHeight - 8 }}
+                        />
+                        <span
+                          className="absolute left-2 right-2 border-t border-slate-600/70"
                           style={{ top: rowCenter }}
                         />
                         {locusBandPositions(genotype, rowCenter).map((bandY, bandIndex) => (
                           <span
                             key={`${lane.id}-${locus.id}-band-${bandIndex}`}
-                            className={`absolute left-1/2 -translate-x-1/2 h-[4px] w-[76%] rounded-full ${BAND_TONE_CLASS[lane.tone]}`}
+                            className={`absolute left-1/2 -translate-x-1/2 h-[5px] w-[72%] rounded-full ${BAND_TONE_CLASS[lane.tone]}`}
                             style={{ top: bandY }}
                           />
                         ))}
@@ -480,6 +461,9 @@ function StandardsBubble() {
             <p>
               בזיהוי פלילי, המאגר התבסס בעבר על 13 לוקוסים, וכיום נהוג לעבוד עם <strong>20 לוקוסים לפחות</strong>{" "}
               ובנוסף סמן המין <strong>Amelogenin</strong>.
+            </p>
+            <p>
+              לצורך למידה בכיתה, במסך זה מוצגים <strong>7 לוקוסים בלבד</strong> בכל תרחיש, בהפרדה ויזואלית ברורה.
             </p>
             <p>
               במקרים מורכבים משתמשים גם בבדיקות משלימות כמו <strong>Y-STR</strong> או <strong>DNA מיטוכונדריאלי</strong>.
