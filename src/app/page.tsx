@@ -11,23 +11,45 @@ import PcrPrinciplesGame from '@/components/PcrPrinciplesGame';
 import PcrApplicationsPage from '@/components/PcrApplicationsPage';
 import WelcomeScreen from '@/components/WelcomeScreen';
 import { SimulationPhase } from '@/types';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Home() {
   const [phase, setPhase] = useState<SimulationPhase>('landing');
+  const [isSideNavOpen, setIsSideNavOpen] = useState(false);
 
   const phases: SimulationPhase[] = ['landing', 'pcr-intro', 'preparation', 'pcr-running', 'master-mixer-game', 'replication-comparison', 'genetic-fingerprint', 'str-case-lab', 'completed', 'gene-expression-lab', 'pcr-applications', 'pcr-principles-game'];
+  const phaseLabels: Record<SimulationPhase, { label: string; hint: string }> = {
+    'landing': { label: 'דף פתיחה', hint: 'שער האפליקציה' },
+    'pcr-intro': { label: 'מה זה PCR', hint: 'הקדמה תיאורטית' },
+    'preparation': { label: 'הכנת התערובת', hint: 'בחירת רכיבים' },
+    'pcr-running': { label: 'אנימציית PCR', hint: 'שלבי המחזור התרמי' },
+    'master-mixer-game': { label: 'The Master Mixer', hint: 'משחק אינטראקטיבי רב־שלבי' },
+    'replication-comparison': { label: 'השוואת שכפול', hint: 'בתא מול מבחנה' },
+    'genetic-fingerprint': { label: 'טביעת אצבע גנטית', hint: 'STR ועקרונות זיהוי' },
+    'str-case-lab': { label: 'מעבדת STR', hint: 'תרגול פורנזי ואבהות' },
+    'completed': { label: 'סיום', hint: 'עמוד סיכום והמשך' },
+    'gene-expression-lab': { label: 'מעבדת ביטוי גנים', hint: 'mRNA, RT ו-PCR' },
+    'pcr-applications': { label: 'יישומי PCR', hint: 'יישומים מעשיים' },
+    'pcr-principles-game': { label: 'משחק עקרונות PCR', hint: 'אתגר מסכם' }
+  };
+  const phaseMenuItems = phases.map((id, idx) => ({
+    id,
+    order: idx + 1,
+    ...phaseLabels[id]
+  }));
   const currentIndex = phases.indexOf(phase);
 
   const goToNext = () => {
     if (currentIndex < phases.length - 1) {
+      setIsSideNavOpen(false);
       setPhase(phases[currentIndex + 1]);
     }
   };
 
   const goToPrev = () => {
     if (currentIndex > 0) {
+      setIsSideNavOpen(false);
       setPhase(phases[currentIndex - 1]);
     }
   };
@@ -42,6 +64,14 @@ export default function Home() {
           className="w-20 md:w-28 h-auto opacity-95 hover:opacity-100 transition-opacity drop-shadow-[0_0_8px_rgba(45,212,191,0.3)] drop-shadow-[0_0_20px_rgba(45,212,191,0.1)] drop-shadow-2xl"
         />
       </div>
+      <button
+        onClick={() => setIsSideNavOpen(true)}
+        className="fixed top-4 right-4 md:top-8 md:right-8 z-[75] inline-flex items-center gap-2 rounded-xl border border-slate-600/70 bg-slate-900/80 hover:bg-slate-800/90 text-slate-100 px-3 py-2 shadow-xl backdrop-blur"
+        aria-label="פתח תפריט ניווט"
+      >
+        <Menu className="w-5 h-5" />
+        <span className="hidden sm:inline text-sm font-bold">תפריט</span>
+      </button>
 
       <div className="flex-1 flex flex-col min-h-0">
         {phase === 'landing' && (
@@ -154,6 +184,80 @@ export default function Home() {
           <PcrApplicationsPage onComplete={() => setPhase('pcr-principles-game')} />
         )}
       </div>
+
+      <AnimatePresence>
+        {isSideNavOpen && (
+          <>
+            <motion.button
+              key="side-nav-backdrop"
+              type="button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSideNavOpen(false)}
+              className="fixed inset-0 z-[76] bg-slate-950/60 backdrop-blur-sm"
+              aria-label="סגור תפריט ניווט"
+            />
+            <motion.aside
+              key="side-nav-panel"
+              initial={{ x: 420, opacity: 0.5 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 420, opacity: 0.5 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+              className="fixed top-0 right-0 h-full w-[min(92vw,420px)] z-[77] border-l border-slate-600/60 bg-slate-950/95 backdrop-blur-xl p-4 md:p-6 flex flex-col gap-4"
+              dir="rtl"
+            >
+              <div className="flex items-center justify-between">
+                <div className="text-right">
+                  <h3 className="text-xl md:text-2xl font-black text-white">ניווט מהיר</h3>
+                  <p className="text-slate-400 text-sm">מעבר ישיר לכל דפי האפליקציה</p>
+                </div>
+                <button
+                  onClick={() => setIsSideNavOpen(false)}
+                  className="rounded-lg border border-slate-600/70 bg-slate-900/70 hover:bg-slate-800/80 p-2 text-slate-200"
+                  aria-label="סגור תפריט"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div
+                className="menu-scrollbar flex-1 overflow-y-auto pr-1 space-y-2"
+                style={{
+                  scrollbarColor: 'rgba(56,189,248,0.95) rgba(15,23,42,0.9)',
+                  scrollbarWidth: 'thin'
+                }}
+              >
+                {phaseMenuItems.map((item) => {
+                  const isActive = phase === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setPhase(item.id);
+                        setIsSideNavOpen(false);
+                      }}
+                      className={`w-full rounded-xl border p-3 text-right transition-all ${
+                        isActive
+                          ? 'border-blue-400 bg-blue-500/15 text-blue-100 shadow-[0_0_0_1px_rgba(96,165,250,0.25)]'
+                          : 'border-slate-700 bg-slate-900/70 text-slate-200 hover:border-slate-500 hover:bg-slate-800/85'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-bold">{item.label}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{item.hint}</p>
+                        </div>
+                        <span className="text-xs font-black text-slate-400">{item.order}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Page Navigation Arrows - Side Positioned */}
       <AnimatePresence>
