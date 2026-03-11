@@ -17,7 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function Home() {
   const [phase, setPhase] = useState<SimulationPhase>('landing');
 
-  const phases: SimulationPhase[] = ['landing', 'preparation', 'pcr-running', 'master-mixer-game', 'replication-comparison', 'genetic-fingerprint', 'str-case-lab', 'completed', 'gene-expression-lab', 'pcr-applications', 'pcr-principles-game'];
+  const phases: SimulationPhase[] = ['landing', 'pcr-intro', 'preparation', 'pcr-running', 'master-mixer-game', 'replication-comparison', 'genetic-fingerprint', 'str-case-lab', 'completed', 'gene-expression-lab', 'pcr-applications', 'pcr-principles-game'];
   const currentIndex = phases.indexOf(phase);
 
   const goToNext = () => {
@@ -45,7 +45,48 @@ export default function Home() {
 
       <div className="flex-1 flex flex-col min-h-0">
         {phase === 'landing' && (
-          <WelcomeScreen onStart={() => setPhase('preparation')} />
+          <WelcomeScreen onStart={() => setPhase('pcr-intro')} />
+        )}
+
+        {phase === 'pcr-intro' && (
+          <div className="glass-pcr-card rounded-[2.5rem] border border-slate-700/30 p-6 md:p-8 space-y-6" dir="rtl">
+            <div className="text-right space-y-4">
+              <h2 className="text-3xl font-black text-white">
+                מה זה <span dir="ltr" className="inline-block">PCR</span>{' '}
+                <span dir="ltr" className="inline-block">(Polymerase Chain Reaction)</span>?
+              </h2>
+              <p className="text-slate-200 leading-relaxed text-lg">
+                תהליך ה-PCR הוא מעין &quot;מכונת צילום&quot; גנטית. הוא מאפשר לנו לקחת מקטע קטן וספציפי של DNA
+                ולשכפל אותו מיליוני פעמים תוך זמן קצר, עד שיש לנו מספיק חומר כדי לחקור אותו, לזהות מחלות או לבצע
+                בדיקות פורנזיות.
+              </p>
+            </div>
+
+            <div className="text-right space-y-3">
+              <h3 className="text-2xl font-black text-blue-200">איך זה עובד?</h3>
+              <p className="text-slate-200 leading-relaxed">
+                התהליך מתבסס על יכולתו של הטבע לשכפל DNA, אך הוא עושה זאת בצורה מואצת בתוך מבחנה באמצעות שינויי
+                טמפרטורה מחזוריים. בכל מחזור, כמות ה-DNA מוכפלת, מה שיוצר צמיחה מעריכית (אקספוננציאלית).
+              </p>
+            </div>
+
+            <div className="text-right space-y-3">
+              <h3 className="text-2xl font-black text-emerald-200">מוכנ/ה לבחור את המרכיבים?</h3>
+              <p className="text-slate-200 leading-relaxed">
+                כדי שהתהליך הזה יצליח, אנחנו צריכים לספק למבחנה את כל &quot;חומרי הגלם&quot; והכלים שהתא משתמש
+                בהם בדרך כלל לשכפול, רק בגרסה העמידה לחום.
+              </p>
+            </div>
+
+            <div className="pt-2 text-right">
+              <button
+                onClick={() => setPhase('preparation')}
+                className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-3 rounded-xl transition-colors"
+              >
+                המשך לפעילות הראשונה
+              </button>
+            </div>
+          </div>
         )}
 
         {phase === 'preparation' && (
