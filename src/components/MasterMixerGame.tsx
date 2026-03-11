@@ -9,6 +9,7 @@ import {
   RefreshCcw,
   Target,
   Thermometer,
+  ZoomIn,
   XCircle
 } from 'lucide-react';
 
@@ -314,18 +315,31 @@ const controlStatusByIssue: Record<
 
 function ScenarioGelPanel({
   issue,
-  compact = false
+  compact = false,
+  zoomable = true
 }: {
   issue: TroubleshootIssue;
   compact?: boolean;
+  zoomable?: boolean;
 }) {
+  const [isZoomOpen, setIsZoomOpen] = useState(false);
   const lanes = buildScenarioGelLanes(issue);
   const statuses = controlStatusByIssue[issue];
 
   return (
     <div className={`rounded-xl border border-slate-700 bg-slate-950/70 ${compact ? 'p-3 space-y-2' : 'p-4 space-y-3'}`}>
-      <div className={`flex items-center ${compact ? 'text-[11px]' : 'text-sm'} text-slate-300`}>
+      <div className={`flex items-center justify-between gap-3 ${compact ? 'text-[11px]' : 'text-sm'} text-slate-300`}>
         <span className="font-bold text-slate-100">Gel Electrophoresis (Simulated)</span>
+        {zoomable && (
+          <button
+            onClick={() => setIsZoomOpen(true)}
+            className="inline-flex items-center gap-1 rounded-lg border border-blue-400/45 bg-blue-500/10 hover:bg-blue-500/20 text-blue-100 px-2 py-1 text-xs font-bold"
+            aria-label="פתח ג׳ל מוגדל"
+          >
+            <ZoomIn className="w-3.5 h-3.5" />
+            הגדל
+          </button>
+        )}
       </div>
 
       <div className={`relative rounded-xl border border-slate-700 overflow-hidden ${compact ? 'h-52' : 'h-56'}`}>
@@ -412,6 +426,35 @@ function ScenarioGelPanel({
           </div>
         ))}
       </div>
+
+      {zoomable && isZoomOpen && (
+        <motion.div
+          className="fixed inset-0 z-[98] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setIsZoomOpen(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 14, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="w-full max-w-5xl rounded-2xl border border-blue-500/45 bg-slate-950/95 p-4 md:p-5 space-y-4 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-slate-100 font-black text-lg">תצוגת ג׳ל מוגדלת</span>
+              <button
+                onClick={() => setIsZoomOpen(false)}
+                className="text-slate-400 hover:text-white transition-colors p-1"
+                aria-label="סגירת חלון ג׳ל מוגדל"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <ScenarioGelPanel issue={issue} compact={false} zoomable={false} />
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 }
