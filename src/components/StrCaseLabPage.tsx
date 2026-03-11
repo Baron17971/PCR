@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, FlaskConical } from "lucide-react";
@@ -9,6 +9,13 @@ interface StrCaseLabPageProps {
 
 type Pair = [number, number];
 type LaneType = "fixed" | "input";
+
+type ResultTone = "success" | "error" | "warn";
+
+interface ResultState {
+  tone: ResultTone;
+  text: string;
+}
 
 interface MissionLane {
   label: string;
@@ -26,6 +33,8 @@ interface DataSourceRow {
 
 interface Mission {
   id: number;
+  cardEmoji: string;
+  cardSubtitle: string;
   title: string;
   explanation: string;
   question: string;
@@ -36,13 +45,6 @@ interface Mission {
   targetValues: Pair[];
   lanes: MissionLane[];
   successMsg: string;
-}
-
-type ResultTone = "success" | "error" | "warn";
-
-interface ResultState {
-  tone: ResultTone;
-  text: string;
 }
 
 interface RawBand {
@@ -66,6 +68,8 @@ const GEL_TOP_OFFSET_REM = 5.5;
 const MISSION_TEMPLATES: Mission[] = [
   {
     id: 0,
+    cardEmoji: "👨‍👩‍👦",
+    cardSubtitle: "מי האב הביולוגי?",
     title: "חידת אבהות: מי האבא?",
     explanation:
       "הזינו את הנתונים של האבות המועמדים מתוך טבלת המעבדה. לאחר ההזנה, השוו את הפסים של הילד לאם ולאבות. אלל של הילד שלא הגיע מהאם חייב להגיע מהאב הביולוגי.",
@@ -129,9 +133,11 @@ const MISSION_TEMPLATES: Mission[] = [
   },
   {
     id: 1,
+    cardEmoji: "🐘",
+    cardSubtitle: "מקור השנהב המוברח",
     title: "שנהב הפילים: זיהוי מקור האוכלוסייה",
     explanation:
-      "כדי לזהות את מקור השנהב, הזינו את הפרופילים של אוכלוסיות A, B ו־C מטבלת המעבדה. בדקו באיזה נתיב נמצאים כל הפסים של החט שנתפס.",
+      "כדי לזהות את מקור השנהב, הזינו את הפרופילים של אוכלוסיות A, B ו-C מטבלת המעבדה. בדקו באיזה נתיב נמצאים כל הפסים של החט שנתפס.",
     question: "מאיזו אוכלוסייה הגיע השנהב?",
     options: ["Pop A", "Pop B", "Pop C"],
     correctOption: "Pop B",
@@ -193,6 +199,8 @@ const MISSION_TEMPLATES: Mission[] = [
   },
   {
     id: 2,
+    cardEmoji: "🔍",
+    cardSubtitle: "זיהוי חשוד מהזירה",
     title: "זירת פשע: התאמה מלאה",
     explanation: "הזינו את נתוני החשודים מדוח המעבדה וחפשו התאמה מלאה בין הדגימה מהזירה לבין אחד החשודים.",
     question: "מי החשוד שמתאים לזירה?",
@@ -323,6 +331,7 @@ function buildLaneBands(data: Pair[]): RenderBand[] {
 
     const background =
       list.length === 1 ? list[0].color : `linear-gradient(to right, ${list.map((band) => band.color).join(",")})`;
+
     renderBands.push({
       top: Number.parseFloat(key),
       height,
@@ -374,8 +383,7 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
               ...lane,
               data: lane.data.map((pair, pairIdx) => {
                 if (pairIdx !== locusIndex) return pair;
-                const nextPair: Pair = valueIndex === 0 ? [safeValue, pair[1]] : [pair[0], safeValue];
-                return nextPair;
+                return valueIndex === 0 ? [safeValue, pair[1]] : [pair[0], safeValue];
               })
             };
           })
@@ -388,18 +396,12 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
 
   const checkResult = () => {
     if (!selectedUserAnswer) {
-      setResult({
-        tone: "warn",
-        text: "בחרו תשובה לפני הבדיקה."
-      });
+      setResult({ tone: "warn", text: "בחרו תשובה לפני הבדיקה." });
       return;
     }
 
     if (selectedUserAnswer === currentMission.correctOption) {
-      setResult({
-        tone: "success",
-        text: currentMission.successMsg
-      });
+      setResult({ tone: "success", text: currentMission.successMsg });
       return;
     }
 
@@ -439,13 +441,9 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
                 : "border-slate-700/70 bg-slate-900/70 hover:border-blue-400/60 hover:bg-blue-500/5"
             }`}
           >
-            <div className="mb-1 text-xl">
-              {idx === 0 ? "👨‍👩‍👦" : idx === 1 ? "🐘" : "🔍"}
-            </div>
+            <div className="mb-1 text-xl">{mission.cardEmoji}</div>
             <div className="font-black text-slate-100">{mission.title}</div>
-            <div className="text-xs text-slate-400">
-              {idx === 0 ? "מי האב הביולוגי?" : idx === 1 ? "מקור השנהב המוברח" : "זיהוי חשוד מהזירה"}
-            </div>
+            <div className="text-xs text-slate-400">{mission.cardSubtitle}</div>
           </button>
         ))}
       </div>
@@ -484,28 +482,6 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
               </div>
             </div>
 
-            <div className="rounded-xl border-r-4 border-blue-400 bg-blue-500/10 p-4">
-              <div className="mb-3 font-bold text-blue-200">{currentMission.question}</div>
-              <div className="flex flex-wrap gap-3">
-                {currentMission.options.map((option) => {
-                  const isSelected = selectedUserAnswer === option;
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => setSelectedUserAnswer(option)}
-                      className={`rounded-full border-2 px-4 py-2 font-bold transition-all ${
-                        isSelected
-                          ? "border-blue-400 bg-blue-600 text-white"
-                          : "border-blue-300/70 bg-slate-900/80 text-blue-200 hover:bg-blue-600/20"
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
           </div>
 
           <div className="rounded-2xl border-2 border-slate-700/70 bg-slate-900/60 p-4">
@@ -557,46 +533,6 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
               );
             })}
           </div>
-
-          <div className="flex flex-col sm:flex-row gap-4">
-            <button
-              type="button"
-              onClick={checkResult}
-              className="flex-1 rounded-xl bg-blue-600 py-4 text-lg font-black text-white shadow-lg transition-all hover:bg-blue-500"
-            >
-              בדוק תשובה
-            </button>
-            <button
-              type="button"
-              onClick={onComplete}
-              className="rounded-xl bg-emerald-600 px-6 py-4 text-lg font-black text-white transition-all hover:bg-emerald-500 flex items-center justify-center gap-2"
-            >
-              <FlaskConical className="w-5 h-5" />
-              המשך לשלב הבא
-            </button>
-          </div>
-
-          {result && (
-            <div
-              className={`rounded-xl border p-4 text-center text-lg font-bold ${
-                result.tone === "success"
-                  ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200"
-                  : result.tone === "warn"
-                    ? "border-amber-500/40 bg-amber-500/15 text-amber-200"
-                    : "border-red-500/40 bg-red-500/15 text-red-200"
-              }`}
-            >
-              <div className="mb-1 flex items-center justify-center gap-2">
-                {result.tone === "success" ? (
-                  <CheckCircle2 className="w-5 h-5" />
-                ) : (
-                  <AlertTriangle className="w-5 h-5" />
-                )}
-                {result.tone === "success" ? "תשובה נכונה" : "נדרש תיקון"}
-              </div>
-              <p>{result.text}</p>
-            </div>
-          )}
         </div>
 
         <div className="lg:col-span-5">
@@ -627,6 +563,7 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
                     transform: "translateY(-50%)"
                   }}
                 />
+
                 {lanesWithBands.map((lane, laneIdx) => (
                   <div
                     key={`gel-lane-${lane.label}`}
@@ -671,6 +608,69 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
                 לוקוס D
               </div>
             </div>
+
+            <div className="mt-6 rounded-xl border-r-4 border-blue-400 bg-blue-500/10 p-4">
+              <div className="mb-3 font-bold text-blue-200">{currentMission.question}</div>
+              <div className="flex flex-wrap gap-3">
+                {currentMission.options.map((option) => {
+                  const isSelected = selectedUserAnswer === option;
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setSelectedUserAnswer(option)}
+                      className={`rounded-full border-2 px-4 py-2 font-bold transition-all ${
+                        isSelected
+                          ? "border-blue-400 bg-blue-600 text-white"
+                          : "border-blue-300/70 bg-slate-900/80 text-blue-200 hover:bg-blue-600/20"
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-col sm:flex-row gap-4">
+              <button
+                type="button"
+                onClick={checkResult}
+                className="flex-1 rounded-xl bg-blue-600 py-4 text-lg font-black text-white shadow-lg transition-all hover:bg-blue-500"
+              >
+                בדוק תשובה
+              </button>
+              <button
+                type="button"
+                onClick={onComplete}
+                className="rounded-xl bg-emerald-600 px-6 py-4 text-lg font-black text-white transition-all hover:bg-emerald-500 flex items-center justify-center gap-2"
+              >
+                <FlaskConical className="w-5 h-5" />
+                המשך לשלב הבא
+              </button>
+            </div>
+
+            {result && (
+              <div
+                className={`mt-4 rounded-xl border p-4 text-center text-lg font-bold ${
+                  result.tone === "success"
+                    ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200"
+                    : result.tone === "warn"
+                      ? "border-amber-500/40 bg-amber-500/15 text-amber-200"
+                      : "border-red-500/40 bg-red-500/15 text-red-200"
+                }`}
+              >
+                <div className="mb-1 flex items-center justify-center gap-2">
+                  {result.tone === "success" ? (
+                    <CheckCircle2 className="w-5 h-5" />
+                  ) : (
+                    <AlertTriangle className="w-5 h-5" />
+                  )}
+                  {result.tone === "success" ? "תשובה נכונה" : "נדרש תיקון"}
+                </div>
+                <p>{result.text}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
