@@ -1,482 +1,693 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, FlaskConical, RefreshCcw, Search } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FlaskConical } from "lucide-react";
 
 interface StrCaseLabPageProps {
   onComplete: () => void;
 }
 
-type LocusId = "A" | "B" | "C" | "D";
-type SuspectId = "suspect1" | "suspect2" | "suspect3";
-type AllelePair = [number, number];
-type Profile = Record<LocusId, AllelePair>;
+type Pair = [number, number];
+type LaneType = "fixed" | "input";
 
-interface LocusMeta {
-  id: LocusId;
+interface MissionLane {
   label: string;
+  type: LaneType;
+  data: Pair[];
+}
+
+interface DataSourceRow {
+  name: string;
+  a: Pair;
+  b: Pair;
+  c: Pair;
+  d: Pair;
+}
+
+interface Mission {
+  id: number;
+  title: string;
+  explanation: string;
+  question: string;
+  options: string[];
+  correctOption: string;
+  dataSource: DataSourceRow[];
+  targetLabel: string;
+  targetValues: Pair[];
+  lanes: MissionLane[];
+  successMsg: string;
+}
+
+type ResultTone = "success" | "error" | "warn";
+
+interface ResultState {
+  tone: ResultTone;
+  text: string;
+}
+
+interface RawBand {
+  value: number;
   color: string;
+  isHomo: boolean;
 }
 
-interface SuspectMeta {
-  id: SuspectId;
-  label: string;
+interface RenderBand {
+  top: number;
+  height: number;
+  background: string;
 }
 
-const LOCI: LocusMeta[] = [
-  { id: "A", label: "לוקוס A (כחול)", color: "#60a5fa" },
-  { id: "B", label: "לוקוס B (ירוק)", color: "#34d399" },
-  { id: "C", label: "לוקוס C (צהוב)", color: "#facc15" },
-  { id: "D", label: "לוקוס D (אדום)", color: "#f87171" }
-];
+const LOCI_LABELS = ["A", "B", "C", "D"] as const;
+const LOCI_COLORS = ["#3b82f6", "#10b981", "#facc15", "#ef4444"] as const;
+const LADDER_VALUES = [35, 30, 25, 20, 15, 10, 5] as const;
 
-const SUSPECTS: SuspectMeta[] = [
-  { id: "suspect1", label: "חשוד 1" },
-  { id: "suspect2", label: "חשוד 2" },
-  { id: "suspect3", label: "חשוד 3" }
-];
-
-const CRIME_SCENE_PROFILE: Profile = {
-  A: [12, 12],
-  B: [28, 31],
-  C: [10, 14],
-  D: [7, 9.3]
-};
-
-const INITIAL_SUSPECT_PROFILES: Record<SuspectId, Profile> = {
-  suspect1: {
-    A: [12, 14],
-    B: [28, 28],
-    C: [10, 14],
-    D: [7, 8]
+const MISSION_TEMPLATES: Mission[] = [
+  {
+    id: 0,
+    title: "חידת אבהות: מי האבא?",
+    explanation:
+      "הזינו את הנתונים של האבות המועמדים מתוך טבלת המעבדה. לאחר ההזנה, השוו את הפסים של הילד לאם ולאבות. אלל של הילד שלא הגיע מהאם חייב להגיע מהאב הביולוגי.",
+    question: "מיהו האב הביולוגי של הילד?",
+    options: ["אב 1", "אב 2"],
+    correctOption: "אב 1",
+    dataSource: [
+      { name: "אב 1", a: [14, 16], b: [30, 32], c: [12, 14], d: [11, 15] },
+      { name: "אב 2", a: [15, 17], b: [21, 23], c: [10, 10], d: [9, 13] }
+    ],
+    targetLabel: "DNA הילד",
+    targetValues: [
+      [10, 14],
+      [22, 30],
+      [12, 12],
+      [8, 11]
+    ],
+    lanes: [
+      {
+        label: "ילד",
+        type: "fixed",
+        data: [
+          [10, 14],
+          [22, 30],
+          [12, 12],
+          [8, 11]
+        ]
+      },
+      {
+        label: "אם",
+        type: "fixed",
+        data: [
+          [10, 12],
+          [22, 22],
+          [12, 15],
+          [8, 8]
+        ]
+      },
+      {
+        label: "אב 1",
+        type: "input",
+        data: [
+          [0, 0],
+          [0, 0],
+          [0, 0],
+          [0, 0]
+        ]
+      },
+      {
+        label: "אב 2",
+        type: "input",
+        data: [
+          [0, 0],
+          [0, 0],
+          [0, 0],
+          [0, 0]
+        ]
+      }
+    ],
+    successMsg: "נכון. אב 1 מספק לילד את האללים שלא הגיעו מהאם."
   },
-  suspect2: {
-    A: [12, 12],
-    B: [28, 31],
-    C: [10, 14],
-    D: [7, 9.3]
+  {
+    id: 1,
+    title: "שנהב הפילים: זיהוי מקור האוכלוסייה",
+    explanation:
+      "כדי לזהות את מקור השנהב, הזינו את הפרופילים של אוכלוסיות A, B ו־C מטבלת המעבדה. בדקו באיזה נתיב נמצאים כל הפסים של החט שנתפס.",
+    question: "מאיזו אוכלוסייה הגיע השנהב?",
+    options: ["Pop A", "Pop B", "Pop C"],
+    correctOption: "Pop B",
+    dataSource: [
+      { name: "Pop A", a: [10, 16], b: [20, 24], c: [8, 10], d: [5, 6] },
+      { name: "Pop B", a: [15, 19], b: [25, 29], c: [10, 12], d: [7, 9] },
+      { name: "Pop C", a: [30, 34], b: [10, 14], c: [15, 16], d: [20, 22] }
+    ],
+    targetLabel: "החט שנתפס",
+    targetValues: [
+      [15, 19],
+      [25, 25],
+      [10, 12],
+      [7, 8]
+    ],
+    lanes: [
+      {
+        label: "חט",
+        type: "fixed",
+        data: [
+          [15, 19],
+          [25, 25],
+          [10, 12],
+          [7, 8]
+        ]
+      },
+      {
+        label: "Pop A",
+        type: "input",
+        data: [
+          [0, 0],
+          [0, 0],
+          [0, 0],
+          [0, 0]
+        ]
+      },
+      {
+        label: "Pop B",
+        type: "input",
+        data: [
+          [0, 0],
+          [0, 0],
+          [0, 0],
+          [0, 0]
+        ]
+      },
+      {
+        label: "Pop C",
+        type: "input",
+        data: [
+          [0, 0],
+          [0, 0],
+          [0, 0],
+          [0, 0]
+        ]
+      }
+    ],
+    successMsg: "מצוין. אוכלוסייה B היא המקור המתאים ביותר לפרופיל החט."
   },
-  suspect3: {
-    A: [13, 15],
-    B: [30, 31],
-    C: [12, 12],
-    D: [9.3, 9.3]
+  {
+    id: 2,
+    title: "זירת פשע: התאמה מלאה",
+    explanation: "הזינו את נתוני החשודים מדוח המעבדה וחפשו התאמה מלאה בין הדגימה מהזירה לבין אחד החשודים.",
+    question: "מי החשוד שמתאים לזירה?",
+    options: ["חשוד 1", "חשוד 2", "חשוד 3"],
+    correctOption: "חשוד 2",
+    dataSource: [
+      { name: "חשוד 1", a: [12, 14], b: [28, 28], c: [10, 14], d: [7, 8] },
+      { name: "חשוד 2", a: [12, 12], b: [28, 31], c: [10, 14], d: [7, 9.3] },
+      { name: "חשוד 3", a: [13, 15], b: [30, 31], c: [12, 12], d: [9.3, 9.3] }
+    ],
+    targetLabel: "דגימה מהזירה",
+    targetValues: [
+      [12, 12],
+      [28, 31],
+      [10, 14],
+      [7, 9.3]
+    ],
+    lanes: [
+      {
+        label: "זירה",
+        type: "fixed",
+        data: [
+          [12, 12],
+          [28, 31],
+          [10, 14],
+          [7, 9.3]
+        ]
+      },
+      {
+        label: "חשוד 1",
+        type: "input",
+        data: [
+          [0, 0],
+          [0, 0],
+          [0, 0],
+          [0, 0]
+        ]
+      },
+      {
+        label: "חשוד 2",
+        type: "input",
+        data: [
+          [0, 0],
+          [0, 0],
+          [0, 0],
+          [0, 0]
+        ]
+      },
+      {
+        label: "חשוד 3",
+        type: "input",
+        data: [
+          [0, 0],
+          [0, 0],
+          [0, 0],
+          [0, 0]
+        ]
+      }
+    ],
+    successMsg: "מצוין. חשוד 2 הוא בעל התאמה מלאה לדגימה מהזירה."
   }
-};
+];
 
-const ALLELE_MIN = 5;
-const ALLELE_MAX = 35;
-const EPSILON = 0.0001;
-const LADDER_VALUES = [35, 30, 25, 20, 15, 10, 5];
-const GEL_HEIGHT = 460;
-const ZONE_GAP = 12;
-const ZONE_PADDING = 10;
+function cloneMissions(missions: Mission[]): Mission[] {
+  return missions.map((mission) => ({
+    ...mission,
+    dataSource: mission.dataSource.map((row) => ({
+      ...row,
+      a: [...row.a] as Pair,
+      b: [...row.b] as Pair,
+      c: [...row.c] as Pair,
+      d: [...row.d] as Pair
+    })),
+    targetValues: mission.targetValues.map((pair) => [...pair] as Pair),
+    lanes: mission.lanes.map((lane) => ({
+      ...lane,
+      data: lane.data.map((pair) => [...pair] as Pair)
+    }))
+  }));
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
 function approxEqual(a: number, b: number): boolean {
-  return Math.abs(a - b) < EPSILON;
+  return Math.abs(a - b) < 0.0001;
 }
 
-function isHomozygous(pair: AllelePair): boolean {
-  return approxEqual(pair[0], pair[1]);
+function valueToPercent(value: number): number {
+  const min = 5;
+  const max = 35;
+  const bounded = clamp(value, min, max);
+  return ((max - bounded) / (max - min)) * 92 + 4;
 }
 
-function sortPair(pair: AllelePair): AllelePair {
-  return pair[0] <= pair[1] ? pair : [pair[1], pair[0]];
+function formatAllelePair(pair: Pair): string {
+  return `${pair[0]}, ${pair[1]}`;
 }
 
-function formatNumber(value: number): string {
-  return Number.isInteger(value) ? `${value}` : value.toFixed(1);
-}
+function buildLaneBands(data: Pair[]): RenderBand[] {
+  const rawBands: RawBand[] = [];
 
-function formatPair(pair: AllelePair): string {
-  const stateLabel = isHomozygous(pair) ? "הומוזיגוט" : "הטרוזיגוט";
-  return `${formatNumber(pair[0])}, ${formatNumber(pair[1])} (${stateLabel})`;
-}
+  data.forEach((pair, locusIndex) => {
+    const [a1, a2] = pair;
+    const color = LOCI_COLORS[locusIndex];
+    const homo = approxEqual(a1, a2);
 
-function pairsEqual(a: AllelePair, b: AllelePair): boolean {
-  const [a1, a2] = sortPair(a);
-  const [b1, b2] = sortPair(b);
-  return approxEqual(a1, b1) && approxEqual(a2, b2);
-}
+    if (a1 > 0) rawBands.push({ value: a1, color, isHomo: homo });
+    if (a2 > 0 && !homo) rawBands.push({ value: a2, color, isHomo: false });
+  });
 
-function profileMatches(profileA: Profile, profileB: Profile): boolean {
-  return LOCI.every((locus) => pairsEqual(profileA[locus.id], profileB[locus.id]));
-}
+  const grouped = new Map<string, RawBand[]>();
+  rawBands.forEach((band) => {
+    const key = valueToPercent(band.value).toFixed(2);
+    const current = grouped.get(key) ?? [];
+    current.push(band);
+    grouped.set(key, current);
+  });
 
-interface FixedTableProps {
-  title: string;
-  profile: Profile;
-}
+  const renderBands: RenderBand[] = [];
+  grouped.forEach((list, key) => {
+    const height = list.reduce((acc, band) => acc + (band.isHomo ? 4 : 2), 4);
+    const background =
+      list.length === 1 ? list[0].color : `linear-gradient(to right, ${list.map((band) => band.color).join(",")})`;
+    renderBands.push({
+      top: Number.parseFloat(key),
+      height,
+      background
+    });
+  });
 
-function FixedTable({ title, profile }: FixedTableProps) {
-  return (
-    <article className="rounded-2xl border border-slate-700/60 bg-slate-900/65 p-4 space-y-3">
-      <h3 className="text-center text-lg font-black text-cyan-200">{title}</h3>
-
-      <div className="overflow-hidden rounded-xl border border-slate-700/70">
-        <table className="w-full text-right text-sm">
-          <thead className="bg-slate-800/95 text-slate-200">
-            <tr>
-              <th className="px-3 py-2 border-b border-slate-700">לוקוס</th>
-              <th className="px-3 py-2 border-b border-slate-700">אללים</th>
-            </tr>
-          </thead>
-          <tbody>
-            {LOCI.map((locus, index) => (
-              <tr key={`fixed-${locus.id}`} className={index % 2 === 0 ? "bg-slate-900/70" : "bg-slate-950/70"}>
-                <td className="px-3 py-2 border-t border-slate-800 text-slate-100 font-bold">{locus.label}</td>
-                <td className="px-3 py-2 border-t border-slate-800 text-slate-300">{formatPair(profile[locus.id])}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </article>
-  );
-}
-
-interface EditableTableProps {
-  title: string;
-  suspectId: SuspectId;
-  profile: Profile;
-  onAlleleChange: (suspectId: SuspectId, locus: LocusId, alleleIndex: 0 | 1, value: number) => void;
-}
-
-function EditableTable({ title, suspectId, profile, onAlleleChange }: EditableTableProps) {
-  return (
-    <article className="rounded-2xl border border-slate-700/60 bg-slate-900/65 p-4 space-y-3">
-      <h3 className="text-center text-lg font-black text-emerald-200">{title}</h3>
-
-      <div className="overflow-hidden rounded-xl border border-slate-700/70">
-        <table className="w-full text-right text-sm">
-          <thead className="bg-slate-800/95 text-slate-200">
-            <tr>
-              <th className="px-3 py-2 border-b border-slate-700">לוקוס</th>
-              <th className="px-3 py-2 border-b border-slate-700">אלל 1</th>
-              <th className="px-3 py-2 border-b border-slate-700">אלל 2</th>
-            </tr>
-          </thead>
-          <tbody>
-            {LOCI.map((locus, index) => (
-              <tr key={`${suspectId}-${locus.id}`} className={index % 2 === 0 ? "bg-slate-900/70" : "bg-slate-950/70"}>
-                <td className="px-3 py-2 border-t border-slate-800 text-slate-100 font-bold">{locus.id}</td>
-                <td className="px-2 py-2 border-t border-slate-800">
-                  <input
-                    type="number"
-                    min={ALLELE_MIN}
-                    max={ALLELE_MAX}
-                    step={0.1}
-                    value={profile[locus.id][0]}
-                    onChange={(event) => {
-                      const parsed = Number.parseFloat(event.target.value);
-                      if (!Number.isNaN(parsed)) onAlleleChange(suspectId, locus.id, 0, parsed);
-                    }}
-                    className="w-full rounded-lg border border-slate-600 bg-slate-800/90 px-2 py-1 text-center text-slate-100"
-                  />
-                </td>
-                <td className="px-2 py-2 border-t border-slate-800">
-                  <input
-                    type="number"
-                    min={ALLELE_MIN}
-                    max={ALLELE_MAX}
-                    step={0.1}
-                    value={profile[locus.id][1]}
-                    onChange={(event) => {
-                      const parsed = Number.parseFloat(event.target.value);
-                      if (!Number.isNaN(parsed)) onAlleleChange(suspectId, locus.id, 1, parsed);
-                    }}
-                    className="w-full rounded-lg border border-slate-600 bg-slate-800/90 px-2 py-1 text-center text-slate-100"
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </article>
-  );
-}
-
-interface GelBandsProps {
-  pair: AllelePair;
-  color: string;
-  zoneTop: number;
-  zoneHeight: number;
-}
-
-function GelBands({ pair, color, zoneTop, zoneHeight }: GelBandsProps) {
-  const innerHeight = zoneHeight - ZONE_PADDING * 2;
-  const mapToY = (allele: number): number => {
-    const normalized = (clamp(allele, ALLELE_MIN, ALLELE_MAX) - ALLELE_MIN) / (ALLELE_MAX - ALLELE_MIN);
-    return zoneTop + ZONE_PADDING + (1 - normalized) * innerHeight;
-  };
-
-  if (isHomozygous(pair)) {
-    return (
-      <span
-        className="absolute left-1/2 -translate-x-1/2 w-[74%] rounded-full border"
-        style={{
-          top: mapToY(pair[0]),
-          height: 5,
-          backgroundColor: color,
-          borderColor: "rgba(240,248,255,0.95)",
-          opacity: 1,
-          boxShadow: `0 0 10px ${color}`
-        }}
-      />
-    );
-  }
-
-  return (
-    <>
-      <span
-        className="absolute left-1/2 -translate-x-1/2 w-[74%] rounded-full border"
-        style={{
-          top: mapToY(pair[0]),
-          height: 2,
-          backgroundColor: color,
-          borderColor: "rgba(240,248,255,0.75)",
-          opacity: 0.85,
-          boxShadow: `0 0 7px ${color}`
-        }}
-      />
-      <span
-        className="absolute left-1/2 -translate-x-1/2 w-[74%] rounded-full border"
-        style={{
-          top: mapToY(pair[1]),
-          height: 2,
-          backgroundColor: color,
-          borderColor: "rgba(240,248,255,0.75)",
-          opacity: 0.85,
-          boxShadow: `0 0 7px ${color}`
-        }}
-      />
-    </>
-  );
+  return renderBands;
 }
 
 export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
-  const [suspects, setSuspects] = useState<Record<SuspectId, Profile>>(INITIAL_SUSPECT_PROFILES);
-  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; text: string } | null>(null);
-  const [matchedSuspects, setMatchedSuspects] = useState<SuspectId[]>([]);
+  const [missions, setMissions] = useState<Mission[]>(() => cloneMissions(MISSION_TEMPLATES));
+  const [currentMissionIdx, setCurrentMissionIdx] = useState<number>(1);
+  const [selectedUserAnswer, setSelectedUserAnswer] = useState<string | null>(null);
+  const [result, setResult] = useState<ResultState | null>(null);
 
-  const lanes = useMemo(
-    () => [
-      { id: "scene", label: "זירה", profile: CRIME_SCENE_PROFILE },
-      { id: "suspect1", label: "חשוד 1", profile: suspects.suspect1 },
-      { id: "suspect2", label: "חשוד 2", profile: suspects.suspect2 },
-      { id: "suspect3", label: "חשוד 3", profile: suspects.suspect3 }
-    ],
-    [suspects]
+  const currentMission = missions[currentMissionIdx];
+
+  const lanesWithBands = useMemo(
+    () =>
+      currentMission.lanes.map((lane) => ({
+        ...lane,
+        bands: buildLaneBands(lane.data)
+      })),
+    [currentMission]
   );
 
-  const zoneHeight = (GEL_HEIGHT - ZONE_GAP * (LOCI.length + 1)) / LOCI.length;
-
-  const handleAlleleChange = (suspectId: SuspectId, locus: LocusId, alleleIndex: 0 | 1, value: number) => {
-    const normalized = clamp(value, ALLELE_MIN, ALLELE_MAX);
-    setSuspects((prev) => {
-      const pair = prev[suspectId][locus];
-      const nextPair: AllelePair = alleleIndex === 0 ? [normalized, pair[1]] : [pair[0], normalized];
-      return {
-        ...prev,
-        [suspectId]: {
-          ...prev[suspectId],
-          [locus]: nextPair
-        }
-      };
-    });
-    setFeedback(null);
-    setMatchedSuspects([]);
+  const selectMission = (idx: number) => {
+    setCurrentMissionIdx(idx);
+    setSelectedUserAnswer(null);
+    setResult(null);
   };
 
-  const handleCheckMatch = () => {
-    const matches = SUSPECTS.filter((suspect) => profileMatches(CRIME_SCENE_PROFILE, suspects[suspect.id])).map(
-      (suspect) => suspect.id
-    );
-    setMatchedSuspects(matches);
+  const updateData = (laneIndex: number, locusIndex: number, valueIndex: 0 | 1, rawValue: string) => {
+    const parsed = Number.parseFloat(rawValue);
+    const safeValue = Number.isFinite(parsed) ? clamp(parsed, 0, 35) : 0;
 
-    if (matches.length > 0) {
-      const labels = matches
-        .map((suspectId) => SUSPECTS.find((suspect) => suspect.id === suspectId)?.label)
-        .filter((value): value is string => Boolean(value));
-      setFeedback({
-        tone: "success",
-        text: `נמצאה התאמה מלאה לממצא מהזירה: ${labels.join(", ")}.`
+    setMissions((prev) =>
+      prev.map((mission, missionIndex) => {
+        if (missionIndex !== currentMissionIdx) return mission;
+
+        return {
+          ...mission,
+          lanes: mission.lanes.map((lane, laneIdx) => {
+            if (laneIdx !== laneIndex || lane.type !== "input") return lane;
+
+            return {
+              ...lane,
+              data: lane.data.map((pair, pairIdx) => {
+                if (pairIdx !== locusIndex) return pair;
+                const nextPair: Pair = valueIndex === 0 ? [safeValue, pair[1]] : [pair[0], safeValue];
+                return nextPair;
+              })
+            };
+          })
+        };
+      })
+    );
+
+    setResult(null);
+  };
+
+  const checkResult = () => {
+    if (!selectedUserAnswer) {
+      setResult({
+        tone: "warn",
+        text: "בחרו תשובה לפני הבדיקה."
       });
       return;
     }
 
-    setFeedback({
+    if (selectedUserAnswer === currentMission.correctOption) {
+      setResult({
+        tone: "success",
+        text: currentMission.successMsg
+      });
+      return;
+    }
+
+    setResult({
       tone: "error",
-      text: "אין כרגע התאמה מלאה. עדכנו את האללים של החשודים ונסו שוב."
+      text: "עדיין לא. בדקו אם כל הערכים הוזנו נכון מהטבלה ונסו שוב."
     });
   };
 
-  const handleReset = () => {
-    setSuspects(INITIAL_SUSPECT_PROFILES);
-    setFeedback(null);
-    setMatchedSuspects([]);
-  };
-
   return (
-    <section dir="rtl" className="glass-pcr-card rounded-[2.5rem] border border-slate-700/30 p-6 md:p-8 space-y-6">
-      <header className="space-y-3 text-right">
-        <h2 className="text-3xl font-black text-white flex items-center justify-start gap-3">
-          <Search className="w-8 h-8 text-cyan-300" />
-          לימוד זיהוי פלילי באמצעות DNA
-        </h2>
-        <p className="text-lg text-slate-300 leading-relaxed max-w-5xl">
-          השוו את ממצא ה-DNA מהזירה לפרופיל של שלושה חשודים. כל שינוי באללים בטבלאות יעדכן מיד את הפסים בג&apos;ל.
-          התאמה מלאה בין כל ארבעת הלוקוסים מצביעה על חשוד מתאים.
-        </p>
+    <section dir="rtl" className="glass-pcr-card rounded-[2.5rem] border border-slate-700/30 p-6 md:p-8 space-y-8">
+      <header className="text-center space-y-2">
+        <h1 className="text-4xl font-black text-white">מעבדת בלש גנטי: החידות</h1>
+        <p className="text-lg font-semibold text-slate-300">בנו את הפרופילים הגנטיים בעצמכם וגלו את הפתרון</p>
       </header>
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
-        <FixedTable title="ממצא מזירת הפשע" profile={CRIME_SCENE_PROFILE} />
-
-        {SUSPECTS.map((suspect) => (
-          <EditableTable
-            key={suspect.id}
-            title={suspect.label}
-            suspectId={suspect.id}
-            profile={suspects[suspect.id]}
-            onAlleleChange={handleAlleleChange}
-          />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {missions.map((mission, idx) => (
+          <button
+            key={mission.id}
+            type="button"
+            onClick={() => selectMission(idx)}
+            className={`mission-card text-right rounded-2xl border-2 p-4 transition-all ${
+              idx === currentMissionIdx
+                ? "active border-cyan-400 bg-cyan-500/10 shadow-[0_0_22px_rgba(34,211,238,0.12)]"
+                : "border-slate-700/70 bg-slate-900/70 hover:border-blue-400/60 hover:bg-blue-500/5"
+            }`}
+          >
+            <div className="mb-1 text-xl">
+              {idx === 0 ? "👨‍👩‍👦" : idx === 1 ? "🐘" : "🔍"}
+            </div>
+            <div className="font-black text-slate-100">{mission.title}</div>
+            <div className="text-xs text-slate-400">
+              {idx === 0 ? "מי האב הביולוגי?" : idx === 1 ? "מקור השנהב המוברח" : "זיהוי חשוד מהזירה"}
+            </div>
+          </button>
         ))}
       </div>
 
-      <section className="rounded-2xl border border-slate-700/60 bg-slate-950/85 p-4 md:p-5 space-y-4">
-        <h3 className="text-xl font-black text-white text-right">ג&apos;ל ויזואלי להשוואת פרופילים</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-7 space-y-6">
+          <div className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-6 space-y-4">
+            <h3 className="text-xl font-black text-white border-b border-slate-700 pb-2">{currentMission.title}</h3>
+            <p className="text-slate-300 text-sm leading-relaxed">{currentMission.explanation}</p>
 
-        <div className="rounded-xl border border-slate-700/60 bg-black p-4 overflow-x-auto" dir="ltr">
-          <div className="min-w-[1040px] flex gap-4">
-            <div className="relative w-[112px] border border-slate-700/70 bg-slate-950" style={{ height: GEL_HEIGHT }}>
-              <div className="absolute top-2 left-0 right-0 text-center text-[11px] font-bold text-slate-200">Ladder</div>
-
-              {LOCI.map((locus, locusIndex) => {
-                const zoneTop = ZONE_GAP + locusIndex * (zoneHeight + ZONE_GAP);
-                const innerHeight = zoneHeight - ZONE_PADDING * 2;
-
-                return (
-                  <React.Fragment key={`ladder-zone-${locus.id}`}>
-                    <div
-                      className="absolute left-2 right-2 rounded-md border border-slate-700/60 bg-slate-900/55"
-                      style={{ top: zoneTop, height: zoneHeight }}
-                    />
-                    <span
-                      className="absolute right-3 text-[10px] font-black"
-                      style={{ top: zoneTop + 4, color: locus.color }}
-                    >
-                      {locus.id}
-                    </span>
-
-                    {LADDER_VALUES.map((value) => {
-                      const normalized = (value - ALLELE_MIN) / (ALLELE_MAX - ALLELE_MIN);
-                      const y = zoneTop + ZONE_PADDING + (1 - normalized) * innerHeight;
-                      return (
-                        <React.Fragment key={`ladder-${locus.id}-${value}`}>
-                          <span className="absolute left-2 right-7 h-[1px] bg-slate-200/75" style={{ top: y }} />
-                          <span
-                            className="absolute right-1 -translate-y-1/2 text-[10px] text-slate-300 font-medium"
-                            style={{ top: y }}
-                          >
-                            {value}
-                          </span>
-                        </React.Fragment>
-                      );
-                    })}
-                  </React.Fragment>
-                );
-              })}
+            <div className="rounded-xl border border-slate-700/70 bg-slate-950/70 p-3">
+              <p className="mb-2 text-xs font-bold text-slate-400">טבלת נתונים מהמעבדה (הזינו את הערכים למטה):</p>
+              <div className="overflow-x-auto">
+                <table className="data-table min-w-full text-xs">
+                  <thead>
+                    <tr>
+                      <th>שם</th>
+                      <th>A</th>
+                      <th>B</th>
+                      <th>C</th>
+                      <th>D</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentMission.dataSource.map((row) => (
+                      <tr key={row.name}>
+                        <td className="font-bold">{row.name}</td>
+                        <td>{formatAllelePair(row.a)}</td>
+                        <td>{formatAllelePair(row.b)}</td>
+                        <td>{formatAllelePair(row.c)}</td>
+                        <td>{formatAllelePair(row.d)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-3 flex-1">
-              {lanes.map((lane) => {
-                const isMatchedLane = lane.id !== "scene" && matchedSuspects.includes(lane.id as SuspectId);
-
-                return (
-                  <div key={lane.id} className="space-y-2">
-                    <div className="text-center text-sm font-black text-slate-100">{lane.label}</div>
-
-                    <div
-                      className={`relative border bg-slate-950 ${
-                        isMatchedLane ? "border-emerald-400/85 shadow-[0_0_14px_rgba(16,185,129,0.35)]" : "border-slate-700/70"
+            <div className="rounded-xl border-r-4 border-blue-400 bg-blue-500/10 p-4">
+              <div className="mb-3 font-bold text-blue-200">{currentMission.question}</div>
+              <div className="flex flex-wrap gap-3">
+                {currentMission.options.map((option) => {
+                  const isSelected = selectedUserAnswer === option;
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setSelectedUserAnswer(option)}
+                      className={`rounded-full border-2 px-4 py-2 font-bold transition-all ${
+                        isSelected
+                          ? "border-blue-400 bg-blue-600 text-white"
+                          : "border-blue-300/70 bg-slate-900/80 text-blue-200 hover:bg-blue-600/20"
                       }`}
-                      style={{ height: GEL_HEIGHT }}
                     >
-                      {LOCI.map((locus, locusIndex) => {
-                        const zoneTop = ZONE_GAP + locusIndex * (zoneHeight + ZONE_GAP);
-                        const pair = lane.profile[locus.id];
-                        return (
-                          <React.Fragment key={`${lane.id}-${locus.id}`}>
-                            <div
-                              className="absolute left-2 right-2 rounded-md border border-slate-700/60 bg-slate-900/50"
-                              style={{ top: zoneTop, height: zoneHeight }}
-                            />
-                            <span
-                              className="absolute right-3 text-[10px] font-black"
-                              style={{ top: zoneTop + 4, color: locus.color }}
-                            >
-                              {locus.id}
-                            </span>
-                            <GelBands pair={pair} color={locus.color} zoneTop={zoneTop} zoneHeight={zoneHeight} />
-                          </React.Fragment>
-                        );
-                      })}
+                      {option}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border-2 border-slate-700/70 bg-slate-900/60 p-4">
+            <h3 className="mb-3 font-black text-cyan-200">🎯 {currentMission.targetLabel}</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center text-sm">
+              {currentMission.targetValues.map((pair, locusIdx) => (
+                <div key={`target-${locusIdx}`} className="rounded-lg border border-slate-700 bg-slate-950/80 p-2 shadow-sm">
+                  <span className="block font-black" style={{ color: LOCI_COLORS[locusIdx] }}>
+                    לוקוס {LOCI_LABELS[locusIdx]}
+                  </span>
+                  <span className="text-slate-200">{formatAllelePair(pair)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {currentMission.lanes.map((lane, laneIdx) => {
+              if (lane.type !== "input") return null;
+
+              return (
+                <div key={`input-${lane.label}`} className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-4">
+                  <h4 className="mb-2 font-bold text-slate-100 underline decoration-blue-400">הזנת נתונים: {lane.label}</h4>
+                  {lane.data.map((pair, locusIdx) => (
+                    <div
+                      key={`${lane.label}-locus-${locusIdx}`}
+                      className="grid grid-cols-3 items-center gap-4 py-1 border-b border-slate-800 last:border-0"
+                    >
+                      <div className="text-sm font-bold text-slate-300">לוקוס {LOCI_LABELS[locusIdx]}</div>
+                      <input
+                        type="number"
+                        step={0.1}
+                        placeholder="0"
+                        value={pair[0] === 0 ? "" : String(pair[0])}
+                        onChange={(event) => updateData(laneIdx, locusIdx, 0, event.target.value)}
+                        className="input-focus rounded-lg border border-blue-900/70 bg-slate-950/90 p-1 text-center text-sm font-bold text-slate-100"
+                      />
+                      <input
+                        type="number"
+                        step={0.1}
+                        placeholder="0"
+                        value={pair[1] === 0 ? "" : String(pair[1])}
+                        onChange={(event) => updateData(laneIdx, locusIdx, 1, event.target.value)}
+                        className="input-focus rounded-lg border border-blue-900/70 bg-slate-950/90 p-1 text-center text-sm font-bold text-slate-100"
+                      />
                     </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button
+              type="button"
+              onClick={checkResult}
+              className="flex-1 rounded-xl bg-blue-600 py-4 text-lg font-black text-white shadow-lg transition-all hover:bg-blue-500"
+            >
+              בדוק תשובה
+            </button>
+            <button
+              type="button"
+              onClick={onComplete}
+              className="rounded-xl bg-emerald-600 px-6 py-4 text-lg font-black text-white transition-all hover:bg-emerald-500 flex items-center justify-center gap-2"
+            >
+              <FlaskConical className="w-5 h-5" />
+              המשך לשלב הבא
+            </button>
+          </div>
+
+          {result && (
+            <div
+              className={`rounded-xl border p-4 text-center text-lg font-bold ${
+                result.tone === "success"
+                  ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200"
+                  : result.tone === "warn"
+                    ? "border-amber-500/40 bg-amber-500/15 text-amber-200"
+                    : "border-red-500/40 bg-red-500/15 text-red-200"
+              }`}
+            >
+              <div className="mb-1 flex items-center justify-center gap-2">
+                {result.tone === "success" ? (
+                  <CheckCircle2 className="w-5 h-5" />
+                ) : (
+                  <AlertTriangle className="w-5 h-5" />
+                )}
+                {result.tone === "success" ? "תשובה נכונה" : "נדרש תיקון"}
+              </div>
+              <p>{result.text}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="lg:col-span-5">
+          <div className="rounded-2xl border border-slate-700/70 bg-slate-900/75 p-6 shadow-xl">
+            <h3 className="mb-2 text-center font-bold text-slate-100">תוצאות הרצה בג׳ל</h3>
+
+            <div className="flex h-[550px] gap-2">
+              <div className="mt-16 w-12 relative flex flex-col justify-between py-2 pr-2 text-base font-bold font-mono text-slate-400">
+                <div className="absolute inset-0 flex flex-col justify-between py-2 items-end pr-2">
+                  {LADDER_VALUES.map((value) => (
+                    <span key={`ladder-${value}`}>{value}</span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="gel-background mt-[4.5rem] flex-1 rounded-lg relative overflow-visible flex justify-around items-stretch p-2">
+                {lanesWithBands.map((lane, laneIdx) => (
+                  <div
+                    key={`gel-lane-${lane.label}`}
+                    className={`relative mx-1 w-full ${laneIdx < lanesWithBands.length - 1 ? "border-r border-slate-700/45" : ""}`}
+                  >
+                    <div className="absolute -top-16 w-full rounded-lg border border-slate-600 bg-slate-900/90 py-1 text-center text-base font-black text-slate-100 shadow-md">
+                      {lane.label}
+                    </div>
+
+                    {lane.bands.map((band, bandIdx) => (
+                      <div
+                        key={`band-${lane.label}-${bandIdx}`}
+                        className="dna-band glow-effect absolute left-0 right-0 rounded-sm"
+                        style={{
+                          top: `${band.top}%`,
+                          height: `${band.height}px`,
+                          background: band.background
+                        }}
+                      />
+                    ))}
                   </div>
-                );
-              })}
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-14 grid grid-cols-2 gap-2 text-center text-sm font-bold text-slate-200 md:grid-cols-4">
+              <div className="flex items-center justify-center gap-2">
+                <span className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: LOCI_COLORS[0] }} />
+                לוקוס A
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <span className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: LOCI_COLORS[1] }} />
+                לוקוס B
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <span className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: LOCI_COLORS[2] }} />
+                לוקוס C
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <span className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: LOCI_COLORS[3] }} />
+                לוקוס D
+              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={handleCheckMatch}
-            className="rounded-xl bg-blue-600 px-6 py-2.5 font-bold text-white transition-all hover:bg-blue-500"
-          >
-            בדוק התאמה
-          </button>
-
-          <button
-            onClick={handleReset}
-            className="rounded-xl border border-slate-600 bg-slate-800 px-6 py-2.5 font-bold text-slate-100 transition-all hover:bg-slate-700 flex items-center gap-2"
-          >
-            <RefreshCcw className="w-4 h-4" />
-            אפס נתונים
-          </button>
-
-          <button
-            onClick={onComplete}
-            disabled={matchedSuspects.length === 0}
-            className="rounded-xl bg-emerald-600 px-6 py-2.5 font-bold text-white transition-all hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-2"
-          >
-            <FlaskConical className="w-4 h-4" />
-            המשך לשלב הבא
-          </button>
-        </div>
-
-        {feedback && (
-          <div
-            className={`rounded-xl border px-4 py-3 text-sm ${
-              feedback.tone === "success"
-                ? "border-emerald-500/45 bg-emerald-500/10 text-emerald-200"
-                : "border-amber-500/45 bg-amber-500/10 text-amber-200"
-            }`}
-          >
-            <div className="mb-1 flex items-center gap-2 font-bold">
-              {feedback.tone === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-              {feedback.tone === "success" ? "נמצאה התאמה" : "נדרשת בדיקה נוספת"}
-            </div>
-            <p>{feedback.text}</p>
-          </div>
-        )}
-      </section>
+      <style jsx>{`
+        .gel-background {
+          background: linear-gradient(180deg, #0b1226 0%, #020617 100%);
+          border: 3px solid #334155;
+          box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.45);
+        }
+        .dna-band {
+          transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          filter: drop-shadow(0 0 5px currentColor);
+          box-sizing: border-box;
+          border-top: 1px solid rgba(255, 255, 255, 0.2);
+          border-bottom: 1px solid rgba(0, 0, 0, 0.3);
+        }
+        .input-focus:focus {
+          outline: none;
+          border-color: #60a5fa;
+          box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+        }
+        .mission-card {
+          cursor: pointer;
+        }
+        @keyframes glow {
+          0%,
+          100% {
+            opacity: 0.88;
+          }
+          50% {
+            opacity: 1;
+          }
+        }
+        .glow-effect {
+          animation: glow 2s infinite ease-in-out;
+        }
+        .data-table th,
+        .data-table td {
+          border: 1px solid rgba(71, 85, 105, 0.8);
+          padding: 6px 8px;
+          text-align: center;
+          color: #e2e8f0;
+        }
+        .data-table th {
+          background: rgba(30, 41, 59, 0.9);
+        }
+        .data-table td {
+          background: rgba(15, 23, 42, 0.75);
+        }
+      `}</style>
     </section>
   );
 }
