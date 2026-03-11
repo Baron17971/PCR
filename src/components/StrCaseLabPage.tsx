@@ -333,6 +333,7 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
   const [currentMissionIdx, setCurrentMissionIdx] = useState<number>(1);
   const [selectedUserAnswer, setSelectedUserAnswer] = useState<string | null>(null);
   const [result, setResult] = useState<ResultState | null>(null);
+  const [comparisonLineY, setComparisonLineY] = useState<number | null>(null);
 
   const currentMission = missions[currentMissionIdx];
 
@@ -401,6 +402,16 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
       tone: "error",
       text: "עדיין לא. בדקו אם כל הערכים הוזנו נכון מהטבלה ונסו שוב."
     });
+  };
+
+  const handleGelMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const y = clamp(event.clientY - rect.top, 0, rect.height);
+    setComparisonLineY(y);
+  };
+
+  const handleGelMouseLeave = () => {
+    setComparisonLineY(null);
   };
 
   return (
@@ -596,9 +607,19 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
               </div>
 
               <div
+                id="gel-tank"
                 className="gel-background flex-1 rounded-lg relative overflow-visible flex justify-around items-stretch p-2"
                 style={{ marginTop: `${GEL_TOP_OFFSET_REM}rem` }}
+                onMouseMove={handleGelMouseMove}
+                onMouseLeave={handleGelMouseLeave}
               >
+                <div
+                  id="comparison-line"
+                  style={{
+                    top: `${comparisonLineY ?? 0}px`,
+                    display: comparisonLineY === null ? "none" : "block"
+                  }}
+                />
                 {lanesWithBands.map((lane, laneIdx) => (
                   <div
                     key={`gel-lane-${lane.label}`}
@@ -651,6 +672,18 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
           background: linear-gradient(180deg, #0b1226 0%, #020617 100%);
           border: 3px solid #334155;
           box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.45);
+          cursor: crosshair;
+        }
+        #comparison-line {
+          position: absolute;
+          left: 0;
+          right: 0;
+          height: 1px;
+          background: rgba(255, 255, 255, 0.4);
+          box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+          pointer-events: none;
+          z-index: 50;
+          display: none;
         }
         .dna-band {
           transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
