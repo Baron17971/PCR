@@ -324,7 +324,7 @@ function ScenarioGelPanel({
 
   return (
     <div className={`rounded-xl border border-slate-700 bg-slate-950/70 ${compact ? 'p-3 space-y-2' : 'p-4 space-y-3'}`}>
-      <div className="flex items-center text-[11px] text-slate-300">
+      <div className={`flex items-center ${compact ? 'text-[11px]' : 'text-sm'} text-slate-300`}>
         <span className="font-bold text-slate-100">Gel Electrophoresis (Simulated)</span>
       </div>
 
@@ -333,7 +333,7 @@ function ScenarioGelPanel({
         <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,rgba(148,163,184,0.35)_1px,transparent_0)] [background-size:12px_12px]" />
 
         <div className="absolute top-0 left-0 right-0 h-14 bg-slate-800/75 border-b border-slate-600/70" />
-        <div className="absolute top-0.5 left-14 right-3 grid grid-cols-4 gap-4 text-[9px] text-slate-200/90">
+        <div className={`absolute top-0.5 left-14 right-3 grid grid-cols-4 gap-4 ${compact ? 'text-[9px]' : 'text-[11px]'} text-slate-200/90`}>
           {lanes.map((lane) => (
             <span key={`well-name-${lane.id}`} className="text-center truncate">
               {lane.label}
@@ -349,7 +349,9 @@ function ScenarioGelPanel({
         <div className="absolute top-16 bottom-3 left-1 right-3">
           {GEL_SIZE_MARKERS.map((marker) => (
             <div key={marker.label} className="absolute left-0 right-0" style={{ top: `${marker.top}%` }}>
-              <span className="absolute left-0 -translate-y-1/2 text-[10px] text-slate-400">{marker.label}</span>
+              <span className={`absolute left-0 -translate-y-1/2 ${compact ? 'text-[10px]' : 'text-[11px]'} text-slate-400`}>
+                {marker.label}
+              </span>
               <div className="absolute left-14 right-0 border-t border-slate-500/30" />
             </div>
           ))}
@@ -397,7 +399,7 @@ function ScenarioGelPanel({
         {statuses.map((status) => (
           <div
             key={`${status.label}-${status.value}`}
-            className={`rounded-lg border px-2.5 py-2 text-[11px] ${
+            className={`rounded-lg border px-2.5 py-2 ${compact ? 'text-[11px]' : 'text-sm'} ${
               status.tone === 'ok'
                 ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-100'
                 : status.tone === 'warn'
