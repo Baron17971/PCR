@@ -316,9 +316,9 @@ function buildLaneBands(data: Pair[]): RenderBand[] {
   const renderBands: RenderBand[] = [];
   grouped.forEach((list, key) => {
     const hasHomozygousBand = list.some((band) => band.isHomo);
-    let height = hasHomozygousBand ? 7 : 4;
+    let height = hasHomozygousBand ? 10 : 6;
     if (list.length > 1) {
-      height += (list.length - 1) * 4;
+      height += (list.length - 1) * 6;
     }
 
     const background =
@@ -423,7 +423,7 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
   return (
     <section dir="rtl" className="glass-pcr-card rounded-[2.5rem] border border-slate-700/30 p-6 md:p-8 space-y-8">
       <header className="text-center space-y-2">
-        <h1 className="text-4xl font-black text-white">מעבדת בלש גנטי: החידות</h1>
+        <h1 className="text-4xl font-black text-white">מעבדת הבלש הגנטי - ישומיי PCR</h1>
         <p className="text-lg font-semibold text-slate-300">בנו את הפרופילים הגנטיים בעצמכם וגלו את הפתרון</p>
       </header>
 
