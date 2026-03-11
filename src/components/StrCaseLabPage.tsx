@@ -2,25 +2,38 @@
 
 import React, { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, Circle, Dna, FlaskConical, RefreshCcw, Search, Users2 } from "lucide-react";
+import {
+  CheckCircle2,
+  Circle,
+  Dna,
+  FlaskConical,
+  Info,
+  RefreshCcw,
+  Search,
+  Users2,
+  X
+} from "lucide-react";
 
 interface StrCaseLabPageProps {
   onComplete: () => void;
 }
 
 type CaseId = "paternity" | "forensics";
-type BandTone = "mother" | "child" | "candidate" | "sample" | "neutral";
+type BandTone = "mother" | "child" | "candidate" | "sample";
 type FeedbackTone = "success" | "error";
+type Allele = number | "X" | "Y";
+type Genotype = [Allele, Allele];
 
-interface GelBand {
-  position: number;
-  tone: BandTone;
+interface LocusDefinition {
+  id: string;
+  label: string;
 }
 
 interface GelLane {
   id: string;
   label: string;
-  bands: GelBand[];
+  tone: BandTone;
+  profile: Record<string, Genotype>;
 }
 
 interface Scenario {
@@ -28,11 +41,13 @@ interface Scenario {
   tabLabel: string;
   title: string;
   subtitle: string;
+  lociSummary: string;
   question: string;
   options: string[];
   correct: string;
   success: string;
   errorHint: string;
+  loci: LocusDefinition[];
   lanes: GelLane[];
 }
 
@@ -45,169 +60,433 @@ const BAND_TONE_CLASS: Record<BandTone, string> = {
   mother: "bg-violet-300 shadow-[0_0_16px_rgba(196,181,253,0.85)]",
   child: "bg-cyan-300 shadow-[0_0_16px_rgba(103,232,249,0.85)]",
   candidate: "bg-blue-200 shadow-[0_0_14px_rgba(191,219,254,0.8)]",
-  sample: "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.95)]",
-  neutral: "bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,0.8)]"
+  sample: "bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.95)]"
 };
+
+const PATERNITY_LOCI: LocusDefinition[] = [
+  { id: "D3S1358", label: "D3S1358" },
+  { id: "vWA", label: "vWA" },
+  { id: "FGA", label: "FGA" },
+  { id: "D8S1179", label: "D8S1179" },
+  { id: "D21S11", label: "D21S11" },
+  { id: "D18S51", label: "D18S51" },
+  { id: "D5S818", label: "D5S818" },
+  { id: "D13S317", label: "D13S317" },
+  { id: "D7S820", label: "D7S820" },
+  { id: "CSF1PO", label: "CSF1PO" },
+  { id: "TH01", label: "TH01" },
+  { id: "TPOX", label: "TPOX" },
+  { id: "D16S539", label: "D16S539" },
+  { id: "D2S1338", label: "D2S1338" },
+  { id: "D19S433", label: "D19S433" },
+  { id: "D12S391", label: "D12S391" }
+];
+
+const FORENSIC_LOCI: LocusDefinition[] = [
+  { id: "D3S1358", label: "D3S1358" },
+  { id: "vWA", label: "vWA" },
+  { id: "FGA", label: "FGA" },
+  { id: "D8S1179", label: "D8S1179" },
+  { id: "D21S11", label: "D21S11" },
+  { id: "D18S51", label: "D18S51" },
+  { id: "D5S818", label: "D5S818" },
+  { id: "D13S317", label: "D13S317" },
+  { id: "D7S820", label: "D7S820" },
+  { id: "CSF1PO", label: "CSF1PO" },
+  { id: "TH01", label: "TH01" },
+  { id: "TPOX", label: "TPOX" },
+  { id: "D16S539", label: "D16S539" },
+  { id: "D2S1338", label: "D2S1338" },
+  { id: "D19S433", label: "D19S433" },
+  { id: "D12S391", label: "D12S391" },
+  { id: "D1S1656", label: "D1S1656" },
+  { id: "D2S441", label: "D2S441" },
+  { id: "D10S1248", label: "D10S1248" },
+  { id: "D22S1045", label: "D22S1045" },
+  { id: "AMEL", label: "Amelogenin" }
+];
+
+const toProfile = (entries: Array<[string, Genotype]>): Record<string, Genotype> =>
+  Object.fromEntries(entries) as Record<string, Genotype>;
+
+const MOTHER_PROFILE = toProfile([
+  ["D3S1358", [14, 16]],
+  ["vWA", [16, 18]],
+  ["FGA", [22, 24]],
+  ["D8S1179", [11, 13]],
+  ["D21S11", [29, 31]],
+  ["D18S51", [12, 15]],
+  ["D5S818", [11, 12]],
+  ["D13S317", [8, 11]],
+  ["D7S820", [9, 10]],
+  ["CSF1PO", [10, 12]],
+  ["TH01", [6, 9]],
+  ["TPOX", [8, 8]],
+  ["D16S539", [10, 12]],
+  ["D2S1338", [17, 20]],
+  ["D19S433", [13, 14]],
+  ["D12S391", [18, 22]]
+]);
+
+const CHILD_PROFILE = toProfile([
+  ["D3S1358", [16, 17]],
+  ["vWA", [18, 19]],
+  ["FGA", [24, 25]],
+  ["D8S1179", [13, 14]],
+  ["D21S11", [31, 32]],
+  ["D18S51", [12, 14]],
+  ["D5S818", [12, 13]],
+  ["D13S317", [11, 12]],
+  ["D7S820", [10, 11]],
+  ["CSF1PO", [12, 13]],
+  ["TH01", [7, 9]],
+  ["TPOX", [8, 11]],
+  ["D16S539", [11, 12]],
+  ["D2S1338", [20, 23]],
+  ["D19S433", [14, 15]],
+  ["D12S391", [22, 23]]
+]);
+
+const FATHER_A_PROFILE = toProfile([
+  ["D3S1358", [15, 17]],
+  ["vWA", [14, 19]],
+  ["FGA", [21, 25]],
+  ["D8S1179", [10, 14]],
+  ["D21S11", [30, 32]],
+  ["D18S51", [14, 16]],
+  ["D5S818", [10, 13]],
+  ["D13S317", [9, 12]],
+  ["D7S820", [8, 11]],
+  ["CSF1PO", [11, 13]],
+  ["TH01", [7, 9]],
+  ["TPOX", [9, 11]],
+  ["D16S539", [11, 13]],
+  ["D2S1338", [19, 23]],
+  ["D19S433", [12, 15]],
+  ["D12S391", [19, 23]]
+]);
+
+const FATHER_B_PROFILE = toProfile([
+  ["D3S1358", [12, 14]],
+  ["vWA", [15, 17]],
+  ["FGA", [20, 23]],
+  ["D8S1179", [9, 12]],
+  ["D21S11", [28, 30]],
+  ["D18S51", [11, 13]],
+  ["D5S818", [9, 11]],
+  ["D13S317", [8, 10]],
+  ["D7S820", [7, 9]],
+  ["CSF1PO", [10, 11]],
+  ["TH01", [6, 8]],
+  ["TPOX", [8, 10]],
+  ["D16S539", [9, 11]],
+  ["D2S1338", [17, 21]],
+  ["D19S433", [12, 13]],
+  ["D12S391", [18, 20]]
+]);
+
+const FATHER_C_PROFILE = toProfile([
+  ["D3S1358", [17, 18]],
+  ["vWA", [19, 20]],
+  ["FGA", [24, 26]],
+  ["D8S1179", [12, 15]],
+  ["D21S11", [31, 33]],
+  ["D18S51", [14, 17]],
+  ["D5S818", [12, 14]],
+  ["D13S317", [11, 13]],
+  ["D7S820", [10, 12]],
+  ["CSF1PO", [12, 14]],
+  ["TH01", [8, 9]],
+  ["TPOX", [10, 11]],
+  ["D16S539", [12, 14]],
+  ["D2S1338", [20, 24]],
+  ["D19S433", [14, 16]],
+  ["D12S391", [22, 24]]
+]);
+
+const CRIME_SAMPLE_PROFILE = toProfile([
+  ["D3S1358", [15, 16]],
+  ["vWA", [17, 19]],
+  ["FGA", [22, 24]],
+  ["D8S1179", [12, 14]],
+  ["D21S11", [30, 31]],
+  ["D18S51", [14, 15]],
+  ["D5S818", [11, 12]],
+  ["D13S317", [11, 12]],
+  ["D7S820", [9, 10]],
+  ["CSF1PO", [11, 12]],
+  ["TH01", [7, 9]],
+  ["TPOX", [8, 11]],
+  ["D16S539", [11, 12]],
+  ["D2S1338", [19, 23]],
+  ["D19S433", [14, 15]],
+  ["D12S391", [20, 23]],
+  ["D1S1656", [14, 16]],
+  ["D2S441", [10, 11]],
+  ["D10S1248", [13, 15]],
+  ["D22S1045", [15, 16]],
+  ["AMEL", ["X", "Y"]]
+]);
+
+const SUSPECT_1_PROFILE = toProfile([
+  ["D3S1358", [15, 17]],
+  ["vWA", [17, 19]],
+  ["FGA", [22, 25]],
+  ["D8S1179", [12, 14]],
+  ["D21S11", [30, 31]],
+  ["D18S51", [14, 15]],
+  ["D5S818", [11, 12]],
+  ["D13S317", [11, 12]],
+  ["D7S820", [9, 10]],
+  ["CSF1PO", [11, 12]],
+  ["TH01", [7, 9]],
+  ["TPOX", [8, 11]],
+  ["D16S539", [11, 12]],
+  ["D2S1338", [19, 23]],
+  ["D19S433", [14, 15]],
+  ["D12S391", [20, 23]],
+  ["D1S1656", [14, 15]],
+  ["D2S441", [10, 11]],
+  ["D10S1248", [13, 15]],
+  ["D22S1045", [15, 16]],
+  ["AMEL", ["X", "Y"]]
+]);
+
+const SUSPECT_2_PROFILE = toProfile([
+  ["D3S1358", [15, 16]],
+  ["vWA", [17, 19]],
+  ["FGA", [22, 24]],
+  ["D8S1179", [12, 14]],
+  ["D21S11", [30, 31]],
+  ["D18S51", [14, 15]],
+  ["D5S818", [11, 12]],
+  ["D13S317", [11, 12]],
+  ["D7S820", [9, 10]],
+  ["CSF1PO", [11, 12]],
+  ["TH01", [7, 9]],
+  ["TPOX", [8, 11]],
+  ["D16S539", [11, 12]],
+  ["D2S1338", [19, 23]],
+  ["D19S433", [14, 15]],
+  ["D12S391", [20, 23]],
+  ["D1S1656", [14, 16]],
+  ["D2S441", [10, 11]],
+  ["D10S1248", [13, 15]],
+  ["D22S1045", [15, 16]],
+  ["AMEL", ["X", "Y"]]
+]);
+
+const SUSPECT_3_PROFILE = toProfile([
+  ["D3S1358", [15, 16]],
+  ["vWA", [16, 19]],
+  ["FGA", [22, 24]],
+  ["D8S1179", [12, 14]],
+  ["D21S11", [29, 31]],
+  ["D18S51", [14, 15]],
+  ["D5S818", [11, 12]],
+  ["D13S317", [11, 12]],
+  ["D7S820", [9, 10]],
+  ["CSF1PO", [11, 12]],
+  ["TH01", [6, 9]],
+  ["TPOX", [8, 11]],
+  ["D16S539", [11, 12]],
+  ["D2S1338", [19, 23]],
+  ["D19S433", [14, 15]],
+  ["D12S391", [20, 23]],
+  ["D1S1656", [14, 16]],
+  ["D2S441", [10, 11]],
+  ["D10S1248", [12, 15]],
+  ["D22S1045", [15, 16]],
+  ["AMEL", ["X", "X"]]
+]);
 
 const SCENARIOS: Record<CaseId, Scenario> = {
   paternity: {
     id: "paternity",
     tabLabel: "בדיקת אבהות",
     title: "יישום 1: בדיקת אבהות לפי STR",
-    subtitle: "השוו בין האם, הילד ושלושה אבות אפשריים בשני לוקוסים.",
+    subtitle: "סימולציה עם 16 לוקוסים (בתחום המקובל: 15–21 לוקוסים בבדיקות אזרחיות).",
+    lociSummary: "16 לוקוסים",
     question: "מי האב הביולוגי הסביר ביותר?",
     options: ["אב א", "אב ב", "אב ג"],
     correct: "אב א",
     success:
-      "בחירה נכונה. הפסים בילד שלא הגיעו מהאם מופיעים באב א בשני הלוקוסים.",
+      "בחירה נכונה. בכל הלוקוסים שנבדקו, האלל הלא-אימהי בילד מוסבר על ידי אב א.",
     errorHint:
-      "בחירה שגויה. חפשו אילו פסים בילד אינם קיימים באם, ובדקו מי מהאבות מכיל אותם.",
+      "בחירה שגויה. עברו לוקוס-לוקוס: לילד כל אלל צריך להגיע מהאם או מהאב הביולוגי.",
+    loci: PATERNITY_LOCI,
     lanes: [
-      {
-        id: "mother",
-        label: "אם",
-        bands: [
-          { position: 24, tone: "mother" },
-          { position: 34, tone: "mother" },
-          { position: 64, tone: "mother" },
-          { position: 72, tone: "mother" }
-        ]
-      },
-      {
-        id: "child",
-        label: "ילד",
-        bands: [
-          { position: 24, tone: "child" },
-          { position: 42, tone: "child" },
-          { position: 72, tone: "child" },
-          { position: 80, tone: "child" }
-        ]
-      },
-      {
-        id: "candidate-a",
-        label: "אב א",
-        bands: [
-          { position: 42, tone: "candidate" },
-          { position: 50, tone: "candidate" },
-          { position: 58, tone: "candidate" },
-          { position: 80, tone: "candidate" }
-        ]
-      },
-      {
-        id: "candidate-b",
-        label: "אב ב",
-        bands: [
-          { position: 29, tone: "candidate" },
-          { position: 36, tone: "candidate" },
-          { position: 66, tone: "candidate" },
-          { position: 75, tone: "candidate" }
-        ]
-      },
-      {
-        id: "candidate-c",
-        label: "אב ג",
-        bands: [
-          { position: 24, tone: "candidate" },
-          { position: 34, tone: "candidate" },
-          { position: 64, tone: "candidate" },
-          { position: 72, tone: "candidate" }
-        ]
-      }
+      { id: "mother", label: "אם", tone: "mother", profile: MOTHER_PROFILE },
+      { id: "child", label: "ילד", tone: "child", profile: CHILD_PROFILE },
+      { id: "father-a", label: "אב א", tone: "candidate", profile: FATHER_A_PROFILE },
+      { id: "father-b", label: "אב ב", tone: "candidate", profile: FATHER_B_PROFILE },
+      { id: "father-c", label: "אב ג", tone: "candidate", profile: FATHER_C_PROFILE }
     ]
   },
   forensics: {
     id: "forensics",
     tabLabel: "זיהוי פלילי",
     title: "יישום 2: שיוך דגימה מזירת אירוע",
-    subtitle: "השוו בין דגימת המוצג לבין שלושה חשודים.",
+    subtitle: "סימולציה עם 20 לוקוסים + Amelogenin, בהתאם למעבר לתקנים מורחבים.",
+    lociSummary: "20 לוקוסים + Amelogenin",
     question: "מי החשוד שתואם למוצג?",
     options: ["חשוד 1", "חשוד 2", "חשוד 3"],
     correct: "חשוד 2",
-    success: "בחירה נכונה. דפוס הפסים של המוצג תואם במדויק לחשוד 2.",
+    success: "בחירה נכונה. חשוד 2 תואם למוצג בכל הלוקוסים כולל Amelogenin.",
     errorHint:
-      "בחירה שגויה. בזיהוי פלילי מחפשים התאמה מלאה בין פסים בכל לוקוס שנבדק.",
+      "בחירה שגויה. בזיהוי פלילי מחפשים התאמה מלאה של הפרופיל בכל הסמנים שנבדקו.",
+    loci: FORENSIC_LOCI,
     lanes: [
-      {
-        id: "sample",
-        label: "מוצג",
-        bands: [
-          { position: 27, tone: "sample" },
-          { position: 45, tone: "sample" },
-          { position: 68, tone: "sample" },
-          { position: 84, tone: "sample" }
-        ]
-      },
-      {
-        id: "suspect-1",
-        label: "חשוד 1",
-        bands: [
-          { position: 27, tone: "candidate" },
-          { position: 43, tone: "candidate" },
-          { position: 68, tone: "candidate" },
-          { position: 82, tone: "candidate" }
-        ]
-      },
-      {
-        id: "suspect-2",
-        label: "חשוד 2",
-        bands: [
-          { position: 27, tone: "neutral" },
-          { position: 45, tone: "neutral" },
-          { position: 68, tone: "neutral" },
-          { position: 84, tone: "neutral" }
-        ]
-      },
-      {
-        id: "suspect-3",
-        label: "חשוד 3",
-        bands: [
-          { position: 31, tone: "candidate" },
-          { position: 45, tone: "candidate" },
-          { position: 72, tone: "candidate" },
-          { position: 84, tone: "candidate" }
-        ]
-      }
+      { id: "sample", label: "מוצג", tone: "sample", profile: CRIME_SAMPLE_PROFILE },
+      { id: "suspect-1", label: "חשוד 1", tone: "candidate", profile: SUSPECT_1_PROFILE },
+      { id: "suspect-2", label: "חשוד 2", tone: "candidate", profile: SUSPECT_2_PROFILE },
+      { id: "suspect-3", label: "חשוד 3", tone: "candidate", profile: SUSPECT_3_PROFILE }
     ]
   }
 };
 
-function GelImage({ lanes }: { lanes: GelLane[] }) {
+const alleleOffset = (allele: Allele): number => {
+  if (allele === "X") return -3.5;
+  if (allele === "Y") return 3.5;
+  return ((allele % 11) - 5) * 0.85;
+};
+
+function locusBandPositions(genotype: Genotype, rowCenter: number): number[] {
+  const [a1, a2] = genotype;
+  const p1 = rowCenter + alleleOffset(a1);
+  const p2 = rowCenter + alleleOffset(a2);
+  if (p1 === p2) return [p1];
+  return [Math.min(p1, p2), Math.max(p1, p2)];
+}
+
+function GelImage({ loci, lanes, lociSummary }: { loci: LocusDefinition[]; lanes: GelLane[]; lociSummary: string }) {
+  const rowHeight = 18;
+  const rowStart = 14;
+  const gelHeight = rowStart + loci.length * rowHeight + 10;
+
   return (
     <div className="rounded-2xl border border-slate-700/55 bg-slate-950/70 p-4 space-y-3">
       <div className="flex items-center justify-between text-sm">
         <span className="text-slate-300">תמונת ג׳ל (סימולציה)</span>
-        <span className="text-slate-500">Locus 1 / Locus 2</span>
+        <span className="text-slate-500">{lociSummary}</span>
       </div>
 
-      <div className="relative rounded-xl border border-slate-700/70 bg-gradient-to-b from-blue-950/60 via-blue-950/50 to-slate-950/70 px-3 pt-4 pb-5 overflow-hidden">
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle,_rgba(125,211,252,0.18)_1px,_transparent_1px)] bg-[length:10px_10px]" />
-        <div className="absolute left-2 right-2 top-[46%] border-t border-dashed border-slate-600/60" />
-        <div className="absolute right-2 top-[44%] text-[10px] text-slate-400">Locus 1</div>
-        <div className="absolute right-2 top-[86%] text-[10px] text-slate-400">Locus 2</div>
-
-        <div
-          className="relative grid gap-2 md:gap-3 z-10"
-          style={{ gridTemplateColumns: `repeat(${lanes.length}, minmax(0, 1fr))` }}
-        >
-          {lanes.map((lane) => (
-            <div key={lane.id} className="space-y-2">
-              <div className="h-5 w-[76%] mx-auto rounded-b-xl border border-slate-500/70 bg-slate-500/40" />
-
-              <div className="relative h-[230px] rounded-lg border border-slate-700/70 bg-slate-900/40 overflow-hidden">
-                {lane.bands.map((band, index) => (
-                  <span
-                    key={`${lane.id}-band-${index}`}
-                    className={`absolute left-1/2 -translate-x-1/2 h-[6px] w-[74%] rounded-full ${BAND_TONE_CLASS[band.tone]}`}
-                    style={{ top: `${band.position}%` }}
-                  />
-                ))}
+      <div className="rounded-xl border border-slate-700/70 bg-gradient-to-b from-blue-950/60 via-blue-950/50 to-slate-950/70 p-3 overflow-auto">
+        <div className="min-w-[720px]" dir="ltr">
+          <div
+            className="grid gap-2"
+            style={{ gridTemplateColumns: `106px repeat(${lanes.length}, minmax(120px, 1fr))` }}
+          >
+            <div />
+            {lanes.map((lane) => (
+              <div key={`label-${lane.id}`} className="text-center text-xs md:text-sm text-slate-200 font-bold">
+                {lane.label}
               </div>
+            ))}
 
-              <p className="text-center text-xs md:text-sm text-slate-200 font-bold">{lane.label}</p>
+            <div className="relative border-r border-slate-700/70 pr-2" style={{ height: gelHeight }}>
+              {loci.map((locus, index) => {
+                const rowCenter = rowStart + index * rowHeight;
+                return (
+                  <span
+                    key={`locus-label-${locus.id}`}
+                    className="absolute right-1 -translate-y-1/2 text-[10px] md:text-[11px] text-slate-400"
+                    style={{ top: rowCenter }}
+                  >
+                    {locus.label}
+                  </span>
+                );
+              })}
             </div>
-          ))}
+
+            {lanes.map((lane) => (
+              <div key={lane.id} className="space-y-2">
+                <div className="h-5 w-[76%] mx-auto rounded-b-xl border border-slate-500/70 bg-slate-500/40" />
+
+                <div className="relative rounded-lg border border-slate-700/70 bg-slate-900/45 overflow-hidden" style={{ height: gelHeight }}>
+                  <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle,_rgba(125,211,252,0.18)_1px,_transparent_1px)] bg-[length:10px_10px]" />
+
+                  {loci.map((locus, index) => {
+                    const rowCenter = rowStart + index * rowHeight;
+                    const genotype = lane.profile[locus.id];
+                    if (!genotype) return null;
+
+                    return (
+                      <React.Fragment key={`${lane.id}-${locus.id}`}>
+                        <span
+                          className="absolute left-2 right-2 border-t border-slate-700/55"
+                          style={{ top: rowCenter }}
+                        />
+                        {locusBandPositions(genotype, rowCenter).map((bandY, bandIndex) => (
+                          <span
+                            key={`${lane.id}-${locus.id}-band-${bandIndex}`}
+                            className={`absolute left-1/2 -translate-x-1/2 h-[4px] w-[76%] rounded-full ${BAND_TONE_CLASS[lane.tone]}`}
+                            style={{ top: bandY }}
+                          />
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function StandardsBubble() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="rounded-2xl border border-cyan-500/35 bg-cyan-500/10 p-3 md:p-4" dir="rtl">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-cyan-100 font-bold">
+          <Info className="w-4 h-4" />
+          בועת הסבר: היקף הלוקוסים בישראל
+        </div>
+        <button
+          onClick={() => setOpen((prev) => !prev)}
+          className="rounded-lg border border-cyan-300/35 bg-cyan-950/40 hover:bg-cyan-900/50 text-cyan-100 text-xs font-bold px-3 py-1.5 transition-colors"
+        >
+          {open ? "הסתר" : "פתח"}
+        </button>
+      </div>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="mt-3 rounded-xl border border-cyan-300/25 bg-slate-900/75 p-3 space-y-2 text-sm text-slate-200 leading-relaxed"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-bold text-cyan-100">תקציר שימושי לתלמידים</p>
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded-md p-1 hover:bg-slate-700/60 text-slate-300"
+                aria-label="סגור בועת הסבר"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p>
+              בדיקות אבהות בישראל מבוצעות בצו בית משפט, ובפועל נבדקים לרוב <strong>15–21 לוקוסים מסוג STR</strong>
+              כדי להגיע לוודאות גבוהה מאוד (מעל 99.9% לאישור אבהות, ושלילה ודאית כאשר אין התאמה).
+            </p>
+            <p>
+              בזיהוי פלילי, המאגר התבסס בעבר על 13 לוקוסים, וכיום נהוג לעבוד עם <strong>20 לוקוסים לפחות</strong>{" "}
+              ובנוסף סמן המין <strong>Amelogenin</strong>.
+            </p>
+            <p>
+              במקרים מורכבים משתמשים גם בבדיקות משלימות כמו <strong>Y-STR</strong> או <strong>DNA מיטוכונדריאלי</strong>.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -285,6 +564,8 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
         </p>
       </div>
 
+      <StandardsBubble />
+
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <article className="rounded-2xl border border-slate-700/55 bg-slate-900/60 p-4 space-y-3">
           <h3 className="text-xl font-black text-white flex items-center gap-2 justify-start">
@@ -360,13 +641,13 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 2xl:grid-cols-[1.4fr_1fr] gap-4">
+        <div className="grid grid-cols-1 2xl:grid-cols-[1.5fr_1fr] gap-4">
           <section className="space-y-3">
             <div className="rounded-xl border border-slate-700/55 bg-slate-950/60 p-4 text-right space-y-2">
               <h3 className="text-2xl font-black text-white">{currentScenario.title}</h3>
               <p className="text-slate-300">{currentScenario.subtitle}</p>
             </div>
-            <GelImage lanes={currentScenario.lanes} />
+            <GelImage loci={currentScenario.loci} lanes={currentScenario.lanes} lociSummary={currentScenario.lociSummary} />
           </section>
 
           <section className="rounded-2xl border border-slate-700/55 bg-slate-950/60 p-4 space-y-4">
