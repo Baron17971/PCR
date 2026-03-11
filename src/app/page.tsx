@@ -6,6 +6,7 @@ import MasterMixerGame from '@/components/MasterMixerGame';
 import GeneExpressionLab from '@/components/GeneExpressionLab';
 import ReplicationComparisonActivity from '@/components/ReplicationComparisonActivity';
 import GeneticFingerprintPage from '@/components/GeneticFingerprintPage';
+import StrCaseLabPage from '@/components/StrCaseLabPage';
 import PcrPrinciplesGame from '@/components/PcrPrinciplesGame';
 import PcrApplicationsPage from '@/components/PcrApplicationsPage';
 import WelcomeScreen from '@/components/WelcomeScreen';
@@ -16,7 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function Home() {
   const [phase, setPhase] = useState<SimulationPhase>('landing');
 
-  const phases: SimulationPhase[] = ['landing', 'preparation', 'pcr-running', 'master-mixer-game', 'replication-comparison', 'genetic-fingerprint', 'completed', 'gene-expression-lab', 'pcr-applications', 'pcr-principles-game'];
+  const phases: SimulationPhase[] = ['landing', 'preparation', 'pcr-running', 'master-mixer-game', 'replication-comparison', 'genetic-fingerprint', 'str-case-lab', 'completed', 'gene-expression-lab', 'pcr-applications', 'pcr-principles-game'];
   const currentIndex = phases.indexOf(phase);
 
   const goToNext = () => {
@@ -64,7 +65,11 @@ export default function Home() {
         )}
 
         {phase === 'genetic-fingerprint' && (
-          <GeneticFingerprintPage onComplete={() => setPhase('completed')} />
+          <GeneticFingerprintPage onComplete={() => setPhase('str-case-lab')} />
+        )}
+
+        {phase === 'str-case-lab' && (
+          <StrCaseLabPage onComplete={() => setPhase('completed')} />
         )}
 
         {phase === 'pcr-principles-game' && (
