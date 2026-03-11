@@ -315,7 +315,12 @@ function buildLaneBands(data: Pair[]): RenderBand[] {
 
   const renderBands: RenderBand[] = [];
   grouped.forEach((list, key) => {
-    const height = list.reduce((acc, band) => acc + (band.isHomo ? 4 : 2), 2);
+    const hasHomozygousBand = list.some((band) => band.isHomo);
+    let height = hasHomozygousBand ? 7 : 4;
+    if (list.length > 1) {
+      height += (list.length - 1) * 4;
+    }
+
     const background =
       list.length === 1 ? list[0].color : `linear-gradient(to right, ${list.map((band) => band.color).join(",")})`;
     renderBands.push({
@@ -634,11 +639,12 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
                     {lane.bands.map((band, bandIdx) => (
                       <div
                         key={`band-${lane.label}-${bandIdx}`}
-                        className="dna-band absolute left-0 right-0 rounded-sm"
+                        className="dna-band absolute left-[6%] right-[6%] rounded-sm"
                         style={{
                           top: `${band.top}%`,
                           height: `${band.height}px`,
-                          background: band.background
+                          background: band.background,
+                          transform: "translateY(-50%)"
                         }}
                       />
                     ))}
@@ -690,9 +696,9 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
         .dna-band {
           transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
           box-sizing: border-box;
-          opacity: 0.95;
-          border-top: 1px solid rgba(255, 255, 255, 0.32);
-          border-bottom: 1px solid rgba(2, 6, 23, 0.6);
+          opacity: 1;
+          border-top: 1px solid rgba(255, 255, 255, 0.18);
+          border-bottom: 1px solid rgba(2, 6, 23, 0.35);
         }
         .input-focus:focus {
           outline: none;
