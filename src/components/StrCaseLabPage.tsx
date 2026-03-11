@@ -60,6 +60,8 @@ interface RenderBand {
 const LOCI_LABELS = ["A", "B", "C", "D"] as const;
 const LOCI_COLORS = ["#3b82f6", "#10b981", "#facc15", "#ef4444"] as const;
 const LADDER_VALUES = [35, 30, 25, 20, 15, 10, 5] as const;
+const GEL_RENDER_HEIGHT_PX = 720;
+const GEL_TOP_OFFSET_REM = 5.5;
 
 const MISSION_TEMPLATES: Mission[] = [
   {
@@ -284,7 +286,7 @@ function valueToPercent(value: number): number {
   const min = 5;
   const max = 35;
   const bounded = clamp(value, min, max);
-  return ((max - bounded) / (max - min)) * 92 + 4;
+  return ((max - bounded) / (max - min)) * 96 + 2;
 }
 
 function formatAllelePair(pair: Pair): string {
@@ -584,8 +586,8 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
           <div className="rounded-2xl border border-slate-700/70 bg-slate-900/75 p-6 shadow-xl">
             <h3 className="mb-2 text-center font-bold text-slate-100">תוצאות הרצה בג׳ל</h3>
 
-            <div className="flex h-[550px] gap-2">
-              <div className="mt-16 w-12 relative flex flex-col justify-between py-2 pr-2 text-base font-bold font-mono text-slate-400">
+            <div className="flex gap-2" style={{ height: GEL_RENDER_HEIGHT_PX }}>
+              <div className="mt-[5.5rem] w-12 relative flex flex-col justify-between py-2 pr-2 text-base font-bold font-mono text-slate-400">
                 <div className="absolute inset-0 flex flex-col justify-between py-2 items-end pr-2">
                   {LADDER_VALUES.map((value) => (
                     <span key={`ladder-${value}`}>{value}</span>
@@ -593,7 +595,10 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
                 </div>
               </div>
 
-              <div className="gel-background mt-[4.5rem] flex-1 rounded-lg relative overflow-visible flex justify-around items-stretch p-2">
+              <div
+                className="gel-background flex-1 rounded-lg relative overflow-visible flex justify-around items-stretch p-2"
+                style={{ marginTop: `${GEL_TOP_OFFSET_REM}rem` }}
+              >
                 {lanesWithBands.map((lane, laneIdx) => (
                   <div
                     key={`gel-lane-${lane.label}`}
@@ -691,4 +696,3 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
     </section>
   );
 }
-
