@@ -60,7 +60,7 @@ interface RenderBand {
 const LOCI_LABELS = ["A", "B", "C", "D"] as const;
 const LOCI_COLORS = ["#3b82f6", "#10b981", "#facc15", "#ef4444"] as const;
 const LADDER_VALUES = [35, 30, 25, 20, 15, 10, 5] as const;
-const GEL_RENDER_HEIGHT_PX = 720;
+const GEL_RENDER_HEIGHT_PX = 820;
 const GEL_TOP_OFFSET_REM = 5.5;
 
 const MISSION_TEMPLATES: Mission[] = [
@@ -315,7 +315,7 @@ function buildLaneBands(data: Pair[]): RenderBand[] {
 
   const renderBands: RenderBand[] = [];
   grouped.forEach((list, key) => {
-    const height = list.reduce((acc, band) => acc + (band.isHomo ? 4 : 2), 4);
+    const height = list.reduce((acc, band) => acc + (band.isHomo ? 4 : 2), 2);
     const background =
       list.length === 1 ? list[0].color : `linear-gradient(to right, ${list.map((band) => band.color).join(",")})`;
     renderBands.push({
@@ -406,7 +406,8 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
 
   const handleGelMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    const y = clamp(event.clientY - rect.top, 0, rect.height);
+    const zoomScaleY = rect.height / event.currentTarget.offsetHeight || 1;
+    const y = clamp((event.clientY - rect.top) / zoomScaleY, 0, event.currentTarget.offsetHeight);
     setComparisonLineY(y);
   };
 
@@ -617,7 +618,8 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
                   id="comparison-line"
                   style={{
                     top: `${comparisonLineY ?? 0}px`,
-                    display: comparisonLineY === null ? "none" : "block"
+                    display: comparisonLineY === null ? "none" : "block",
+                    transform: "translateY(-50%)"
                   }}
                 />
                 {lanesWithBands.map((lane, laneIdx) => (
@@ -625,14 +627,14 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
                     key={`gel-lane-${lane.label}`}
                     className={`relative mx-1 w-full ${laneIdx < lanesWithBands.length - 1 ? "border-r border-slate-700/45" : ""}`}
                   >
-                    <div className="absolute -top-16 w-full rounded-lg border border-slate-600 bg-slate-900/90 py-1 text-center text-base font-black text-slate-100 shadow-md">
+                    <div className="pointer-events-none absolute -top-16 w-full rounded-lg border border-slate-600 bg-slate-900/90 py-1 text-center text-base font-black text-slate-100 shadow-md select-none">
                       {lane.label}
                     </div>
 
                     {lane.bands.map((band, bandIdx) => (
                       <div
                         key={`band-${lane.label}-${bandIdx}`}
-                        className="dna-band glow-effect absolute left-0 right-0 rounded-sm"
+                        className="dna-band absolute left-0 right-0 rounded-sm"
                         style={{
                           top: `${band.top}%`,
                           height: `${band.height}px`,
@@ -687,10 +689,10 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
         }
         .dna-band {
           transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-          filter: drop-shadow(0 0 5px currentColor);
           box-sizing: border-box;
-          border-top: 1px solid rgba(255, 255, 255, 0.2);
-          border-bottom: 1px solid rgba(0, 0, 0, 0.3);
+          opacity: 0.95;
+          border-top: 1px solid rgba(255, 255, 255, 0.32);
+          border-bottom: 1px solid rgba(2, 6, 23, 0.6);
         }
         .input-focus:focus {
           outline: none;
@@ -699,18 +701,6 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
         }
         .mission-card {
           cursor: pointer;
-        }
-        @keyframes glow {
-          0%,
-          100% {
-            opacity: 0.88;
-          }
-          50% {
-            opacity: 1;
-          }
-        }
-        .glow-effect {
-          animation: glow 2s infinite ease-in-out;
         }
         .data-table th,
         .data-table td {
