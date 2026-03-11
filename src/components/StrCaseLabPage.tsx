@@ -36,6 +36,13 @@ interface GelLane {
   profile: Record<string, Genotype>;
 }
 
+interface VisualLane {
+  id: string;
+  label: string;
+  tone: BandTone;
+  profile?: Record<string, Genotype>;
+}
+
 interface Scenario {
   id: CaseId;
   tabLabel: string;
@@ -322,6 +329,23 @@ const SCENARIOS: Record<CaseId, Scenario> = {
   }
 };
 
+const THOUGHT_QUESTIONS: Record<CaseId, string[]> = {
+  paternity: [
+    "מה תפקידו של סרגל הביקורת?",
+    "כמה קטעים חוזרים יש לילד באתר פולימורפי 2?",
+    "באיזה מהאתרים האם הומוזיגוטית? נמקו.",
+    "באיזה מהאתרים אב א׳ הוא הטרוזיגוט? נמקו.",
+    "האם ייתכן שלשני נבדקים יהיה מספר זהה של קטעים חוזרים באתר מסוים? תנו דוגמה."
+  ],
+  forensics: [
+    "מה תפקידו של סרגל הביקורת?",
+    "כמה קטעים חוזרים יש למוצג באתר פולימורפי 2?",
+    "באיזה מהאתרים חשוד 2 הומוזיגוט? נמקו.",
+    "באיזה מהאתרים חשוד 3 הוא הטרוזיגוט? נמקו.",
+    "האם ייתכן שלשני אנשים שונים יהיה מספר זהה של קטעים חוזרים באתר פולימורפי מסוים? תנו דוגמה."
+  ]
+};
+
 const alleleToNumeric = (allele: Allele): number => {
   if (typeof allele === "number") return allele;
   return allele === "X" ? 0 : 1;
@@ -379,10 +403,15 @@ function locusBandPositions(
 }
 
 function GelImage({ loci, lanes, lociSummary }: { loci: LocusDefinition[]; lanes: GelLane[]; lociSummary: string }) {
-  const rowHeight = 42;
-  const rowStart = 36;
-  const gelHeight = rowStart + loci.length * rowHeight + 16;
+  const rowHeight = 86;
+  const headerHeight = 46;
+  const labelColWidth = 170;
+  const laneColWidth = 126;
+  const displayLanes: VisualLane[] = [{ id: "ladder", label: "סרגל ביקורת", tone: "candidate" }, ...lanes];
+  const minWidth = labelColWidth + displayLanes.length * laneColWidth + 24;
+  const gelHeight = headerHeight + loci.length * rowHeight;
   const locusScale = buildLocusBandScale(loci, lanes);
+  const zoneColors = ["#dce8ef", "#e3efde", "#e9dfec"];
 
   return (
     <div className="rounded-2xl border border-slate-600/40 bg-slate-950/70 p-4 space-y-3">
@@ -391,69 +420,97 @@ function GelImage({ loci, lanes, lociSummary }: { loci: LocusDefinition[]; lanes
         <span className="text-slate-500">{lociSummary}</span>
       </div>
 
-      <div className="rounded-xl border border-slate-500/70 bg-[#dce8ed] p-3 overflow-auto shadow-inner">
-        <div className="min-w-[760px]" dir="ltr">
-          <div
-            className="grid gap-0"
-            style={{ gridTemplateColumns: `124px repeat(${lanes.length}, minmax(128px, 1fr))` }}
-          >
-            <div />
-            {lanes.map((lane) => (
-              <div key={`label-${lane.id}`} className="text-center text-xs md:text-sm text-slate-700 font-black pb-1">
-                {lane.label}
-              </div>
-            ))}
+      <div className="rounded-xl border border-slate-500/70 bg-[#e8eef1] p-3 overflow-auto shadow-inner">
+        <div className="relative mx-auto" style={{ minWidth, height: gelHeight }} dir="ltr">
+          {loci.map((locus, index) => {
+            const top = headerHeight + index * rowHeight;
+            return (
+              <div
+                key={`zone-${locus.id}`}
+                className="absolute left-0 right-0 border-t border-[#9fafb7]/60"
+                style={{ top, height: rowHeight, backgroundColor: zoneColors[index % zoneColors.length] }}
+              />
+            );
+          })}
 
-            <div className="relative border-r border-slate-500/70 pr-2 bg-[#eaf1f4]" style={{ height: gelHeight }}>
-              {loci.map((locus, index) => {
-                const rowCenter = rowStart + index * rowHeight;
-                return (
-                  <span
-                    key={`locus-label-${locus.id}`}
-                    className="absolute right-1 -translate-y-1/2 text-[10px] md:text-[11px] text-slate-700 font-semibold"
-                    style={{ top: rowCenter }}
-                  >
-                    {locus.label}
-                  </span>
-                );
-              })}
-            </div>
+          <div className="absolute top-0 left-0 border-r border-[#6a7a82] bg-[#d6e2e8]" style={{ width: labelColWidth, height: gelHeight }}>
+            <div className="h-[46px] border-b border-[#6a7a82]" />
+            {loci.map((locus, index) => {
+              const zoneTop = headerHeight + index * rowHeight;
+              return (
+                <div
+                  key={`locus-label-${locus.id}`}
+                  className="absolute left-2 right-2 flex flex-col justify-center text-slate-700"
+                  style={{ top: zoneTop, height: rowHeight }}
+                >
+                  <span className="text-[10px] md:text-xs font-black">אתר פולימורפי {index + 1}</span>
+                  <span className="text-[10px] md:text-[11px] font-semibold">{locus.label}</span>
+                </div>
+              );
+            })}
+          </div>
 
-            {lanes.map((lane) => (
-              <div key={lane.id} className="relative border-x border-b border-[#6a7a82] bg-gradient-to-b from-[#d0e0e5] to-[#c7d8de]" style={{ height: gelHeight }}>
-                <div className="absolute left-0 right-0 top-0 h-8 border-b border-[#6a7a82] bg-[#c4d6dc]" />
-                <div className="absolute top-0 left-[18%] right-[18%] h-6 border-x border-b border-[#6a7a82] bg-[#dce8ed]" />
+          {displayLanes.map((lane, laneIndex) => {
+            const left = labelColWidth + laneIndex * laneColWidth;
 
-                <div className="absolute inset-x-0 top-8 bottom-0">
-                  {loci.map((locus, index) => {
-                    const rowCenter = rowStart + index * rowHeight;
-                    const genotype = lane.profile[locus.id];
-                    if (!genotype) return null;
+            return (
+              <div
+                key={lane.id}
+                className="absolute border-x border-b border-[#6a7a82] bg-gradient-to-b from-[#d3e0e6] to-[#c9d8de]"
+                style={{ left, width: laneColWidth, height: gelHeight }}
+              >
+                <div className="h-[46px] border-b border-[#6a7a82] bg-[#c1d4db] relative">
+                  <div className="absolute top-0 left-[18%] right-[18%] h-6 border-x border-b border-[#6a7a82] bg-[#dbe7ec]" />
+                  <div className="absolute inset-x-1 bottom-1 text-center text-xs md:text-sm text-slate-700 font-black">
+                    {lane.label}
+                  </div>
+                </div>
 
+                {loci.map((locus, index) => {
+                  const zoneTop = headerHeight + index * rowHeight;
+                  const rowCenter = zoneTop + rowHeight / 2;
+
+                  if (lane.id === "ladder") {
+                    const marks = [0.16, 0.27, 0.39, 0.51, 0.63, 0.75, 0.87];
                     return (
                       <React.Fragment key={`${lane.id}-${locus.id}`}>
-                        <span
+                        <div
                           className="absolute left-2 right-2 rounded-[3px] border border-[#b4c5cb] bg-[#d9e7ec]/80"
-                          style={{ top: rowCenter - rowHeight / 2 + 4, height: rowHeight - 8 }}
+                          style={{ top: zoneTop + 6, height: rowHeight - 12 }}
                         />
-                        <span
-                          className="absolute left-2 right-2 border-t border-[#9fb3ba]/80"
-                          style={{ top: rowCenter }}
-                        />
-                        {locusBandPositions(genotype, locus.id, rowCenter, rowHeight, locusScale).map((bandY, bandIndex) => (
+                        {marks.map((mark, markIndex) => (
                           <span
-                            key={`${lane.id}-${locus.id}-band-${bandIndex}`}
-                            className={`absolute left-1/2 -translate-x-1/2 h-[7px] w-[72%] rounded-[2px] border border-[#0588a3] ${BAND_TONE_CLASS[lane.tone]}`}
-                            style={{ top: bandY }}
+                            key={`${lane.id}-${locus.id}-mark-${markIndex}`}
+                            className="absolute left-[28%] right-[28%] h-[4px] rounded-[2px] border border-[#0588a3] bg-[#0ca4c0]"
+                            style={{ top: zoneTop + rowHeight * mark }}
                           />
                         ))}
                       </React.Fragment>
                     );
-                  })}
-                </div>
+                  }
+
+                  const genotype = lane.profile?.[locus.id];
+                  if (!genotype) return null;
+
+                  return (
+                    <React.Fragment key={`${lane.id}-${locus.id}`}>
+                      <div
+                        className="absolute left-2 right-2 rounded-[3px] border border-[#b4c5cb] bg-[#d9e7ec]/80"
+                        style={{ top: zoneTop + 6, height: rowHeight - 12 }}
+                      />
+                      {locusBandPositions(genotype, locus.id, rowCenter, rowHeight, locusScale).map((bandY, bandIndex) => (
+                        <span
+                          key={`${lane.id}-${locus.id}-band-${bandIndex}`}
+                          className={`absolute left-1/2 -translate-x-1/2 h-[7px] w-[72%] rounded-[2px] border border-[#0588a3] ${BAND_TONE_CLASS[lane.tone]}`}
+                          style={{ top: bandY }}
+                        />
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -667,7 +724,7 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 2xl:grid-cols-[1.5fr_1fr] gap-4">
+        <div className="grid grid-cols-1 2xl:grid-cols-[2fr_1fr] gap-4">
           <section className="space-y-3">
             <div className="rounded-xl border border-slate-700/55 bg-slate-950/60 p-4 text-right space-y-2">
               <h3 className="text-2xl font-black text-white">{currentScenario.title}</h3>
@@ -739,6 +796,15 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            <div className="rounded-xl border border-slate-700/60 bg-slate-900/60 p-3 space-y-2">
+              <h4 className="text-base font-black text-cyan-200">שאלות למחשבה</h4>
+              {THOUGHT_QUESTIONS[activeCase].map((questionText, index) => (
+                <p key={`${activeCase}-thought-${index}`} className="text-sm text-slate-300 leading-relaxed">
+                  {`${String.fromCharCode(0x05D0 + index)}. ${questionText}`}
+                </p>
+              ))}
+            </div>
           </section>
         </div>
       </div>
