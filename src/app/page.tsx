@@ -28,7 +28,7 @@ export default function Home() {
     'replication-comparison': { label: 'השוואת שכפול', hint: 'בתא מול מבחנה' },
     'genetic-fingerprint': { label: 'טביעת אצבע גנטית', hint: 'STR ועקרונות זיהוי' },
     'str-case-lab': { label: 'מעבדת STR', hint: 'תרגול פורנזי ואבהות' },
-    'completed': { label: 'משכפול לביטוי - RT - PCR', hint: 'מעבר ל-RT-PCR ולביטוי גנים' },
+    'completed': { label: 'משכפול לאיפיון ביטוי גנים - RT - PCR', hint: 'מעבר ל-RT-PCR ולביטוי גנים' },
     'gene-expression-lab': { label: 'מעבדת ביטוי גנים', hint: 'mRNA, RT ו-PCR' },
     'pcr-applications': { label: 'יישומי PCR', hint: 'יישומים מעשיים' },
     'pcr-principles-game': { label: 'משחק עקרונות PCR', hint: 'אתגר מסכם' }
@@ -151,7 +151,7 @@ export default function Home() {
           <div className="bg-emerald-950/20 rounded-[2.5rem] p-12 border border-emerald-800/20 text-center space-y-8 backdrop-blur-sm relative overflow-hidden">
             <div className="absolute -top-24 -left-24 w-64 h-64 bg-emerald-500/5 blur-[100px] pointer-events-none" />
             <div className="space-y-4">
-              <h2 className="text-4xl font-black text-emerald-400">משכפול לביטוי - RT - PCR</h2>
+              <h2 className="text-4xl font-black text-emerald-400">משכפול לאיפיון ביטוי גנים - RT - PCR</h2>
               <p className="text-xl text-slate-200 max-w-4xl mx-auto leading-relaxed">
                 מצוין! הצלחנו לייצר מיליוני עותקים של מקטע ה-DNA. אבל האם עצם נוכחות הגן אומרת שהוא בהכרח
                 &apos;עובד&apos; ברגע זה?
