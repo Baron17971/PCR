@@ -28,7 +28,7 @@ export default function Home() {
     'replication-comparison': { label: 'השוואת שכפול', hint: 'בתא מול מבחנה' },
     'genetic-fingerprint': { label: 'טביעת אצבע גנטית', hint: 'STR ועקרונות זיהוי' },
     'str-case-lab': { label: 'מעבדת STR', hint: 'תרגול פורנזי ואבהות' },
-    'completed': { label: 'סיום', hint: 'עמוד סיכום והמשך' },
+    'completed': { label: 'מהדנ״א אל התא הפעיל', hint: 'מעבר ל-RT-PCR ולביטוי גנים' },
     'gene-expression-lab': { label: 'מעבדת ביטוי גנים', hint: 'mRNA, RT ו-PCR' },
     'pcr-applications': { label: 'יישומי PCR', hint: 'יישומים מעשיים' },
     'pcr-principles-game': { label: 'משחק עקרונות PCR', hint: 'אתגר מסכם' }
