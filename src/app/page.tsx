@@ -151,19 +151,55 @@ export default function Home() {
           <div className="bg-emerald-950/20 rounded-[2.5rem] p-12 border border-emerald-800/20 text-center space-y-8 backdrop-blur-sm relative overflow-hidden">
             <div className="absolute -top-24 -left-24 w-64 h-64 bg-emerald-500/5 blur-[100px] pointer-events-none" />
             <div className="space-y-4">
-              <h2 className="text-4xl font-black text-emerald-400">התהליך הושלם בהצלחה!</h2>
-              <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-                מקטע ה-DNA שוכפל בהצלחה למיליוני עותקים. כעת ניתן להשתמש בתוצרים לצרכי מחקר, אבחון רפואי או זיהוי פלילי.
+              <h2 className="text-4xl font-black text-emerald-400">מהדנ״א אל התא הפעיל</h2>
+              <p className="text-xl text-slate-200 max-w-4xl mx-auto leading-relaxed">
+                מצוין! הצלחנו לייצר מיליוני עותקים של מקטע ה-DNA. אבל האם עצם נוכחות הגן אומרת שהוא בהכרח
+                &apos;עובד&apos; ברגע זה?
               </p>
             </div>
 
-            <div className="flex flex-col md:flex-row justify-center gap-6 pt-6">
+            <div className="max-w-5xl mx-auto text-right space-y-5 rounded-2xl border border-emerald-700/30 bg-slate-900/45 p-6 md:p-8">
+              <p className="text-lg text-slate-200 leading-relaxed">
+                כדי להבין ביטוי גנים, אנחנו צריכים לעבור מהחומר התורשתי הקבוע (DNA) אל המתווך שמעיד על פעילות –
+                ה-mRNA.
+              </p>
+              <p className="text-lg text-slate-200 leading-relaxed">
+                במעבדה הקרובה נחקור את גן האינסולין. כפי שאתם יודעים, הגן לאינסולין נמצא בכל תאי הגוף שלנו, אך
+                הוא מתבטא (מיוצר) רק בתאים ספציפיים בלבד.
+              </p>
+
+              <div className="space-y-3">
+                <h3 className="text-2xl font-black text-emerald-300">מה נעשה במעבדת ה-RT-PCR?</h3>
+                <ul className="space-y-3 text-slate-200 leading-relaxed">
+                  <li>
+                    <span className="font-bold text-blue-300">הפקת RNA:</span> נבדוק אילו מולקולות mRNA קיימות
+                    ברקמות שונות.
+                  </li>
+                  <li>
+                    <span className="font-bold text-blue-300">Reverse Transcription (RT):</span> נשתמש באנזים
+                    &quot;טרנסקריפטאז הפוך&quot; כדי להפוך את ה-RNA חזרה ל-DNA יציב (הנקרא cDNA).
+                  </li>
+                  <li>
+                    <span className="font-bold text-blue-300">PCR:</span> נשכפל את ה-cDNA כדי לזהות היכן הגן אכן
+                    היה פעיל.
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-2">
+              <p className="text-lg text-emerald-200 font-bold">
+                מוכנים לגלות איפה גן האינסולין &apos;מתעורר לחיים&apos;? לחצו למטה כדי להתחיל בניסוי השוואת רקמות.
+              </p>
+            </div>
+
+            <div className="flex flex-col md:flex-row justify-center gap-6 pt-2">
               <button
                 onClick={() => setPhase('gene-expression-lab')}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-5 px-12 rounded-2xl transition-all shadow-[0_10px_25px_rgba(16,185,129,0.2)] hover:scale-105 active:scale-95 flex flex-col items-center gap-1"
               >
-                <span>המשך לניסוי ביטוי גנים</span>
-                <span className="text-[10px] opacity-70 font-normal">חקירת גן האינסולין בין רקמות</span>
+                <span>המשך לניסוי השוואת רקמות</span>
+                <span className="text-[10px] opacity-80 font-normal">מעבר למעבדת RT-PCR</span>
               </button>
 
               <button
