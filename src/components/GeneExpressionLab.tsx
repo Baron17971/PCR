@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Microscope, Zap, Activity, Database, Check, Info, RotateCcw } from 'lucide-react';
+import { Microscope, Zap, Activity, Database, Check, Info, RotateCcw, X } from 'lucide-react';
 import GelElectrophoresis from './GelElectrophoresis';
 
 export default function GeneExpressionLab() {
@@ -10,33 +10,67 @@ export default function GeneExpressionLab() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showFinalSummary, setShowFinalSummary] = useState(false);
   const [isReadyToLoad, setIsReadyToLoad] = useState(false);
+  const [showMrnaExtractionModal, setShowMrnaExtractionModal] = useState(false);
+  const [showRtModal, setShowRtModal] = useState(false);
+  const [openReflectionAnswer, setOpenReflectionAnswer] = useState<number | null>(null);
 
   const steps = [
     { id: 0, label: 'בידוד mRNA', description: 'הפקת ה-RNA השליח מהדגימות' },
-    { id: 1, label: 'שיעתוק לאחור (cDNA)', description: 'באומצעות האנזים RT' },
+    { id: 1, label: 'שעתוק לאחור (cDNA)', description: 'באמצעות האנזים RT' },
     { id: 2, label: 'הגברת PCR', description: 'הכפלת גן מטרה (אינסולין)' }
   ];
+
+  const reflectionQuestions = [
+    {
+      question: 'מה מבטיח שמה ששוכפל הוא ה-mRNA של אינסולין?',
+      answer:
+        'התחלים (Primers): השימוש בזוג תחלים ספציפיים, שרצף הבסיסים שלהם משלים בדיוק לקצוות הגן לאינסולין, מבטיח שרק הרצף הזה יזוהה ויוגבר מתוך כלל המדגם.'
+    },
+    {
+      question: 'מה היית מצפה לראות בהרצה של תוצאות PCR מתא לבלב ותא שריר?',
+      answer:
+        'פס זהה בשני התאים: מכיוון ש-PCR (להבדיל מ-RT-PCR) מתבצע על ה-DNA, והמטען הגנטי זהה בכל התאים הסומטיים בגוף, הגן לאינסולין קיים בשניהם ולכן יוגבר ויופיע כפס בשני המסלולים.'
+    },
+    {
+      question: 'מה צפוי להיות ההבדל בתוצאות RT-PCR בהרצה של דגימות מתאי לבלב מאדם בריא ומאדם חולה סוכרת נעורים?',
+      answer:
+        'הבדל בעוצמת הפס: אצל אדם בריא יתקבל פס ברור (יש ביטוי של הגן ונוכחות mRNA), בעוד שאצל חולה סוכרת נעורים הפס יהיה חלש מאוד או חסר, בשל הרס תאי הבטא בלבלב האחראים על ייצור ה-mRNA של האינסולין.'
+    }
+  ];
+
+  const processStep = (durationMs = 2000) => {
+    setError(null);
+    setIsProcessing(true);
+
+    setTimeout(() => {
+      setIsProcessing(false);
+      setCurrentStep(prev => prev + 1);
+    }, durationMs);
+  };
 
   const handleStepClick = (stepId: number) => {
     if (isProcessing || currentStep >= 3) return;
 
     if (stepId !== currentStep) {
-      if (stepId === 1 && currentStep === 0) setError("איך נשעתק RNA אם עוד לא בודדנו אותו? התחל בבידוד mRNA.");
-      else if (stepId === 2) setError("עצור! אי אפשר לבצע PCR ישירות על RNA. חייבים קודם לשעתק אותו ל-cDNA.");
-      else setError("בחר את השלב הבא לפי הסדר המדעי הנכון.");
+      if (stepId === 1 && currentStep === 0) setError("איך נשעתק RNA אם עוד לא בודדנו אותו? התחל/י בבידוד mRNA.");
+      else if (stepId === 2) setError("עצור/י! אי אפשר לבצע PCR ישירות על RNA. חייבים קודם לשעתק אותו ל-cDNA.");
+      else setError("בחר/י את השלב הבא לפי הסדר המדעי הנכון.");
 
       setTimeout(() => setError(null), 3000);
       return;
     }
 
-    setError(null);
-    setIsProcessing(true);
+    if (stepId === 0) {
+      setShowMrnaExtractionModal(true);
+      return;
+    }
 
-    // Process step
-    setTimeout(() => {
-      setIsProcessing(false);
-      setCurrentStep(prev => prev + 1);
-    }, 2000);
+    if (stepId === 1) {
+      setShowRtModal(true);
+      return;
+    }
+
+    processStep();
   };
 
   const processComplete = currentStep === 3;
@@ -47,6 +81,9 @@ export default function GeneExpressionLab() {
     setIsProcessing(false);
     setShowFinalSummary(false);
     setIsReadyToLoad(false);
+    setShowMrnaExtractionModal(false);
+    setShowRtModal(false);
+    setOpenReflectionAnswer(null);
   }, []);
 
   const handleRunComplete = useCallback(() => {
@@ -98,23 +135,53 @@ export default function GeneExpressionLab() {
               >
                 {/* Reflection Questions Card */}
                 <div className="p-6 bg-blue-600/10 border border-blue-400/30 rounded-[2rem] text-right space-y-4 shadow-lg ring-1 ring-blue-400/20">
-                  <div className="flex items-center gap-3 border-b border-blue-400/20 pb-3">
+                  <div className="flex items-start gap-3 border-b border-blue-400/20 pb-3">
                     <Database className="w-6 h-6 text-blue-400" />
-                    <h3 className="text-xl font-bold text-blue-300">שאלות למחשבה</h3>
+                    <div className="text-right">
+                      <h3 className="text-xl font-bold text-blue-300">שאלות למחשבה</h3>
+                      <p className="text-xs text-blue-200/80 mt-0.5">לתשובה, לחץ על מס׳ השאלה</p>
+                    </div>
                   </div>
-                  <ul className="space-y-4 text-slate-200 text-base list-none">
-                    <li className="flex gap-3 items-start text-right">
-                      <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs shrink-0 mt-0.5 font-bold shadow-md shadow-blue-500/20">1</div>
-                      <span className="leading-relaxed flex-1 font-medium">מה מבטיח שמה ששוכפל הוא ה-mRNA של אינסולין?</span>
-                    </li>
-                    <li className="flex gap-3 items-start text-right">
-                      <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs shrink-0 mt-0.5 font-bold shadow-md shadow-blue-500/20">2</div>
-                      <span className="leading-relaxed flex-1 font-medium">מה היית מצפה לראות בהרצה של תוצאות PCR מתא לבלב ותא שריר?</span>
-                    </li>
-                    <li className="flex gap-3 items-start text-right">
-                      <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs shrink-0 mt-0.5 font-bold shadow-md shadow-blue-500/20">3</div>
-                      <span className="leading-relaxed flex-1 font-medium">מה צפוי להיות ההבדל בתוצאות RT-PCR בהרצה של דגימות מתאי לבלב מאדם בריא ומאדם חולה סוכרת נעורים?</span>
-                    </li>
+                  <ul className="space-y-4 text-slate-200 text-sm list-none">
+                    {reflectionQuestions.map((item, index) => {
+                      const questionNumber = index + 1;
+                      const isOpen = openReflectionAnswer === questionNumber;
+
+                      return (
+                        <li key={questionNumber} className="text-right">
+                          <div className="flex gap-3 items-start">
+                            <button
+                              type="button"
+                              onClick={() => setOpenReflectionAnswer(isOpen ? null : questionNumber)}
+                              aria-expanded={isOpen}
+                              aria-label={`הצגת תשובה לשאלה ${questionNumber}`}
+                              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 mt-0.5 font-bold shadow-md transition-all ${isOpen
+                                ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+                                : 'bg-blue-500 text-white shadow-blue-500/20 hover:bg-blue-400'
+                                }`}
+                            >
+                              {questionNumber}
+                            </button>
+                            <span className="leading-relaxed flex-1 font-medium text-[0.95rem]">{item.question}</span>
+                          </div>
+
+                          <AnimatePresence>
+                            {isOpen && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -6, height: 0 }}
+                                animate={{ opacity: 1, y: 0, height: 'auto' }}
+                                exit={{ opacity: 0, y: -4, height: 0 }}
+                                className="mr-10 mt-2 overflow-hidden"
+                              >
+                                <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100 leading-relaxed">
+                                  {item.answer}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
 
@@ -131,7 +198,7 @@ export default function GeneExpressionLab() {
               <button
                 onClick={() => { setCurrentStep(0); setIsProcessing(false); }}
                 className="absolute left-0 top-0 p-2 text-slate-600 hover:text-white transition-colors"
-                title="אפס שלב עיבוד"
+                title="איפוס שלב עיבוד"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
@@ -188,7 +255,7 @@ export default function GeneExpressionLab() {
                         </div>
                       </div>
                       {currentStep === step.id && !isProcessing && (
-                        <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full animate-pulse">לחץ עכשיו</span>
+                        <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full animate-pulse">לחץ/י עכשיו</span>
                       )}
                     </div>
                   </button>
@@ -240,11 +307,152 @@ export default function GeneExpressionLab() {
         </div>
       </div>
 
+      <AnimatePresence>
+        {showMrnaExtractionModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[92] bg-slate-950/75 backdrop-blur-sm p-4 flex items-center justify-center"
+            onClick={() => setShowMrnaExtractionModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              className="w-full max-w-[96vw] xl:max-w-[1500px] h-[92vh] max-h-[92vh] overflow-hidden rounded-[2rem] border border-emerald-500/35 bg-slate-900/95 p-4 md:p-5 flex flex-col gap-3"
+              onClick={(e) => e.stopPropagation()}
+              dir="rtl"
+            >
+              <div className="flex items-center justify-between gap-4 shrink-0">
+                <button
+                  onClick={() => setShowMrnaExtractionModal(false)}
+                  className="p-2 rounded-lg border border-slate-700 bg-slate-800/70 text-slate-300 hover:text-white"
+                  aria-label="סגירת חלונית מיצוי mRNA"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <div className="text-right">
+                  <h3 className="text-3xl font-black text-white">מיצוי mRNA</h3>
+                  <p className="text-base text-slate-300">תהליך מיצוי mRNA בארבעה שלבים</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 md:p-4 flex-1 min-h-0 flex flex-col gap-3">
+                <div className="flex-1 min-h-0 rounded-xl border border-slate-700 bg-slate-950 flex items-center justify-center overflow-hidden">
+                  <img
+                    src="/images/mrna-extraction/mrna-extraction-4-steps.jpg"
+                    alt="תהליך מיצוי mRNA בארבעה שלבים"
+                    className="w-full h-full object-contain"
+                    onError={(event) => {
+                      const target = event.currentTarget;
+                      target.onerror = null;
+                      target.src = '/tube.png';
+                    }}
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 shrink-0 pt-1">
+                  <button
+                    onClick={() => setShowMrnaExtractionModal(false)}
+                    className="border border-slate-600 hover:border-slate-400 text-slate-200 font-bold px-5 py-2.5 rounded-xl transition-colors"
+                  >
+                    סגירה
+                  </button>
+                  {currentStep === 0 && (
+                    <button
+                      onClick={() => {
+                        setShowMrnaExtractionModal(false);
+                        processStep(400);
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-base font-bold px-6 py-2.5 rounded-xl transition-colors"
+                    >
+                      המשך לשלב הבא
+                    </button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showRtModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[90] bg-slate-950/75 backdrop-blur-sm p-4 flex items-center justify-center"
+            onClick={() => setShowRtModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              className="w-full max-w-[96vw] xl:max-w-[1500px] h-[92vh] max-h-[92vh] overflow-hidden rounded-[2rem] border border-blue-500/35 bg-slate-900/95 p-4 md:p-5 flex flex-col gap-3"
+              onClick={(e) => e.stopPropagation()}
+              dir="rtl"
+            >
+              <div className="flex items-center justify-between gap-4 shrink-0">
+                <button
+                  onClick={() => setShowRtModal(false)}
+                  className="p-2 rounded-lg border border-slate-700 bg-slate-800/70 text-slate-300 hover:text-white"
+                  aria-label="סגירת חלונית שעתוק לאחור"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <div className="text-right">
+                  <h3 className="text-3xl font-black text-white">שעתוק לאחור (RT) וסינתזת cDNA</h3>
+                  <p className="text-base text-slate-300">אנזים RT יוצר גדיל cDNA על בסיס תבנית mRNA</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 flex-1 min-h-0 flex flex-col gap-3">
+                <iframe
+                  title="סימולציית שעתוק לאחור"
+                  src="/rt-simulation-popup.html"
+                  className="w-full flex-1 min-h-[360px] md:min-h-[420px] rounded-xl border border-slate-700 bg-slate-950"
+                />
+
+                <div className="flex justify-end gap-3 shrink-0 pt-1">
+                  <button
+                    onClick={() => setShowRtModal(false)}
+                    className="border border-slate-600 hover:border-slate-400 text-slate-200 font-bold px-5 py-2.5 rounded-xl transition-colors"
+                  >
+                    סגירה
+                  </button>
+                  {currentStep === 1 && (
+                    <button
+                      onClick={() => {
+                        setShowRtModal(false);
+                        processStep(400);
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-base font-bold px-6 py-2.5 rounded-xl transition-colors"
+                    >
+                      המשך לשלב הבא
+                    </button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
 
-function MicroTube({ label, active, color }: any) {
+type MicroTubeColor = 'emerald' | 'blue';
+
+interface MicroTubeProps {
+  label: string;
+  active: boolean;
+  color: MicroTubeColor;
+}
+
+function MicroTube({ label, active, color }: MicroTubeProps) {
   return (
     <div className="flex flex-col items-center gap-3">
       <div className={`w-12 h-24 rounded-b-3xl border-2 transition-all duration-1000 relative flex items-end p-1 ${active
@@ -264,16 +472,3 @@ function MicroTube({ label, active, color }: any) {
   );
 }
 
-function ProgressLine({ label, active, complete, delay }: any) {
-  return (
-    <div className="flex items-center gap-4 text-right">
-      <div className={`w-3 h-3 rounded-full transition-all duration-500 ${complete ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' :
-          active ? 'bg-blue-500 animate-pulse' : 'bg-slate-800'
-        }`} />
-      <span className={`text-sm flex-1 font-bold ${complete ? 'text-slate-300' : active ? 'text-white' : 'text-slate-600'}`}>
-        {label}
-      </span>
-      {complete && <Check className="w-4 h-4 text-emerald-500" />}
-    </div>
-  );
-}

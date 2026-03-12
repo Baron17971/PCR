@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>תהליך יצירת cDNA - סימולציה מולקולרית</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;700&display=swap');
+        html, body {
+            scrollbar-gutter: stable;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(56, 189, 248, 0.95) rgba(15, 23, 42, 0.9);
+        }
+        body {
+            font-family: 'Assistant', sans-serif;
+            background-color: #0f172a;
+            color: white;
+            overflow: hidden;
+        }
+
+        body::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        body::-webkit-scrollbar-track {
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(2, 6, 23, 0.9));
+            border-radius: 999px;
+        }
+
+        body::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, rgba(56, 189, 248, 1), rgba(20, 184, 166, 0.95));
+            border: 2px solid rgba(2, 6, 23, 0.9);
+            min-height: 42px;
+            border-radius: 999px;
+        }
+
+        body::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, rgba(147, 197, 253, 1), rgba(45, 212, 191, 1));
+        }
+
+        body::-webkit-scrollbar-button {
+            display: none;
+            width: 0;
+            height: 0;
+            background: transparent;
+        }
+
+        body::-webkit-scrollbar-corner {
+            background: transparent;
+        }
+
+        .strands-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            direction: ltr;
+            position: relative;
+            padding-top: 44px;
+        }
+
+        .strand-row {
+            display: flex;
+            gap: 4px;
+            height: 39px;
+            align-items: center;
+        }
+
+        .base-tile {
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 19px;
+            border-radius: 4px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s, box-shadow 0.3s;
+            transform: scale(0);
+            opacity: 0;
+        }
+
+        .base-tile.visible { transform: scale(1); opacity: 1; }
+
+        .base-reading {
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        .base-A { background-color: #ef4444; }
+        .base-C { background-color: #22c55e; }
+        .base-G { background-color: #3b82f6; }
+        .base-T, .base-U { background-color: #eab308; }
+
+        @keyframes enzyme-pulse {
+            0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 30px rgba(168, 85, 247, 0.5); }
+            50% { transform: translate(-50%, -50%) scale(1.05); box-shadow: 0 0 45px rgba(168, 85, 247, 0.8); }
+            100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 30px rgba(168, 85, 247, 0.5); }
+        }
+
+        .enzyme {
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, #a855f7 30%, #6b21a8 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            text-align: center;
+            font-weight: bold;
+            z-index: 100;
+            position: absolute;
+            transition: left 0.6s linear;
+            pointer-events: none;
+            border: 2px solid rgba(255,255,255,0.4);
+            color: white;
+            line-height: 1.1;
+            transform: translate(-50%, -50%);
+        }
+
+        .enzyme-active {
+            animation: enzyme-pulse 1.2s infinite ease-in-out;
+        }
+
+        .hydrogen-bond {
+            width: 2px;
+            height: 16px;
+            background: rgba(255,255,255,0.2);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .shattering { animation: shatter 0.8s forwards ease-in; }
+        @keyframes shatter {
+            100% { transform: translate(var(--x), var(--y)) rotate(var(--r)); opacity: 0; }
+        }
+
+        .stage-box {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .stage-active {
+            border-color: #6366f1;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .direction-tag {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            color: white;
+            font-size: 17px;
+            width: 32px;
+            text-align: center;
+        }
+
+        .strand-label-text {
+            color: white;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+    </style>
+</head>
+<body class="p-2 md:p-2 flex flex-col items-center">
+
+    <div class="max-w-[1280px] w-full space-y-2">
+        <div class="space-y-1">
+            <h2 class="text-xl font-bold text-indigo-400 border-b border-indigo-900 pb-2">שלבי התהליך:</h2>
+            <div id="controls" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+                <div onclick="setStage(1)" class="stage-btn w-full p-3 text-right rounded-xl stage-box stage-active" id="btn-1">
+                    <span class="block text-xs text-indigo-400 opacity-70">שלב 1</span>
+                    <span class="font-bold text-white">מולקולת mRNA</span>
+                </div>
+                <div onclick="setStage(2)" class="stage-btn w-full p-3 text-right rounded-xl stage-box" id="btn-2">
+                    <span class="block text-xs text-indigo-400 opacity-70">שלב 2</span>
+                    <span class="font-bold text-white">Reverse Transcriptase</span>
+                </div>
+                <div onclick="setStage(3)" class="stage-btn w-full p-3 text-right rounded-xl stage-box" id="btn-3">
+                    <span class="block text-xs text-indigo-400 opacity-70">שלב 3</span>
+                    <span class="font-bold text-white">RNase H (פירוק)</span>
+                </div>
+                <div onclick="setStage(4)" class="stage-btn w-full p-3 text-right rounded-xl stage-box" id="btn-4">
+                    <span class="block text-xs text-indigo-400 opacity-70">שלב 4</span>
+                    <span class="font-bold text-white">DNA Polymerase</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-900 rounded-[2.5rem] p-4 border border-slate-800 shadow-2xl flex flex-col items-center justify-start min-h-[500px] relative overflow-hidden">
+            <div id="stage-title" class="absolute top-6 right-8 text-xl font-bold text-white opacity-90 border-r-4 border-indigo-500 pr-4 z-50">
+                טוען...
+            </div>
+
+            <div class="strands-container w-full relative" id="vis-container" style="min-height: 250px;">
+            </div>
+
+            <div id="active-enzyme" class="enzyme hidden"></div>
+
+            <div id="stage-description" class="mt-5 text-center text-[1.05rem] text-slate-100 max-w-2xl leading-relaxed bg-slate-800/40 p-3 rounded-2xl border border-slate-700/30 shadow-inner">
+                טוען תיאור...
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const sequences = {
+            mrna: "AUGCCUGAGGAGAAG",
+            cdna1: "TACGGACTCCTCTTC",
+            cdna2: "ATGCCTGAGGAGAAG"
+        };
+
+        const pairMap = { 'A': 'T', 'U': 'A', 'T': 'A', 'G': 'C', 'C': 'G' };
+
+        let currentStage = 1;
+        let animationInterval = null;
+
+        function setStage(stage) {
+            currentStage = stage;
+            if (animationInterval) clearInterval(animationInterval);
+
+            document.querySelectorAll('.stage-btn').forEach(btn => btn.classList.remove('stage-active'));
+            document.getElementById(`btn-${stage}`).classList.add('stage-active');
+
+            const container = document.getElementById('vis-container');
+            const title = document.getElementById('stage-title');
+            const desc = document.getElementById('stage-description');
+            const enzyme = document.getElementById('active-enzyme');
+
+            container.innerHTML = '';
+            enzyme.classList.add('hidden');
+            enzyme.classList.remove('enzyme-active');
+
+            switch(stage) {
+                case 1:
+                    title.innerText = "שלב 1: תבנית mRNA";
+                    desc.innerText = "לאחר המיצוי, מתקבלת תערובת מולקולות mRNA בוגר.";
+                    renderStaticStrand(container, sequences.mrna, "3'", "5'", "תבנית mRNA");
+                    break;
+
+                case 2:
+                    title.innerText = "שלב 2: Reverse Transcriptase";
+                    desc.innerText = "האנזים Reverse Transcriptase קורא את ה-mRNA ובונה גדיל cDNA משלים.";
+                    runSynthesisAnimation(container, sequences.mrna, "Reverse Transcriptase", "cDNA גדיל 1", false);
+                    break;
+
+                case 3:
+                    title.innerText = "שלב 3: פירוק mRNA";
+                    desc.innerText = "האנזים RNase H מזהה את ההיבריד RNA-DNA ומפרק את גדיל ה-RNA.";
+                    renderDegradation(container);
+                    break;
+
+                case 4:
+                    title.innerText = "שלב 4: DNA Polymerase";
+                    desc.innerText = "כעת גדיל ה-cDNA משמש כתבנית. האנזים DNA Polymerase בונה את הגדיל המשלים לקבלת מולקולות DNA דו גדילית.";
+                    runSynthesisAnimation(container, sequences.cdna1, "DNA Polymerase", "ds-cDNA", true);
+                    break;
+            }
+        }
+
+        function restartAnimation() { setStage(currentStage); }
+
+        function renderStaticStrand(container, seq, sTag, eTag, label) {
+            const row = createStrandRow(sTag, eTag, label);
+            const tilesArea = row.querySelector('.tiles-area');
+            seq.split('').forEach(b => {
+                const t = createTile(b); t.classList.add('visible');
+                tilesArea.appendChild(t);
+            });
+            container.appendChild(row);
+            return row;
+        }
+
+        function createStrandRow(sTag, eTag, label) {
+            const div = document.createElement('div');
+            div.className = "flex flex-col items-center mb-4 w-full";
+            div.innerHTML = `
+                <div class="strand-label-text">${label}</div>
+                <div class="flex items-center gap-1">
+                    <span class="direction-tag">${sTag}</span>
+                    <div class="tiles-area flex gap-1"></div>
+                    <span class="direction-tag">${eTag}</span>
+                </div>
+            `;
+            return div;
+        }
+
+        function createTile(base) {
+            const div = document.createElement('div');
+            div.className = `base-tile base-${base}`;
+            div.innerText = base;
+            return div;
+        }
+
+        function runSynthesisAnimation(container, templateSeq, enzymeName, newLabel, isRTL) {
+            const sTag = isRTL ? "5'" : "3'";
+            const eTag = isRTL ? "3'" : "5'";
+            const topRow = renderStaticStrand(container, templateSeq, sTag, eTag, "תבנית");
+            const templateTiles = topRow.querySelectorAll('.base-tile');
+
+            const bondsRow = document.createElement('div');
+            bondsRow.className = "flex gap-1 h-4 my-1 px-[35px]";
+            for(let i=0; i<templateSeq.length; i++) {
+                bondsRow.innerHTML += `<div class="hydrogen-bond" style="width:34px"><div class="w-0.5 h-full bg-slate-700 mx-auto"></div></div>`;
+            }
+            container.appendChild(bondsRow);
+
+            const nsTag = isRTL ? "3'" : "5'";
+            const neTag = isRTL ? "5'" : "3'";
+            const bottomRow = createStrandRow(nsTag, neTag, newLabel);
+            const tilesArea = bottomRow.querySelector('.tiles-area');
+            for(let i=0; i<templateSeq.length; i++) {
+                const placeholder = document.createElement('div');
+                placeholder.style.width = "34px";
+                tilesArea.appendChild(placeholder);
+            }
+            container.appendChild(bottomRow);
+
+            const enzyme = document.getElementById('active-enzyme');
+            enzyme.innerHTML = enzymeName.replace(' ', '<br>');
+            enzyme.classList.remove('hidden');
+            enzyme.classList.add('enzyme-active');
+            enzyme.style.opacity = "1";
+
+            const stepWidth = 38;
+            const startX = -( (templateSeq.length * stepWidth) / 2 ) + 19;
+
+            let idx = isRTL ? templateSeq.length - 1 : 0;
+            const step = isRTL ? -1 : 1;
+            let count = 0;
+
+            function moveEnzyme(i) {
+                const xPos = startX + (i * stepWidth);
+                enzyme.style.left = `calc(50% + ${xPos}px)`;
+                enzyme.style.top = `214px`;
+            }
+
+            moveEnzyme(idx);
+
+            animationInterval = setInterval(() => {
+                if (count >= templateSeq.length) {
+                    clearInterval(animationInterval);
+                    enzyme.style.opacity = "0.3";
+                    enzyme.classList.remove('enzyme-active');
+                    templateTiles.forEach(t => t.classList.remove('base-reading'));
+                    return;
+                }
+
+                templateTiles.forEach(t => t.classList.remove('base-reading'));
+                if (templateTiles[idx]) templateTiles[idx].classList.add('base-reading');
+
+                const char = templateSeq[idx];
+                const pair = pairMap[char];
+
+                const newT = createTile(pair);
+                const target = tilesArea.children[idx];
+                tilesArea.replaceChild(newT, target);
+
+                const currentIdx = idx;
+                setTimeout(() => {
+                    newT.classList.add('visible');
+                    if (bondsRow.children[currentIdx]) bondsRow.children[currentIdx].style.opacity = "1";
+                }, 50);
+
+                count++;
+                idx += step;
+                if (count < templateSeq.length) {
+                    moveEnzyme(idx);
+                }
+            }, 700);
+        }
+
+        function renderDegradation(container) {
+            renderStaticStrand(container, sequences.cdna1, "5'", "3'", "cDNA גדיל 1");
+            const shatterDiv = document.createElement('div');
+            shatterDiv.className = "flex gap-1 mt-6 px-[35px]";
+            sequences.mrna.split('').forEach(b => {
+                const t = createTile(b); t.classList.add('visible', 'shattering');
+                t.style.setProperty('--x', (Math.random() - 0.5) * 600 + "px");
+                t.style.setProperty('--y', (Math.random() - 1.5) * 300 + "px");
+                t.style.setProperty('--r', (Math.random() * 720) + "deg");
+                shatterDiv.appendChild(t);
+            });
+            container.appendChild(shatterDiv);
+        }
+
+        window.onload = () => setStage(1);
+    </script>
+</body>
+</html>
