@@ -70,6 +70,7 @@ export default function Home() {
     { id: 'applications', title: 'יישומים', root: 'pcr-applications' },
     { id: 'summary', title: 'משחק מסכם', root: 'pcr-principles-game' }
   ];
+  const [expandedChapterId, setExpandedChapterId] = useState<string | null>(null);
   const currentIndex = phases.indexOf(phase);
 
   const goToNext = () => {
@@ -250,16 +251,16 @@ export default function Home() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsSideNavOpen(false)}
-              className="fixed inset-0 z-[76] bg-slate-950/60 backdrop-blur-sm"
+              className="fixed inset-0 z-[76]"
               aria-label="סגור תפריט ניווט"
             />
             <motion.aside
               key="side-nav-panel"
-              initial={{ x: 420, opacity: 0.5 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 420, opacity: 0.5 }}
+              initial={{ y: -14, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -10, opacity: 0 }}
               transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-              className="fixed top-0 right-0 h-full w-[min(92vw,420px)] z-[77] border-l border-slate-600/60 bg-slate-950/95 backdrop-blur-xl p-4 md:p-6 flex flex-col gap-4"
+              className="fixed top-16 md:top-20 right-4 md:right-8 w-[min(92vw,420px)] max-h-[calc(100vh-5rem)] md:max-h-[calc(100vh-6rem)] z-[77] rounded-2xl border border-slate-600/60 bg-slate-950/95 backdrop-blur-xl p-4 md:p-5 flex flex-col gap-4 shadow-2xl"
               dir="rtl"
             >
               <div className="flex items-center justify-between">
@@ -287,6 +288,7 @@ export default function Home() {
                   const chapterPhases = chapter.children ?? [chapter.root];
                   const hasSubmenu = !!chapter.children && chapter.children.length > 1;
                   const isChapterActive = chapterPhases.includes(phase);
+                  const isExpanded = expandedChapterId === chapter.id;
                   const rootMeta = phaseLabels[chapter.root];
                   const rootOrder = phaseOrder.get(chapter.root) ?? 0;
 
@@ -294,8 +296,11 @@ export default function Home() {
                     <div key={chapter.id} className="space-y-1.5">
                       <button
                         onClick={() => {
-                          setPhase(chapter.root);
-                          if (!hasSubmenu) {
+                          if (hasSubmenu) {
+                            setPhase(chapter.root);
+                            setExpandedChapterId((prev) => (prev === chapter.id ? null : chapter.id));
+                          } else {
+                            setPhase(chapter.root);
                             setIsSideNavOpen(false);
                           }
                         }}
@@ -314,7 +319,7 @@ export default function Home() {
                         </div>
                       </button>
 
-                      {hasSubmenu && isChapterActive && (
+                      {hasSubmenu && isExpanded && (
                         <div className="mr-4 pr-3 border-r border-slate-800/80 space-y-1.5">
                           {chapter.children!.map((childId) => {
                             const child = phaseLabels[childId];
