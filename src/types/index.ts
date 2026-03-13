@@ -12,7 +12,8 @@ export type SimulationPhase =
   | 'qpcr-precision'
   | 'pcr-applications'
   | 'completed'
-  | 'gene-expression-lab';
+  | 'gene-expression-lab'
+  | 'dna-jeopardy';
 
 export type IngredientId = 'dna' | 'primers' | 'taq' | 'dntps' | 'buffer' | 'rna-pol' | 'helicase' | 'ribosome';
 

@@ -11,6 +11,7 @@ import PcrPrinciplesGame from '@/components/PcrPrinciplesGame';
 import PcrApplicationsPage from '@/components/PcrApplicationsPage';
 import QpcrPrecisionPage from '@/components/QpcrPrecisionPage';
 import MutationConditionalPcrPage from '@/components/MutationConditionalPcrPage';
+import DnaJeopardyPage from '@/components/DnaJeopardyPage';
 import WelcomeScreen from '@/components/WelcomeScreen';
 import { SimulationPhase } from '@/types';
 import { ArrowLeft, ArrowRight, Menu, X } from 'lucide-react';
@@ -20,7 +21,7 @@ export default function Home() {
   const [phase, setPhase] = useState<SimulationPhase>('landing');
   const [isSideNavOpen, setIsSideNavOpen] = useState(false);
 
-  const phases: SimulationPhase[] = ['landing', 'pcr-intro', 'preparation', 'pcr-running', 'master-mixer-game', 'replication-comparison', 'mutation-conditional-pcr', 'genetic-fingerprint', 'str-case-lab', 'completed', 'gene-expression-lab', 'qpcr-precision', 'pcr-applications', 'pcr-principles-game'];
+  const phases: SimulationPhase[] = ['landing', 'pcr-intro', 'preparation', 'pcr-running', 'master-mixer-game', 'replication-comparison', 'mutation-conditional-pcr', 'genetic-fingerprint', 'str-case-lab', 'completed', 'gene-expression-lab', 'qpcr-precision', 'pcr-applications', 'pcr-principles-game', 'dna-jeopardy'];
   const phaseLabels: Record<SimulationPhase, { label: string; hint: string }> = {
     'landing': { label: 'דף פתיחה', hint: 'שער האפליקציה' },
     'pcr-intro': { label: 'מה זה PCR', hint: 'הקדמה תיאורטית' },
@@ -35,7 +36,8 @@ export default function Home() {
     'gene-expression-lab': { label: 'מעבדת ביטוי גנים', hint: 'mRNA, RT ו-PCR' },
     'qpcr-precision': { label: 'סימולציית qPCR', hint: 'מבוא, שלבים, גילוי וסימולטור' },
     'pcr-applications': { label: 'יישומי PCR ונגזרותיו', hint: 'יישומים מעשיים' },
-    'pcr-principles-game': { label: 'משחק עקרונות PCR', hint: 'אתגר מסכם' }
+    'pcr-principles-game': { label: 'טריוויה PCR ונגזרותיו', hint: 'אתגר מסכם' },
+    'dna-jeopardy': { label: 'ג׳פרדי DNA', hint: 'תחרות מסכמת לקבוצות' }
   };
   const phaseOrder = new Map(phases.map((id, idx) => [id, idx + 1] as const));
   const phaseMenuChapters: Array<{
@@ -68,7 +70,12 @@ export default function Home() {
     },
     { id: 'qpcr', title: 'qPCR', root: 'qpcr-precision' },
     { id: 'applications', title: 'יישומים', root: 'pcr-applications' },
-    { id: 'summary', title: 'משחק מסכם', root: 'pcr-principles-game' }
+    {
+      id: 'summary',
+      title: 'Play PCR',
+      root: 'pcr-principles-game',
+      children: ['pcr-principles-game', 'dna-jeopardy']
+    }
   ];
   const [expandedChapterId, setExpandedChapterId] = useState<string | null>(null);
   const currentIndex = phases.indexOf(phase);
@@ -181,7 +188,11 @@ export default function Home() {
         )}
 
         {phase === 'pcr-principles-game' && (
-          <PcrPrinciplesGame onComplete={() => setPhase('landing')} />
+          <PcrPrinciplesGame onComplete={() => setPhase('dna-jeopardy')} />
+        )}
+
+        {phase === 'dna-jeopardy' && (
+          <DnaJeopardyPage onComplete={() => setPhase('landing')} />
         )}
 
         {phase === 'completed' && (

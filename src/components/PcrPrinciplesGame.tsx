@@ -188,7 +188,7 @@ export default function PcrPrinciplesGame({ onComplete }: PcrPrinciplesGameProps
       <div className="text-right space-y-3">
         <h2 className="text-3xl font-black text-white flex items-center gap-3 justify-start">
           <BrainCircuit className="w-8 h-8 text-violet-300" />
-          משחק אתגר: עקרונות PCR ונגזרותיו
+          טריוויה PCR ונגזרותיו
         </h2>
         <p className="text-lg text-slate-300 leading-relaxed max-w-4xl">
           בכל שאלה בחרו את האפשרות המדויקת ביותר, בדקו את עצמכם, והתקדמו לשאלה הבאה.
