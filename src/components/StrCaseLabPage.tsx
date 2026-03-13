@@ -64,6 +64,7 @@ const LOCI_COLORS = ["#3b82f6", "#10b981", "#facc15", "#ef4444"] as const;
 const LADDER_VALUES = [35, 30, 25, 20, 15, 10, 5] as const;
 const GEL_RENDER_HEIGHT_PX = 820;
 const GEL_TOP_OFFSET_REM = 5.5;
+const MISSION_CARD_ORDER = [0, 2, 1] as const;
 
 const MISSION_TEMPLATES: Mission[] = [
   {
@@ -344,7 +345,7 @@ function buildLaneBands(data: Pair[]): RenderBand[] {
 
 export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
   const [missions, setMissions] = useState<Mission[]>(() => cloneMissions(MISSION_TEMPLATES));
-  const [currentMissionIdx, setCurrentMissionIdx] = useState<number>(1);
+  const [currentMissionIdx, setCurrentMissionIdx] = useState<number>(0);
   const [selectedUserAnswer, setSelectedUserAnswer] = useState<string | null>(null);
   const [result, setResult] = useState<ResultState | null>(null);
   const [comparisonLineY, setComparisonLineY] = useState<number | null>(null);
@@ -430,13 +431,15 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {missions.map((mission, idx) => (
+        {MISSION_CARD_ORDER.map((missionIdx) => {
+          const mission = missions[missionIdx];
+          return (
           <button
             key={mission.id}
             type="button"
-            onClick={() => selectMission(idx)}
+            onClick={() => selectMission(missionIdx)}
             className={`mission-card text-right rounded-2xl border-2 p-4 transition-all ${
-              idx === currentMissionIdx
+              missionIdx === currentMissionIdx
                 ? "active border-cyan-400 bg-cyan-500/10 shadow-[0_0_22px_rgba(34,211,238,0.12)]"
                 : "border-slate-700/70 bg-slate-900/70 hover:border-blue-400/60 hover:bg-blue-500/5"
             }`}
@@ -445,7 +448,8 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
             <div className="font-black text-slate-100">{mission.title}</div>
             <div className="text-xs text-slate-400">{mission.cardSubtitle}</div>
           </button>
-        ))}
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

@@ -390,7 +390,7 @@ export default function GeneExpressionLab() {
               initial={{ opacity: 0, scale: 0.92, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              className="w-full max-w-[96vw] xl:max-w-[1500px] h-[92vh] max-h-[92vh] overflow-hidden rounded-[2rem] border border-blue-500/35 bg-slate-900/95 p-4 md:p-5 flex flex-col gap-3"
+              className="w-full max-w-[96vw] xl:max-w-[1520px] h-[95vh] max-h-[95vh] overflow-hidden rounded-[2rem] border border-blue-500/35 bg-slate-900/95 p-4 md:p-5 flex flex-col gap-3"
               onClick={(e) => e.stopPropagation()}
               dir="rtl"
             >
@@ -411,8 +411,8 @@ export default function GeneExpressionLab() {
               <div className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 flex-1 min-h-0 flex flex-col gap-3">
                 <iframe
                   title="סימולציית שעתוק לאחור"
-                  src="/rt-simulation-popup.html"
-                  className="w-full flex-1 min-h-[360px] md:min-h-[420px] rounded-xl border border-slate-700 bg-slate-950"
+                  src="/rt-simulation-popup.html?v=2"
+                  className="w-full flex-1 min-h-0 h-full rounded-xl border border-slate-700 bg-slate-950"
                 />
 
                 <div className="flex justify-end gap-3 shrink-0 pt-1">

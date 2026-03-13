@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState } from 'react';
 import PreparationStage from '@/components/PreparationStage';
 import ThermalCycler from '@/components/ThermalCycler';
@@ -9,6 +9,8 @@ import GeneticFingerprintPage from '@/components/GeneticFingerprintPage';
 import StrCaseLabPage from '@/components/StrCaseLabPage';
 import PcrPrinciplesGame from '@/components/PcrPrinciplesGame';
 import PcrApplicationsPage from '@/components/PcrApplicationsPage';
+import QpcrPrecisionPage from '@/components/QpcrPrecisionPage';
+import MutationConditionalPcrPage from '@/components/MutationConditionalPcrPage';
 import WelcomeScreen from '@/components/WelcomeScreen';
 import { SimulationPhase } from '@/types';
 import { ArrowLeft, ArrowRight, Menu, X } from 'lucide-react';
@@ -18,7 +20,7 @@ export default function Home() {
   const [phase, setPhase] = useState<SimulationPhase>('landing');
   const [isSideNavOpen, setIsSideNavOpen] = useState(false);
 
-  const phases: SimulationPhase[] = ['landing', 'pcr-intro', 'preparation', 'pcr-running', 'master-mixer-game', 'replication-comparison', 'genetic-fingerprint', 'str-case-lab', 'completed', 'gene-expression-lab', 'pcr-applications', 'pcr-principles-game'];
+  const phases: SimulationPhase[] = ['landing', 'pcr-intro', 'preparation', 'pcr-running', 'master-mixer-game', 'replication-comparison', 'mutation-conditional-pcr', 'genetic-fingerprint', 'str-case-lab', 'completed', 'gene-expression-lab', 'qpcr-precision', 'pcr-applications', 'pcr-principles-game'];
   const phaseLabels: Record<SimulationPhase, { label: string; hint: string }> = {
     'landing': { label: 'דף פתיחה', hint: 'שער האפליקציה' },
     'pcr-intro': { label: 'מה זה PCR', hint: 'הקדמה תיאורטית' },
@@ -26,18 +28,48 @@ export default function Home() {
     'pcr-running': { label: 'אנימציית PCR', hint: 'שלבי המחזור התרמי' },
     'master-mixer-game': { label: 'The Master Mixer', hint: 'משחק אינטראקטיבי רב־שלבי' },
     'replication-comparison': { label: 'השוואת שכפול', hint: 'בתא מול מבחנה' },
+    'mutation-conditional-pcr': { label: 'PCR מותנה מוטציה', hint: 'אבחון מוטציות ואתגר פריימרים' },
     'genetic-fingerprint': { label: 'טביעת אצבע גנטית', hint: 'STR ועקרונות זיהוי' },
     'str-case-lab': { label: 'מעבדת STR', hint: 'תרגול פורנזי ואבהות' },
     'completed': { label: 'משכפול לביטוי - RT - PCR', hint: 'מעבר ל-RT-PCR ולביטוי גנים' },
     'gene-expression-lab': { label: 'מעבדת ביטוי גנים', hint: 'mRNA, RT ו-PCR' },
-    'pcr-applications': { label: 'יישומי PCR', hint: 'יישומים מעשיים' },
+    'qpcr-precision': { label: 'סימולציית qPCR', hint: 'מבוא, שלבים, גילוי וסימולטור' },
+    'pcr-applications': { label: 'יישומי PCR ונגזרותיו', hint: 'יישומים מעשיים' },
     'pcr-principles-game': { label: 'משחק עקרונות PCR', hint: 'אתגר מסכם' }
   };
-  const phaseMenuItems = phases.map((id, idx) => ({
-    id,
-    order: idx + 1,
-    ...phaseLabels[id]
-  }));
+  const phaseOrder = new Map(phases.map((id, idx) => [id, idx + 1] as const));
+  const phaseMenuChapters: Array<{
+    id: string;
+    title: string;
+    root: SimulationPhase;
+    children?: SimulationPhase[];
+  }> = [
+    { id: 'landing', title: 'דף פתיחה', root: 'landing' },
+    {
+      id: 'pcr-core',
+      title: 'PCR רגיל',
+      root: 'pcr-intro',
+      children: [
+        'pcr-intro',
+        'preparation',
+        'pcr-running',
+        'master-mixer-game',
+        'replication-comparison',
+        'mutation-conditional-pcr',
+        'genetic-fingerprint',
+        'str-case-lab'
+      ]
+    },
+    {
+      id: 'rt-pcr',
+      title: 'RT-PCR',
+      root: 'completed',
+      children: ['completed', 'gene-expression-lab']
+    },
+    { id: 'qpcr', title: 'qPCR', root: 'qpcr-precision' },
+    { id: 'applications', title: 'יישומים', root: 'pcr-applications' },
+    { id: 'summary', title: 'משחק מסכם', root: 'pcr-principles-game' }
+  ];
   const currentIndex = phases.indexOf(phase);
 
   const goToNext = () => {
@@ -132,7 +164,11 @@ export default function Home() {
         )}
 
         {phase === 'replication-comparison' && (
-          <ReplicationComparisonActivity onComplete={() => setPhase('genetic-fingerprint')} />
+          <ReplicationComparisonActivity onComplete={() => setPhase('mutation-conditional-pcr')} />
+        )}
+
+        {phase === 'mutation-conditional-pcr' && (
+          <MutationConditionalPcrPage />
         )}
 
         {phase === 'genetic-fingerprint' && (
@@ -187,33 +223,16 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="space-y-4 pt-2">
-              <p className="text-lg text-emerald-200 font-bold">
-                מוכנים לגלות איפה גן האינסולין &apos;מתעורר לחיים&apos;? לחצו למטה כדי להתחיל בניסוי השוואת רקמות.
-              </p>
-            </div>
 
-            <div className="flex flex-col md:flex-row justify-center gap-6 pt-2">
-              <button
-                onClick={() => setPhase('gene-expression-lab')}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-5 px-12 rounded-2xl transition-all shadow-[0_10px_25px_rgba(16,185,129,0.2)] hover:scale-105 active:scale-95 flex flex-col items-center gap-1"
-              >
-                <span>המשך לניסוי השוואת רקמות</span>
-                <span className="text-[10px] opacity-80 font-normal">מעבר למעבדת RT-PCR</span>
-              </button>
-
-              <button
-                onClick={() => setPhase('preparation')}
-                className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-5 px-12 rounded-2xl transition-all hover:scale-105 active:scale-95"
-              >
-                התחל סימולציה מחדש
-              </button>
-            </div>
           </div>
         )}
 
         {phase === 'gene-expression-lab' && (
           <GeneExpressionLab />
+        )}
+
+        {phase === 'qpcr-precision' && (
+          <QpcrPrecisionPage />
         )}
 
         {phase === 'pcr-applications' && (
@@ -264,29 +283,69 @@ export default function Home() {
                   scrollbarWidth: 'thin'
                 }}
               >
-                {phaseMenuItems.map((item) => {
-                  const isActive = phase === item.id;
+                {phaseMenuChapters.map((chapter) => {
+                  const chapterPhases = chapter.children ?? [chapter.root];
+                  const hasSubmenu = !!chapter.children && chapter.children.length > 1;
+                  const isChapterActive = chapterPhases.includes(phase);
+                  const rootMeta = phaseLabels[chapter.root];
+                  const rootOrder = phaseOrder.get(chapter.root) ?? 0;
+
                   return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setPhase(item.id);
-                        setIsSideNavOpen(false);
-                      }}
-                      className={`w-full rounded-xl border p-3 text-right transition-all ${
-                        isActive
-                          ? 'border-blue-400 bg-blue-500/15 text-blue-100 shadow-[0_0_0_1px_rgba(96,165,250,0.25)]'
-                          : 'border-slate-700 bg-slate-900/70 text-slate-200 hover:border-slate-500 hover:bg-slate-800/85'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-bold">{item.label}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">{item.hint}</p>
+                    <div key={chapter.id} className="space-y-1.5">
+                      <button
+                        onClick={() => {
+                          setPhase(chapter.root);
+                          if (!hasSubmenu) {
+                            setIsSideNavOpen(false);
+                          }
+                        }}
+                        className={`w-full rounded-xl border px-3 py-3.5 text-right transition-all ${
+                          isChapterActive
+                            ? 'border-blue-400 bg-blue-500/15 text-blue-100 shadow-[0_0_0_1px_rgba(96,165,250,0.25)]'
+                            : 'border-slate-700 bg-slate-900/70 text-slate-200 hover:border-slate-500 hover:bg-slate-800/85'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-base font-black">{chapter.title}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">{rootMeta.hint}</p>
+                          </div>
+                          <span className="text-[11px] font-black text-slate-400">{rootOrder}</span>
                         </div>
-                        <span className="text-xs font-black text-slate-400">{item.order}</span>
-                      </div>
-                    </button>
+                      </button>
+
+                      {hasSubmenu && isChapterActive && (
+                        <div className="mr-4 pr-3 border-r border-slate-800/80 space-y-1.5">
+                          {chapter.children!.map((childId) => {
+                            const child = phaseLabels[childId];
+                            const isActive = phase === childId;
+                            const childOrder = phaseOrder.get(childId) ?? 0;
+                            return (
+                              <button
+                                key={childId}
+                                onClick={() => {
+                                  setPhase(childId);
+                                  setIsSideNavOpen(false);
+                                }}
+                                className={`w-full rounded-lg border px-3 py-2.5 text-right transition-all ${
+                                  isActive
+                                    ? 'border-blue-400/70 bg-blue-500/10 text-blue-100'
+                                    : 'border-slate-800 bg-slate-900/40 text-slate-300 hover:border-slate-600 hover:bg-slate-800/70'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-bold">{child.label}</p>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">{child.hint}</p>
+                                  </div>
+                                  <span className="text-[10px] font-black text-slate-400">{childOrder}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -305,10 +364,10 @@ export default function Home() {
             exit={{ opacity: 0, x: 40 }}
             whileHover={{ x: 5 }}
             onClick={goToPrev}
-            className="fixed right-6 md:right-10 top-1/2 -translate-y-1/2 p-5 rounded-full bg-slate-900/40 backdrop-blur-xl border border-slate-700/30 text-blue-400 hover:text-blue-300 hover:bg-slate-800/60 transition-all shadow-2xl z-50 group"
+            className="fixed right-4 md:right-6 top-1/2 -translate-y-1/2 p-3 md:p-3.5 rounded-full bg-slate-900/40 backdrop-blur-xl border border-slate-700/30 text-blue-400 hover:text-blue-300 hover:bg-slate-800/60 transition-all shadow-2xl z-50 group"
             title="שלב הקודם"
           >
-            <ArrowRight className="w-10 h-10 group-hover:scale-110 transition-transform" />
+            <ArrowRight className="w-6 h-6 md:w-7 md:h-7 group-hover:scale-110 transition-transform" />
           </motion.button>
         )}
       </AnimatePresence>
@@ -322,10 +381,10 @@ export default function Home() {
             exit={{ opacity: 0, x: -40 }}
             whileHover={{ x: -5 }}
             onClick={goToNext}
-            className="fixed left-6 md:left-10 top-1/2 -translate-y-1/2 p-5 rounded-full bg-slate-900/40 backdrop-blur-xl border border-slate-700/30 text-emerald-400 hover:text-emerald-300 hover:bg-slate-800/60 transition-all shadow-2xl z-50 group"
+            className="fixed left-4 md:left-6 top-1/2 -translate-y-1/2 p-3 md:p-3.5 rounded-full bg-slate-900/40 backdrop-blur-xl border border-slate-700/30 text-emerald-400 hover:text-emerald-300 hover:bg-slate-800/60 transition-all shadow-2xl z-50 group"
             title="שלב הבא"
           >
-            <ArrowLeft className="w-10 h-10 group-hover:scale-110 transition-transform" />
+            <ArrowLeft className="w-6 h-6 md:w-7 md:h-7 group-hover:scale-110 transition-transform" />
           </motion.button>
         )}
       </AnimatePresence>

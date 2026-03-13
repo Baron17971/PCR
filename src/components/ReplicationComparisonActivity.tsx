@@ -173,7 +173,7 @@ export default function ReplicationComparisonActivity({ onComplete }: Replicatio
         </p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         {STATEMENTS.map((statement, index) => {
           const selected = answers[statement.id];
           const isCorrect = selected === statement.correct;
@@ -324,8 +324,8 @@ export default function ReplicationComparisonActivity({ onComplete }: Replicatio
                 <thead>
                   <tr className="bg-slate-800/90 text-slate-100">
                     <th className="p-4 border border-slate-700 font-black">מרכיבים ומאפיינים</th>
-                    <th className="p-4 border border-slate-700 font-black">שכפול דנ"א בתא</th>
-                    <th className="p-4 border border-slate-700 font-black">שכפול דנ"א במבחנה</th>
+                    <th className="p-4 border border-slate-700 font-black">שכפול דנ&quot;א בתא</th>
+                    <th className="p-4 border border-slate-700 font-black">שכפול דנ&quot;א במבחנה</th>
                   </tr>
                 </thead>
                 <tbody>

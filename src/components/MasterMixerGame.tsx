@@ -926,8 +926,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
             </motion.div>
           )}
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <div className="space-y-4">
+          <div className="space-y-4">
               <div className="rounded-2xl border border-blue-500/35 bg-slate-900/50 p-4">
                 <h3 className="text-xl font-black text-white mb-2">שלב 1: The Pipetting Challenge</h3>
                 <p className="text-slate-300">
@@ -935,7 +934,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-5 gap-3">
                 {REAGENTS.map((reagent) => {
                   const isAdded = addedReagents.has(reagent.id);
                   return (
@@ -975,7 +974,6 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
               </div>
             </div>
 
-            <div className="space-y-4">
             <div
               onDrop={handleDropToTube}
               onDragOver={(event) => event.preventDefault()}
@@ -1023,9 +1021,7 @@ export default function MasterMixerGame({ onComplete }: MasterMixerGameProps) {
                 </button>
               </div>
             </div>
-            </div>
           </div>
-        </div>
       )}
 
       {step === 2 && (

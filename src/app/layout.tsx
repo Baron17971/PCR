@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Varela_Round } from "next/font/google";
 import "./globals.css";
 
@@ -11,6 +11,11 @@ const varela = Varela_Round({
 export const metadata: Metadata = {
   title: "סימולציית PCR",
   description: "אפליקציית סימולציה של תהליך ה-PCR לתלמידי י״ב",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

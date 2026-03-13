@@ -6,7 +6,8 @@ interface WelcomeScreenProps {
 
 export default function WelcomeScreen({ onStart }: WelcomeScreenProps) {
   return (
-    <section className="flex-1 flex items-center justify-center py-8">
+    <section className="flex-1 flex flex-col items-center justify-center py-8 gap-4">
+      <p className="text-slate-300 text-sm md:text-base font-semibold">פותח ע&quot;י ענת ברון לוביש</p>
       <div className="w-full max-w-6xl rounded-[2.5rem] border border-slate-700/40 bg-slate-900/45 backdrop-blur-xl p-8 md:p-12 space-y-8 text-right relative overflow-hidden shadow-2xl">
         <div className="absolute -top-28 -right-24 w-96 h-96 bg-blue-500/15 blur-[120px] pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-emerald-500/10 blur-[120px] pointer-events-none" />

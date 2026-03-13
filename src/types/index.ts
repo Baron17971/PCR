@@ -5,9 +5,11 @@ export type SimulationPhase =
   | 'pcr-running'
   | 'master-mixer-game'
   | 'replication-comparison'
+  | 'mutation-conditional-pcr'
   | 'genetic-fingerprint'
   | 'str-case-lab'
   | 'pcr-principles-game'
+  | 'qpcr-precision'
   | 'pcr-applications'
   | 'completed'
   | 'gene-expression-lab';

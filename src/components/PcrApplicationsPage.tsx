@@ -53,7 +53,7 @@ const APPLICATIONS: PcrApplication[] = [
     id: 'genetic-screening',
     title: 'בדיקות גנטיות תורשתיות',
     shortDescription: 'איתור וריאנטים גנטיים הקשורים למחלות תורשתיות.',
-    pcrMethod: 'PCR קונבנציונלי / Allele-specific PCR',
+    pcrMethod: 'PCR מותנה מוטציות',
     sampleType: 'דם היקפי או רוק',
     readout: 'נוכחות/היעדר מקטע או תבנית אללים',
     steps: [
@@ -142,7 +142,7 @@ export default function PcrApplicationsPage({ onComplete }: PcrApplicationsPageP
       <div className="text-right space-y-3">
         <h2 className="text-3xl font-black text-white flex items-center gap-3 justify-start">
           <Dna className="w-8 h-8 text-blue-400" />
-          יישומי PCR בעולם האמיתי
+          יישומי PCR ונגזרותיו בעולם האמיתי
         </h2>
         <p className="text-lg text-slate-300 leading-relaxed max-w-4xl">
           לחצו על כל יישום כדי לפתוח חלון הסבר: סוג הבדיקה, סוג הדגימה, אופן הביצוע ופענוח התוצאה.
