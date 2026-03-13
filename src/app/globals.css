@@ -6,16 +6,25 @@
   --primary: #3b82f6;
   --secondary: #f97316;
   --accent: #10b981;
-  --app-scale: 1;
+  --app-scale: 0.8;
 }
 
-html {
-  zoom: var(--app-scale);
+#app-shell {
+  width: calc(100% / var(--app-scale));
+  min-height: calc(100vh / var(--app-scale));
+  transform: scale(var(--app-scale));
+  transform-origin: top center;
 }
 
-@supports not (zoom: 1) {
-  html {
-    font-size: calc(16px * var(--app-scale));
+@media (max-width: 1200px) {
+  :root {
+    --app-scale: 1;
+  }
+
+  #app-shell {
+    width: 100%;
+    min-height: 100vh;
+    transform: none;
   }
 }
 

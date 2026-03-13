@@ -46,7 +46,7 @@ export default function RootLayout({
         </div>
         
         {/* Main Content Layer - Higher z-index to be above background but allows transparency */}
-        <div className="relative z-10 min-h-screen selection:bg-blue-500/30">
+        <div id="app-shell" className="relative z-10 min-h-screen selection:bg-blue-500/30">
           {children}
         </div>
       </body>
