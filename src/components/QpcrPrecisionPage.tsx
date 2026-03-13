@@ -408,7 +408,7 @@ export default function QpcrPrecisionPage() {
                     <button
                       key={s.id}
                       onClick={() => setSelectedSample(s.id === selectedSample ? null : s.id)}
-                      className={`w-full p-4 rounded-xl border transition-all flex items-center justify-between ${
+                      className={`w-full min-h-[58px] p-4 rounded-xl border transition-all flex items-center justify-between ${
                         selectedSample === s.id
                           ? "border-blue-500 bg-blue-500/10 shadow-lg"
                           : "border-transparent bg-slate-900/60 hover:bg-slate-800/50"
@@ -419,13 +419,19 @@ export default function QpcrPrecisionPage() {
                           className="w-2.5 h-2.5 rounded-full"
                           style={{ backgroundColor: s.color, boxShadow: `0 0 10px ${s.color}` }}
                         />
-                        <span className={`text-base font-medium ${selectedSample === s.id ? "text-white" : "text-slate-400"}`}>
+                        <span className={`text-sm md:text-base font-medium whitespace-nowrap ${selectedSample === s.id ? "text-white" : "text-slate-400"}`}>
                           {s.name}
                         </span>
                       </div>
-                      {currentCycle >= s.ct && s.id !== "NTC" && (
-                        <span className="text-sm font-black text-white bg-white/10 px-2 py-0.5 rounded italic">Ct {s.ct}</span>
-                      )}
+                      <div className="w-[76px] flex justify-end">
+                        <span
+                          className={`inline-flex items-center whitespace-nowrap tabular-nums text-sm font-black text-white bg-white/10 px-2 py-0.5 rounded italic transition-opacity ${
+                            currentCycle >= s.ct && s.id !== "NTC" ? "opacity-100" : "opacity-0"
+                          }`}
+                        >
+                          Ct {s.ct}
+                        </span>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -448,7 +454,7 @@ export default function QpcrPrecisionPage() {
                 </div>
               </div>
 
-              <div className="bg-[#010409] rounded-[2rem] px-10 md:px-20 py-12 relative border border-slate-900 flex-1 min-h-[560px] shadow-inner">
+              <div className="bg-[#010409] rounded-[2rem] px-10 md:px-20 py-16 relative border border-slate-900 flex-1 min-h-[620px] shadow-inner">
                 <div className="h-full relative border-l-2 border-b-2 border-slate-800/60">
                   <div className="absolute -left-28 top-1/2 -translate-y-1/2 -rotate-90 text-sm font-bold text-white tracking-[0.2em] whitespace-nowrap z-10 text-center">
                     פלואורסצנציה (RFU)
@@ -511,7 +517,7 @@ export default function QpcrPrecisionPage() {
                           />
                           <div
                             className="w-[1px] h-14 bg-slate-600/50 mt-1 mb-1"
-                            style={{ backgroundColor: sample.color, opacity: 0.4, transform: "translateY(-70px)" }}
+                            style={{ backgroundColor: "#ffffff", opacity: 0.7, transform: "translateY(-70px)" }}
                           />
                           <div
                             className="w-14 h-14 rounded-full border-2 flex items-center justify-center bg-[#010409] shadow-2xl absolute"
@@ -530,14 +536,14 @@ export default function QpcrPrecisionPage() {
                   )}
                 </div>
 
-                <div className="flex justify-between mt-8 px-2 text-[16px] font-bold text-white uppercase tracking-[0.6em]">
+                <div dir="ltr" className="flex justify-between mt-2 px-1 text-[13px] md:text-[14px] font-bold text-slate-200 tabular-nums">
                   <span>0</span>
                   <span>10</span>
                   <span>20</span>
                   <span>30</span>
                   <span>40</span>
                 </div>
-                <div className="w-full text-center mt-8 text-base font-bold text-white tracking-[0.2em] uppercase">
+                <div className="w-full text-center mt-3 text-sm md:text-base font-bold text-white">
                   מספר מחזורי PCR (Cycles)
                 </div>
               </div>
