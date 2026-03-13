@@ -97,9 +97,9 @@ export default function Home() {
         />
       </div>
       <button
-        onClick={() => setIsSideNavOpen(true)}
-        className="fixed top-4 right-4 md:top-8 md:right-8 z-[75] inline-flex items-center gap-2 rounded-xl border border-slate-600/70 bg-slate-900/80 hover:bg-slate-800/90 text-slate-100 px-3 py-2 shadow-xl backdrop-blur"
-        aria-label="פתח תפריט ניווט"
+        onClick={() => setIsSideNavOpen((prev) => !prev)}
+        className="fixed top-4 right-4 md:top-8 md:right-8 z-[78] inline-flex items-center gap-2 rounded-xl border border-slate-600/70 bg-slate-900/80 hover:bg-slate-800/90 text-slate-100 px-3 py-2 shadow-xl backdrop-blur"
+        aria-label="פתח או סגור תפריט ניווט"
       >
         <Menu className="w-5 h-5" />
         <span className="hidden sm:inline text-sm font-bold">תפריט</span>

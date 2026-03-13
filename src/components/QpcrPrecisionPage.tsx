@@ -542,7 +542,7 @@ export default function QpcrPrecisionPage() {
                 </div>
               </div>
 
-              <div className="mt-10 mx-2 p-6 bg-blue-900/10 border border-blue-500/30 rounded-[2rem] animate-in fade-in shadow-lg">
+              <div className="mt-14 md:mt-16 mx-auto w-full max-w-4xl p-5 md:p-6 bg-blue-900/10 border border-blue-500/30 rounded-[1.5rem] animate-in fade-in shadow-lg">
                 <div className="flex items-center gap-4 justify-start mb-4">
                   <Fingerprint className="text-blue-400" size={32} />
                   <h4 className="text-base font-black text-blue-400 uppercase tracking-widest">Methodology</h4>
