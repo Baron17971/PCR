@@ -278,81 +278,84 @@ export default function Home() {
               </div>
 
               <div
-                className="menu-scrollbar flex-1 overflow-y-auto pr-1 space-y-2"
+                dir="ltr"
+                className="menu-scrollbar flex-1 overflow-y-auto pl-1"
                 style={{
                   scrollbarColor: 'rgba(56,189,248,0.95) rgba(15,23,42,0.9)',
                   scrollbarWidth: 'thin'
                 }}
               >
-                {phaseMenuChapters.map((chapter) => {
-                  const chapterPhases = chapter.children ?? [chapter.root];
-                  const hasSubmenu = !!chapter.children && chapter.children.length > 1;
-                  const isChapterActive = chapterPhases.includes(phase);
-                  const isExpanded = expandedChapterId === chapter.id;
-                  const rootMeta = phaseLabels[chapter.root];
-                  const rootOrder = phaseOrder.get(chapter.root) ?? 0;
+                <div dir="rtl" className="space-y-2">
+                  {phaseMenuChapters.map((chapter) => {
+                    const chapterPhases = chapter.children ?? [chapter.root];
+                    const hasSubmenu = !!chapter.children && chapter.children.length > 1;
+                    const isChapterActive = chapterPhases.includes(phase);
+                    const isExpanded = expandedChapterId === chapter.id;
+                    const rootMeta = phaseLabels[chapter.root];
+                    const rootOrder = phaseOrder.get(chapter.root) ?? 0;
 
-                  return (
-                    <div key={chapter.id} className="space-y-1.5">
-                      <button
-                        onClick={() => {
-                          if (hasSubmenu) {
-                            setPhase(chapter.root);
-                            setExpandedChapterId((prev) => (prev === chapter.id ? null : chapter.id));
-                          } else {
-                            setPhase(chapter.root);
-                            setIsSideNavOpen(false);
-                          }
-                        }}
-                        className={`w-full rounded-xl border px-3 py-3.5 text-right transition-all ${
-                          isChapterActive
-                            ? 'border-blue-400 bg-blue-500/15 text-blue-100 shadow-[0_0_0_1px_rgba(96,165,250,0.25)]'
-                            : 'border-slate-700 bg-slate-900/70 text-slate-200 hover:border-slate-500 hover:bg-slate-800/85'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-base font-black">{chapter.title}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">{rootMeta.hint}</p>
+                    return (
+                      <div key={chapter.id} className="space-y-1.5">
+                        <button
+                          onClick={() => {
+                            if (hasSubmenu) {
+                              setPhase(chapter.root);
+                              setExpandedChapterId((prev) => (prev === chapter.id ? null : chapter.id));
+                            } else {
+                              setPhase(chapter.root);
+                              setIsSideNavOpen(false);
+                            }
+                          }}
+                          className={`w-full rounded-xl border px-3 py-3.5 text-right transition-all ${
+                            isChapterActive
+                              ? 'border-blue-400 bg-blue-500/15 text-blue-100 shadow-[0_0_0_1px_rgba(96,165,250,0.25)]'
+                              : 'border-slate-700 bg-slate-900/70 text-slate-200 hover:border-slate-500 hover:bg-slate-800/85'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-base font-black">{chapter.title}</p>
+                              <p className="text-xs text-slate-400 mt-0.5">{rootMeta.hint}</p>
+                            </div>
+                            <span className="text-[11px] font-black text-slate-400">{rootOrder}</span>
                           </div>
-                          <span className="text-[11px] font-black text-slate-400">{rootOrder}</span>
-                        </div>
-                      </button>
+                        </button>
 
-                      {hasSubmenu && isExpanded && (
-                        <div className="mr-4 pr-3 border-r border-slate-800/80 space-y-1.5">
-                          {chapter.children!.map((childId) => {
-                            const child = phaseLabels[childId];
-                            const isActive = phase === childId;
-                            const childOrder = phaseOrder.get(childId) ?? 0;
-                            return (
-                              <button
-                                key={childId}
-                                onClick={() => {
-                                  setPhase(childId);
-                                  setIsSideNavOpen(false);
-                                }}
-                                className={`w-full rounded-lg border px-3 py-2.5 text-right transition-all ${
-                                  isActive
-                                    ? 'border-blue-400/70 bg-blue-500/10 text-blue-100'
-                                    : 'border-slate-800 bg-slate-900/40 text-slate-300 hover:border-slate-600 hover:bg-slate-800/70'
-                                }`}
-                              >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div>
-                                    <p className="text-sm font-bold">{child.label}</p>
-                                    <p className="text-[11px] text-slate-400 mt-0.5">{child.hint}</p>
+                        {hasSubmenu && isExpanded && (
+                          <div className="mr-4 pr-3 border-r border-slate-800/80 space-y-1.5">
+                            {chapter.children!.map((childId) => {
+                              const child = phaseLabels[childId];
+                              const isActive = phase === childId;
+                              const childOrder = phaseOrder.get(childId) ?? 0;
+                              return (
+                                <button
+                                  key={childId}
+                                  onClick={() => {
+                                    setPhase(childId);
+                                    setIsSideNavOpen(false);
+                                  }}
+                                  className={`w-full rounded-lg border px-3 py-2.5 text-right transition-all ${
+                                    isActive
+                                      ? 'border-blue-400/70 bg-blue-500/10 text-blue-100'
+                                      : 'border-slate-800 bg-slate-900/40 text-slate-300 hover:border-slate-600 hover:bg-slate-800/70'
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <p className="text-sm font-bold">{child.label}</p>
+                                      <p className="text-[11px] text-slate-400 mt-0.5">{child.hint}</p>
+                                    </div>
+                                    <span className="text-[10px] font-black text-slate-400">{childOrder}</span>
                                   </div>
-                                  <span className="text-[10px] font-black text-slate-400">{childOrder}</span>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </motion.aside>
           </>

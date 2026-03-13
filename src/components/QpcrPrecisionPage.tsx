@@ -16,11 +16,10 @@ import {
   Play,
   RotateCcw,
   Scissors,
-  Target,
   Zap,
 } from "lucide-react";
 
-type TabId = "intro" | "process" | "methods" | "results" | "glossary" | "quiz";
+type TabId = "intro" | "process" | "methods" | "results" | "image" | "glossary" | "quiz";
 type MethodId = "sybr" | "taqman";
 
 interface Sample {
@@ -48,12 +47,15 @@ export default function QpcrPrecisionPage() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [selectedSample, setSelectedSample] = useState<Sample["id"] | null>(null);
   const [expandedQuestion, setExpandedQuestion] = useState<number | null>(null);
+  const [isSybrImageOpen, setIsSybrImageOpen] = useState(false);
+  const [isTaqmanImageOpen, setIsTaqmanImageOpen] = useState(false);
 
   const tabs: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
     { id: "intro", label: "מבוא", icon: <Info size={16} /> },
     { id: "process", label: "שלבים", icon: <Layers size={16} /> },
     { id: "methods", label: "גילוי", icon: <Zap size={16} /> },
     { id: "results", label: "סימולטור", icon: <BarChart3 size={16} /> },
+    { id: "image", label: "עקום כיול", icon: <BarChart3 size={16} /> },
     { id: "glossary", label: "מושגים", icon: <FileText size={16} /> },
     { id: "quiz", label: "שאלות", icon: <HelpCircle size={16} /> },
   ];
@@ -136,6 +138,24 @@ export default function QpcrPrecisionPage() {
       }
     };
   }, [isAnimating, currentCycle]);
+
+  useEffect(() => {
+    if (!isSybrImageOpen && !isTaqmanImageOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsSybrImageOpen(false);
+        setIsTaqmanImageOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isSybrImageOpen, isTaqmanImageOpen]);
 
   const handlePlay = () => {
     if (currentCycle >= 40) {
@@ -240,15 +260,12 @@ export default function QpcrPrecisionPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col items-center justify-center bg-blue-500/5 rounded-[2.5rem] border border-blue-500/10 p-10 shadow-inner">
-                <div className="text-8xl mb-6 drop-shadow-[0_0_25px_rgba(59,130,246,0.4)] animate-pulse text-white opacity-60">
-                  🧬
-                </div>
-                <p className="text-xs font-black text-slate-500 uppercase tracking-[0.4em] leading-loose text-center">
-                  Quantitative
-                  <br />
-                  Polymerase Chain Reaction
-                </p>
+              <div className="bg-blue-500/5 rounded-[2.5rem] border border-blue-500/10 p-4 md:p-6 shadow-inner">
+                <img
+                  src="/images/qpcr.png"
+                  alt="qPCR sample visualization"
+                  className="block w-full h-auto rounded-[1.75rem] shadow-2xl object-contain"
+                />
               </div>
             </div>
           </div>
@@ -326,12 +343,18 @@ export default function QpcrPrecisionPage() {
                     </p>
                   </div>
                 </div>
-                <div className="bg-black/50 rounded-[2.5rem] border border-slate-800 p-10 text-center flex flex-col items-center shadow-2xl">
-                  <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center animate-pulse mb-8 border border-green-500/30">
-                    <Zap className="text-green-400" size={48} />
-                  </div>
-                  <span className="text-xs font-black uppercase tracking-[0.4em] text-green-500/60">Intercalating Dye</span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsSybrImageOpen(true)}
+                  className="bg-black/50 rounded-[2.5rem] border border-slate-800 p-3 shadow-2xl overflow-hidden cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-green-400/70"
+                  aria-label="הגדלת תמונת SYBR Green"
+                >
+                  <img
+                    src="/images/SYBR.png"
+                    alt="SYBR Green qPCR mechanism"
+                    className="block w-full h-full rounded-[2rem] object-cover object-center"
+                  />
+                </button>
               </div>
             ) : (
               <div className="grid md:grid-cols-2 gap-10 items-center max-w-5xl mx-auto">
@@ -361,12 +384,18 @@ export default function QpcrPrecisionPage() {
                     </li>
                   </ul>
                 </div>
-                <div className="bg-black/50 rounded-[2.5rem] border border-slate-800 p-10 text-center flex flex-col items-center shadow-2xl">
-                  <div className="w-24 h-24 bg-blue-500/20 rounded-full flex items-center justify-center mb-8 border border-blue-500/30">
-                    <Target className="text-blue-400" size={48} />
-                  </div>
-                  <span className="text-xs font-black uppercase tracking-[0.4em] text-blue-500/60">Sequence Specific</span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsTaqmanImageOpen(true)}
+                  className="bg-black/50 rounded-[2.5rem] border border-slate-800 p-3 shadow-2xl overflow-hidden cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-blue-400/70"
+                  aria-label="Enlarge TaqMan image"
+                >
+                  <img
+                    src="/images/TAQMAN.png"
+                    alt="TaqMan qPCR mechanism"
+                    className="block w-full h-auto rounded-[2rem] object-contain"
+                  />
+                </button>
               </div>
             )}
           </div>
@@ -642,6 +671,18 @@ export default function QpcrPrecisionPage() {
           </div>
         )}
 
+        {activeTab === "image" && (
+          <div className="bg-slate-900/30 p-6 md:p-8 rounded-[2.5rem] border border-slate-800 animate-in fade-in duration-700">
+            <div className="bg-blue-500/5 rounded-[2rem] border border-blue-500/15 p-3 md:p-4 shadow-inner">
+              <img
+                src="/images/QPCR CURVE.png"
+                alt="qPCR infographic"
+                className="block w-full h-auto rounded-[1.5rem] object-contain"
+              />
+            </div>
+          </div>
+        )}
+
         {activeTab === "glossary" && (
           <div className="grid md:grid-cols-2 gap-6 animate-in fade-in duration-1000">
             {[
@@ -660,6 +701,58 @@ export default function QpcrPrecisionPage() {
           </div>
         )}
       </main>
+
+      {isSybrImageOpen && (
+        <div
+          className="fixed inset-0 z-[120] bg-black/85 backdrop-blur-sm p-4 md:p-8 flex items-center justify-center"
+          onClick={() => setIsSybrImageOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="תצוגת תמונת SYBR Green"
+        >
+          <div className="relative w-full max-w-6xl" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setIsSybrImageOpen(false)}
+              className="absolute top-3 right-3 z-10 w-10 h-10 rounded-full bg-slate-900/90 border border-slate-700 text-white font-bold hover:bg-slate-800 transition-colors"
+              aria-label="סגירת תצוגה מוגדלת"
+            >
+              X
+            </button>
+            <img
+              src="/images/SYBR.png"
+              alt="SYBR Green qPCR mechanism enlarged"
+              className="block w-full h-auto max-h-[90vh] object-contain rounded-[1.5rem] border border-slate-700 shadow-2xl"
+            />
+          </div>
+        </div>
+      )}
+
+      {isTaqmanImageOpen && (
+        <div
+          className="fixed inset-0 z-[120] bg-black/85 backdrop-blur-sm p-4 md:p-8 flex items-center justify-center"
+          onClick={() => setIsTaqmanImageOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="TaqMan image preview"
+        >
+          <div className="relative w-full max-w-6xl" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setIsTaqmanImageOpen(false)}
+              className="absolute top-3 right-3 z-10 w-10 h-10 rounded-full bg-slate-900/90 border border-slate-700 text-white font-bold hover:bg-slate-800 transition-colors"
+              aria-label="Close image preview"
+            >
+              X
+            </button>
+            <img
+              src="/images/TAQMAN.png"
+              alt="TaqMan qPCR mechanism enlarged"
+              className="block w-full h-auto max-h-[90vh] object-contain rounded-[1.5rem] border border-slate-700 shadow-2xl"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
