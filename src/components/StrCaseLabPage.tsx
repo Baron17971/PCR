@@ -209,15 +209,15 @@ const MISSION_TEMPLATES: Mission[] = [
     correctOption: "חשוד 2",
     dataSource: [
       { name: "חשוד 1", a: [12, 14], b: [28, 28], c: [10, 14], d: [7, 8] },
-      { name: "חשוד 2", a: [12, 12], b: [28, 31], c: [10, 14], d: [7, 9.3] },
-      { name: "חשוד 3", a: [13, 15], b: [30, 31], c: [12, 12], d: [9.3, 9.3] }
+      { name: "חשוד 2", a: [12, 12], b: [28, 31], c: [10, 14], d: [7, 9] },
+      { name: "חשוד 3", a: [13, 15], b: [30, 31], c: [12, 12], d: [9, 9] }
     ],
     targetLabel: "דגימה מהזירה",
     targetValues: [
       [12, 12],
       [28, 31],
       [10, 14],
-      [7, 9.3]
+      [7, 9]
     ],
     lanes: [
       {
@@ -227,7 +227,7 @@ const MISSION_TEMPLATES: Mission[] = [
           [12, 12],
           [28, 31],
           [10, 14],
-          [7, 9.3]
+          [7, 9]
         ]
       },
       {
@@ -369,7 +369,7 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
 
   const updateData = (laneIndex: number, locusIndex: number, valueIndex: 0 | 1, rawValue: string) => {
     const parsed = Number.parseFloat(rawValue);
-    const safeValue = Number.isFinite(parsed) ? clamp(parsed, 0, 35) : 0;
+    const safeValue = Number.isFinite(parsed) ? clamp(Math.round(parsed), 0, 35) : 0;
 
     setMissions((prev) =>
       prev.map((mission, missionIndex) => {
@@ -517,7 +517,7 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
                       <div className="text-sm font-bold text-slate-300">לוקוס {LOCI_LABELS[locusIdx]}</div>
                       <input
                         type="number"
-                        step={0.1}
+                        step={1}
                         placeholder="0"
                         value={pair[0] === 0 ? "" : String(pair[0])}
                         onChange={(event) => updateData(laneIdx, locusIdx, 0, event.target.value)}
@@ -525,7 +525,7 @@ export default function StrCaseLabPage({ onComplete }: StrCaseLabPageProps) {
                       />
                       <input
                         type="number"
-                        step={0.1}
+                        step={1}
                         placeholder="0"
                         value={pair[1] === 0 ? "" : String(pair[1])}
                         onChange={(event) => updateData(laneIdx, locusIdx, 1, event.target.value)}
