@@ -423,6 +423,45 @@ textarea {
   margin-top: 0.8rem;
 }
 
+.archive-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.66);
+  z-index: 160;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.archive-confirm-dialog {
+  width: min(460px, 100%);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 1rem;
+  background: rgba(4, 16, 46, 0.98);
+  box-shadow: 0 20px 40px rgba(2, 6, 23, 0.5);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.archive-confirm-dialog h3 {
+  margin: 0;
+  font-size: 1.12rem;
+}
+
+.archive-confirm-dialog p {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+.archive-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
 .archive-empty {
   margin: 0;
   color: var(--text-muted);

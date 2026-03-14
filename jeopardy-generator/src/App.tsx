@@ -660,6 +660,7 @@ function App() {
   const [archiveActionKey, setArchiveActionKey] = useState<string | null>(null);
   const [activeArchiveGameId, setActiveArchiveGameId] = useState<string | null>(null);
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [pendingDeleteRecord, setPendingDeleteRecord] = useState<ArchiveGameRecord | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const csvImportInputRef = useRef<HTMLInputElement | null>(null);
   const boardBackgroundInputRef = useRef<HTMLInputElement | null>(null);
@@ -1019,13 +1020,25 @@ function App() {
   useEffect(() => {
     if (mode !== "editor") {
       setIsArchiveOpen(false);
+      setPendingDeleteRecord(null);
     }
   }, [mode]);
 
   useEffect(() => {
-    if (!isArchiveOpen) return;
+    if (!isArchiveOpen) {
+      setPendingDeleteRecord(null);
+      return;
+    }
+  }, [isArchiveOpen]);
+
+  useEffect(() => {
+    if (!isArchiveOpen && !pendingDeleteRecord) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (pendingDeleteRecord) {
+          setPendingDeleteRecord(null);
+          return;
+        }
         setIsArchiveOpen(false);
       }
     };
@@ -1034,7 +1047,7 @@ function App() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isArchiveOpen]);
+  }, [isArchiveOpen, pendingDeleteRecord]);
 
   const saveArchiveGameAsNew = async () => {
     if (!supabase) {
@@ -1112,13 +1125,18 @@ function App() {
     }
   };
 
-  const deleteArchiveGame = async (recordId: string) => {
+  const requestDeleteArchiveGame = (record: ArchiveGameRecord) => {
+    if (archiveActionKey !== null) return;
+    setPendingDeleteRecord(record);
+  };
+
+  const deleteArchiveGame = async () => {
+    const recordId = pendingDeleteRecord?.id;
+    if (!recordId) return;
     if (!supabase) {
       setStatusMessage("חסרה הגדרת Supabase למחיקה מהשרת.");
       return;
     }
-    const shouldDelete = window.confirm("למחוק את המשחק מהארכיון?");
-    if (!shouldDelete) return;
 
     setArchiveActionKey(`delete-${recordId}`);
     try {
@@ -1136,6 +1154,7 @@ function App() {
       setStatusMessage("מחיקת הרשומה נכשלה.");
     } finally {
       setArchiveActionKey(null);
+      setPendingDeleteRecord(null);
     }
   };
 
@@ -1769,7 +1788,7 @@ function App() {
                           <button
                             type="button"
                             className="danger-button"
-                            onClick={() => void deleteArchiveGame(record.id)}
+                            onClick={() => requestDeleteArchiveGame(record)}
                             disabled={isBusy}
                           >
                             מחק
@@ -1782,6 +1801,34 @@ function App() {
               )}
             </div>
           </aside>
+        </div>
+      )}
+
+      {pendingDeleteRecord && (
+        <div className="archive-confirm-backdrop" onClick={() => setPendingDeleteRecord(null)}>
+          <div className="archive-confirm-dialog" onClick={(event) => event.stopPropagation()}>
+            <h3>למחוק מהארכיון?</h3>
+            <p>
+              הרשומה
+              {" "}
+              <strong>{pendingDeleteRecord.title?.trim() || "ללא כותרת"}</strong>
+              {" "}
+              תימחק לצמיתות.
+            </p>
+            <div className="archive-confirm-actions">
+              <button type="button" onClick={() => setPendingDeleteRecord(null)} disabled={archiveActionKey !== null}>
+                ביטול
+              </button>
+              <button
+                type="button"
+                className="danger-button"
+                onClick={() => void deleteArchiveGame()}
+                disabled={archiveActionKey !== null}
+              >
+                מחק
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
