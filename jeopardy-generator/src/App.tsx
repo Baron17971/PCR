@@ -173,6 +173,16 @@ const GAME_PAGE_BACKGROUND_FILES = [
   "/backgrounds/ant7119_A_watercolor_painting_of_a_woman_seen_from_behind_her_d92727ba-d49e-4a92-b281-a4da3efb4b9b_3.png",
   "/backgrounds/ant7119_ancient_Egypt_copy_space_with_spacefortext_--ar_169_-_1886861f-294a-4136-b7d2-233130708e13_1.png",
   "/backgrounds/ant7119_ancient_Egypt_piramids_copy_space_with_spacefortext_--a_1c25f057-f12d-4024-9169-364fbc87dcdb.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_bright_shades_o_5025c836-c78f-4993-bf08-187c0bf2e3dd_0.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_bright_shades_o_5025c836-c78f-4993-bf08-187c0bf2e3dd_1.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_bright_shades_o_5025c836-c78f-4993-bf08-187c0bf2e3dd_2.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_bright_shades_o_5025c836-c78f-4993-bf08-187c0bf2e3dd_3.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_of_the_landscapes__1e1336f4-c0cf-480f-afe7-49f52580a075_0.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_of_the_landscapes__1e1336f4-c0cf-480f-afe7-49f52580a075_1.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_of_the_landscapes__1e1336f4-c0cf-480f-afe7-49f52580a075_2.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_of_the_landscapes__1e1336f4-c0cf-480f-afe7-49f52580a075_3.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_of_the_landscapes__e45e908d-fb40-4f64-9ff7-7472fc830617_0.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_of_the_landscapes__e45e908d-fb40-4f64-9ff7-7472fc830617_1.png",
   "/backgrounds/ant7119_banner_hd_cow_milk_wheat_beige_light_blue_light_soft__7fcf58d5-ed94-47ff-86a4-f9852150b4dc_2.png",
   "/backgrounds/ant7119_banner_hd_cow_milk_wheat_beige_light_blue_light_soft_co_b7385156-3f60-4602-9566-8425a5b3ec32.png",
   "/backgrounds/ant7119_beige_light_blue_soft_colors_background_--ar_74_--quali_6b709ff6-35c3-4cd4-9d80-fc071148d2d6.png",
@@ -845,15 +855,18 @@ function App() {
     ? `linear-gradient(rgba(2, 6, 23, ${boardOverlayAlpha}), rgba(2, 6, 23, ${boardOverlayAlpha})), url("${boardTheme.boardBackgroundImage}")`
     : undefined;
   const pageOverlayAlpha = boardTheme.pageBackgroundOverlay / 100;
-  const pageImageOverlayStrong = clamp(0.16 + pageOverlayAlpha * 0.72, 0, 0.92);
-  const pageImageOverlaySoft = clamp(0.12 + pageOverlayAlpha * 0.58, 0, 0.86);
+  const pageImageOverlayStrong = clamp(0.08 + pageOverlayAlpha * 0.72, 0, 0.9);
+  const pageImageOverlaySoft = clamp(0.06 + pageOverlayAlpha * 0.58, 0, 0.84);
   const palettePageBackgroundImage =
     `radial-gradient(circle at 82% 10%, ${withAlpha(boardTheme.categoryBgStart, 0.24)}, transparent 46%), ` +
     `radial-gradient(circle at 14% 88%, ${withAlpha(boardTheme.cellBorderColor, 0.2)}, transparent 42%), ` +
     `linear-gradient(145deg, ${boardTheme.boardBackgroundColor}, ${boardTheme.categoryBgEnd} 48%, ${boardTheme.cellBgColor})`;
+  const pageBackgroundOverlayLayer =
+    `linear-gradient(135deg, ${withAlpha(boardTheme.boardBackgroundColor, pageImageOverlayStrong)}, ` +
+    `${withAlpha(boardTheme.categoryBgEnd, pageImageOverlaySoft)})`;
   const gamePageBackgroundImage = boardTheme.pageBackgroundImage
-    ? `linear-gradient(135deg, ${withAlpha(boardTheme.boardBackgroundColor, pageImageOverlayStrong)}, ${withAlpha(boardTheme.categoryBgEnd, pageImageOverlaySoft)}), url("${boardTheme.pageBackgroundImage}")`
-    : palettePageBackgroundImage;
+    ? `${pageBackgroundOverlayLayer}, url("${boardTheme.pageBackgroundImage}")`
+    : `${pageBackgroundOverlayLayer}, ${palettePageBackgroundImage}`;
   const gameShellTextColor = getTextColorForBackground(boardTheme.categoryBgEnd);
   const gameShellControlTextColor = getTextColorForBackground(boardTheme.boardBackgroundColor);
   const gameShellTopicTextColor = getReadableTextColor(
@@ -2178,7 +2191,6 @@ function App() {
                   max={100}
                   value={boardTheme.pageBackgroundOverlay}
                   onChange={(event) => updatePageBackgroundOverlay(Number(event.target.value))}
-                  disabled={!boardTheme.pageBackgroundImage}
                 />
               </label>
 
@@ -2387,8 +2399,12 @@ function App() {
                     ["--team-accent-soft" as string]: `${teamColor}22`,
                   }}
                 >
-                  קבוצה {index + 1}
-                  <input value={team.name} onChange={(event) => updateTeamName(team.id, event.target.value)} />
+                  <input
+                    value={team.name}
+                    onChange={(event) => updateTeamName(team.id, event.target.value)}
+                    aria-label={`שם קבוצה ${index + 1}`}
+                    placeholder={`שם קבוצה ${index + 1}`}
+                  />
                 </label>
               );
             })}
