@@ -188,6 +188,111 @@ textarea {
   border-color: var(--team-accent);
 }
 
+.board-theme-card {
+  border-color: rgba(99, 102, 241, 0.45);
+}
+
+.board-theme-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.65rem;
+}
+
+.board-theme-header h2 {
+  margin: 0;
+}
+
+.board-theme-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.palette-grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.palette-card {
+  text-align: right;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.85rem;
+  background: rgba(2, 6, 23, 0.7);
+  padding: 0.65rem;
+}
+
+.palette-card.is-active {
+  box-shadow: 0 0 0 1px currentColor;
+}
+
+.palette-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.palette-title-row span {
+  font-size: 0.85rem;
+  color: #86efac;
+}
+
+.palette-card p {
+  margin: 0 0 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.palette-swatches {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.palette-swatches span {
+  width: 100%;
+  height: 16px;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.overlay-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.8rem;
+  color: #cbd5e1;
+}
+
+.board-theme-preview {
+  margin-top: 0.85rem;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 0.9rem;
+  padding: 0.5rem;
+  background: rgba(2, 6, 23, 0.65);
+}
+
+.board-theme-preview-surface {
+  border-radius: 0.75rem;
+  padding: 0.65rem;
+}
+
+.board-theme-preview-category,
+.board-theme-preview-cell {
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 0.6rem;
+  padding: 0.5rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.board-theme-preview-category {
+  margin-bottom: 0.45rem;
+}
+
 .ai-prompt-card {
   border-color: rgba(56, 189, 248, 0.45);
 }
@@ -334,8 +439,13 @@ textarea {
 .game-category-title {
   min-height: 74px;
   border-radius: 0.9rem;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: linear-gradient(180deg, #1d4ed8, #1e3a8a);
+  border: 1px solid var(--cell-border-color, rgba(56, 189, 248, 0.35));
+  background: linear-gradient(
+    180deg,
+    var(--category-bg-start, #1d4ed8),
+    var(--category-bg-end, #1e3a8a)
+  );
+  color: var(--category-text-color, #e2e8f0);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -347,9 +457,9 @@ textarea {
 .game-cell {
   min-height: 74px;
   border-radius: 0.9rem;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: rgba(30, 58, 138, 0.8);
-  color: #fbbf24;
+  border: 1px solid var(--cell-border-color, rgba(56, 189, 248, 0.35));
+  background: var(--cell-bg-color, rgba(30, 58, 138, 0.8));
+  color: var(--cell-text-color, #fbbf24);
   font-weight: 600;
   font-size: 1.35rem;
   display: flex;
@@ -358,8 +468,8 @@ textarea {
 }
 
 .game-cell.used {
-  color: #64748b;
-  background: rgba(2, 6, 23, 0.85);
+  color: var(--used-cell-text-color, #64748b);
+  background: var(--used-cell-bg-color, rgba(2, 6, 23, 0.85));
 }
 
 .dna-mark {
@@ -391,8 +501,9 @@ textarea {
 .modal {
   width: min(860px, 100%);
   border-radius: 1.2rem;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: rgba(2, 6, 23, 0.95);
+  border: 1px solid var(--modal-border-color, rgba(56, 189, 248, 0.35));
+  background: var(--modal-bg-color, rgba(2, 6, 23, 0.95));
+  color: var(--modal-text-color, var(--text-main));
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -407,9 +518,10 @@ textarea {
 }
 
 .modal-question {
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  border: 1px solid var(--modal-question-border-color, rgba(148, 163, 184, 0.35));
   border-radius: 0.9rem;
-  background: rgba(15, 23, 42, 0.8);
+  background: var(--modal-question-bg-color, rgba(15, 23, 42, 0.8));
+  color: var(--modal-question-text-color, #e2e8f0);
   font-weight: 500;
   font-size: clamp(1.1rem, 2.6vw, 1.8rem);
   min-height: 96px;
@@ -426,22 +538,23 @@ textarea {
 
 .answer-panel h4 {
   margin: 0;
-  color: #6ee7b7;
+  color: var(--modal-answer-label-color, #6ee7b7);
 }
 
 .answer-panel p {
   margin: 0;
-  border: 1px solid rgba(16, 185, 129, 0.45);
+  border: 1px solid var(--modal-answer-border-color, rgba(16, 185, 129, 0.45));
   border-radius: 0.85rem;
-  background: rgba(16, 185, 129, 0.12);
+  background: var(--modal-answer-bg-color, rgba(16, 185, 129, 0.12));
+  color: var(--modal-answer-text-color, #e2e8f0);
   padding: 0.85rem;
   font-size: 1.1rem;
 }
 
 .turn-card {
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  border: 1px solid var(--modal-turn-border-color, rgba(148, 163, 184, 0.35));
   border-radius: 0.85rem;
-  background: rgba(15, 23, 42, 0.9);
+  background: var(--modal-turn-bg-color, rgba(15, 23, 42, 0.9));
   padding: 0.75rem;
 }
 
@@ -454,11 +567,35 @@ textarea {
 
 .turn-row span {
   font-weight: 600;
-  color: var(--accent);
+  color: var(--modal-value-color, var(--accent));
 }
 
 .page-shell strong {
   font-weight: 500;
+}
+
+.modal .dna-mark {
+  color: var(--modal-value-color, #fbbf24);
+}
+
+.modal .dna-mark svg {
+  stroke: currentColor;
+}
+
+.modal-close-button {
+  border-color: var(--modal-close-border-color, rgba(148, 163, 184, 0.35));
+  background: var(--modal-close-bg-color, rgba(2, 6, 23, 0.85));
+  color: var(--modal-close-text-color, #e2e8f0);
+}
+
+.modal .primary-button {
+  background: linear-gradient(
+    135deg,
+    var(--modal-primary-start, #0891b2),
+    var(--modal-primary-end, #2563eb)
+  );
+  border-color: var(--modal-border-color, rgba(56, 189, 248, 0.45));
+  color: var(--modal-primary-text, #f8fafc);
 }
 
 .score-actions {

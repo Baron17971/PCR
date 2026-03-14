@@ -26,6 +26,42 @@ interface ActiveCell {
   rowIndex: number;
 }
 
+interface BoardTheme {
+  boardBorderColor: string;
+  boardBackgroundColor: string;
+  categoryBgStart: string;
+  categoryBgEnd: string;
+  categoryTextColor: string;
+  cellBgColor: string;
+  cellTextColor: string;
+  cellBorderColor: string;
+  usedCellBgColor: string;
+  usedCellTextColor: string;
+  boardBackgroundImage: string | null;
+  boardBackgroundOverlay: number;
+}
+
+type BoardThemeColorKey =
+  | "boardBorderColor"
+  | "boardBackgroundColor"
+  | "categoryBgStart"
+  | "categoryBgEnd"
+  | "categoryTextColor"
+  | "cellBgColor"
+  | "cellTextColor"
+  | "cellBorderColor"
+  | "usedCellBgColor"
+  | "usedCellTextColor";
+
+type BoardThemeColorSet = Pick<BoardTheme, BoardThemeColorKey>;
+
+interface BoardThemePalette {
+  id: string;
+  name: string;
+  description: string;
+  colors: BoardThemeColorSet;
+}
+
 interface ExportPayload {
   version: number;
   settings: {
@@ -35,6 +71,7 @@ interface ExportPayload {
     baseValue: number;
     teamCount: number;
     teamNames: string[];
+    boardTheme?: Partial<BoardTheme>;
   };
   categories: Array<{
     title: string;
@@ -78,8 +115,269 @@ const AI_CSV_PROMPT_TEMPLATE =
   "לכל שאלה הוסף תשובה קצרה, מדויקת וברורה. " +
   "אם מצורף קובץ, יש להתבסס רק על התוכן שבו בלבד, ללא הוספת מידע חיצוני, ותוך שמירה על המינוחים המקוריים של הקובץ ככל האפשר.";
 
+const DEFAULT_BOARD_THEME: BoardTheme = {
+  boardBorderColor: "#38bdf8",
+  boardBackgroundColor: "#0d224f",
+  categoryBgStart: "#1d4ed8",
+  categoryBgEnd: "#1e3a8a",
+  categoryTextColor: "#e2e8f0",
+  cellBgColor: "#233d8f",
+  cellTextColor: "#fbbf24",
+  cellBorderColor: "#38bdf8",
+  usedCellBgColor: "#020617",
+  usedCellTextColor: "#64748b",
+  boardBackgroundImage: null,
+  boardBackgroundOverlay: 55,
+};
+
+const BOARD_THEME_COLOR_KEYS: BoardThemeColorKey[] = [
+  "boardBorderColor",
+  "boardBackgroundColor",
+  "categoryBgStart",
+  "categoryBgEnd",
+  "categoryTextColor",
+  "cellBgColor",
+  "cellTextColor",
+  "cellBorderColor",
+  "usedCellBgColor",
+  "usedCellTextColor",
+];
+
+const BOARD_THEME_PALETTES: BoardThemePalette[] = [
+  {
+    id: "classic-blue",
+    name: "קלאסי כחול",
+    description: "סגנון תחרות טלוויזיה קלאסי עם ניגודיות גבוהה.",
+    colors: {
+      boardBorderColor: "#38bdf8",
+      boardBackgroundColor: "#0d224f",
+      categoryBgStart: "#1d4ed8",
+      categoryBgEnd: "#1e3a8a",
+      categoryTextColor: "#e2e8f0",
+      cellBgColor: "#233d8f",
+      cellTextColor: "#fbbf24",
+      cellBorderColor: "#38bdf8",
+      usedCellBgColor: "#020617",
+      usedCellTextColor: "#64748b",
+    },
+  },
+  {
+    id: "emerald-arena",
+    name: "אמרלד ארנה",
+    description: "ירוק-טורקיז נקי, מצוין לשיעורים מדעיים.",
+    colors: {
+      boardBorderColor: "#34d399",
+      boardBackgroundColor: "#052e2b",
+      categoryBgStart: "#059669",
+      categoryBgEnd: "#065f46",
+      categoryTextColor: "#dcfce7",
+      cellBgColor: "#064e3b",
+      cellTextColor: "#6ee7b7",
+      cellBorderColor: "#34d399",
+      usedCellBgColor: "#022c22",
+      usedCellTextColor: "#6b7280",
+    },
+  },
+  {
+    id: "sunset-arcade",
+    name: "שקיעה ארקייד",
+    description: "אדום-כתום חי עם אווירת משחק דינמית.",
+    colors: {
+      boardBorderColor: "#fb923c",
+      boardBackgroundColor: "#3b0a1a",
+      categoryBgStart: "#f97316",
+      categoryBgEnd: "#c2410c",
+      categoryTextColor: "#fff7ed",
+      cellBgColor: "#7c2d12",
+      cellTextColor: "#fdba74",
+      cellBorderColor: "#fb923c",
+      usedCellBgColor: "#431407",
+      usedCellTextColor: "#9ca3af",
+    },
+  },
+  {
+    id: "cyber-neon",
+    name: "ניאון סייבר",
+    description: "כחול-טורקיז עם הדגשות ורודות למראה עתידני.",
+    colors: {
+      boardBorderColor: "#22d3ee",
+      boardBackgroundColor: "#0a1028",
+      categoryBgStart: "#0ea5e9",
+      categoryBgEnd: "#2563eb",
+      categoryTextColor: "#e0f2fe",
+      cellBgColor: "#1e1b4b",
+      cellTextColor: "#f9a8d4",
+      cellBorderColor: "#22d3ee",
+      usedCellBgColor: "#0f172a",
+      usedCellTextColor: "#94a3b8",
+    },
+  },
+  {
+    id: "light-ice",
+    name: "קרח בהיר",
+    description: "תצוגה בהירה ונקייה לכיתה מוארת או מקרן חלש.",
+    colors: {
+      boardBorderColor: "#0284c7",
+      boardBackgroundColor: "#e0f2fe",
+      categoryBgStart: "#38bdf8",
+      categoryBgEnd: "#0ea5e9",
+      categoryTextColor: "#082f49",
+      cellBgColor: "#bae6fd",
+      cellTextColor: "#0c4a6e",
+      cellBorderColor: "#0284c7",
+      usedCellBgColor: "#cbd5e1",
+      usedCellTextColor: "#475569",
+    },
+  },
+  {
+    id: "vintage-mint",
+    name: "מנטה וינטג׳",
+    description: "טורקיז עתיק עם בז׳-סגלגל, מאוזן וקריא ללוח מלא.",
+    colors: {
+      boardBorderColor: "#9bc9c7",
+      boardBackgroundColor: "#1f3437",
+      categoryBgStart: "#7ea9a4",
+      categoryBgEnd: "#8f7b84",
+      categoryTextColor: "#f8fafc",
+      cellBgColor: "#395558",
+      cellTextColor: "#f1decb",
+      cellBorderColor: "#8dbdb4",
+      usedCellBgColor: "#1a2428",
+      usedCellTextColor: "#9ca3af",
+    },
+  },
+  {
+    id: "desert-sage",
+    name: "סייג׳ מדברי",
+    description: "בהשראת סוקולנטים ופודרה, עם ניגודיות גבוהה לטקסט.",
+    colors: {
+      boardBorderColor: "#afbfaa",
+      boardBackgroundColor: "#23312e",
+      categoryBgStart: "#93a79f",
+      categoryBgEnd: "#7a8e88",
+      categoryTextColor: "#f8fafc",
+      cellBgColor: "#5f5956",
+      cellTextColor: "#f4d5c6",
+      cellBorderColor: "#a8bca8",
+      usedCellBgColor: "#2e3133",
+      usedCellTextColor: "#a0aab2",
+    },
+  },
+  {
+    id: "peach-garden",
+    name: "גינת אפרסק",
+    description: "פריחה חמימה עם דגש זית עמוק לערכים ונראות חדה.",
+    colors: {
+      boardBorderColor: "#eec9a1",
+      boardBackgroundColor: "#2b3729",
+      categoryBgStart: "#e8a69c",
+      categoryBgEnd: "#d88982",
+      categoryTextColor: "#2f1f1d",
+      cellBgColor: "#425338",
+      cellTextColor: "#ffe6b5",
+      cellBorderColor: "#d8b88f",
+      usedCellBgColor: "#253026",
+      usedCellTextColor: "#9ca3af",
+    },
+  },
+  {
+    id: "cherry-blossom",
+    name: "פריחת דובדבן",
+    description: "ורוד-לבנדר רגוע עם תאי ניקוד כהים לטקסט חד וברור.",
+    colors: {
+      boardBorderColor: "#9aaec0",
+      boardBackgroundColor: "#232735",
+      categoryBgStart: "#c86392",
+      categoryBgEnd: "#9f7fa8",
+      categoryTextColor: "#f8fafc",
+      cellBgColor: "#5f6f84",
+      cellTextColor: "#ffe8f6",
+      cellBorderColor: "#b8acc6",
+      usedCellBgColor: "#2a2e3a",
+      usedCellTextColor: "#9ca3af",
+    },
+  },
+  {
+    id: "lilac-spring",
+    name: "לילך אביבי",
+    description: "גווני לילך וזית בהירים עם היררכיה ברורה בין כותרות לערכים.",
+    colors: {
+      boardBorderColor: "#b7c7d6",
+      boardBackgroundColor: "#243126",
+      categoryBgStart: "#b28ab6",
+      categoryBgEnd: "#8d6a96",
+      categoryTextColor: "#f8fafc",
+      cellBgColor: "#6e7f5a",
+      cellTextColor: "#f3e8ff",
+      cellBorderColor: "#c7b1d1",
+      usedCellBgColor: "#2b3328",
+      usedCellTextColor: "#a3acb6",
+    },
+  },
+  {
+    id: "blue-door-cat",
+    name: "חתול ליד דלת תכלת",
+    description: "כחול מאובק ואבן טבעית עם ניגודיות קריאה ללוח משחק.",
+    colors: {
+      boardBorderColor: "#8faec1",
+      boardBackgroundColor: "#2c3238",
+      categoryBgStart: "#7a9db4",
+      categoryBgEnd: "#5f8198",
+      categoryTextColor: "#f8fafc",
+      cellBgColor: "#6f6864",
+      cellTextColor: "#f5efe7",
+      cellBorderColor: "#a3b8c5",
+      usedCellBgColor: "#2d3338",
+      usedCellTextColor: "#a3abb4",
+    },
+  },
+  {
+    id: "pastel-bloom",
+    name: "פריחה פסטלית",
+    description: "מנטה-אפרסק-קורל עם תאי ניקוד עמוקים וקריאות גבוהה.",
+    colors: {
+      boardBorderColor: "#99c1b4",
+      boardBackgroundColor: "#352e35",
+      categoryBgStart: "#e48390",
+      categoryBgEnd: "#cfa68f",
+      categoryTextColor: "#1f2937",
+      cellBgColor: "#6c5664",
+      cellTextColor: "#f5e8b8",
+      cellBorderColor: "#a8b8a4",
+      usedCellBgColor: "#2e2630",
+      usedCellTextColor: "#98a2ad",
+    },
+  },
+];
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function normalizeHexColor(value: string): string | null {
+  const normalized = value.trim();
+  if (/^#[0-9a-f]{6}$/i.test(normalized)) {
+    return normalized.toLowerCase();
+  }
+  if (/^#[0-9a-f]{3}$/i.test(normalized)) {
+    const r = normalized[1];
+    const g = normalized[2];
+    const b = normalized[3];
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+  return null;
+}
+
+function getTextColorForBackground(backgroundColor: string): string {
+  const normalized = normalizeHexColor(backgroundColor);
+  if (!normalized) return "#f8fafc";
+
+  const red = Number.parseInt(normalized.slice(1, 3), 16);
+  const green = Number.parseInt(normalized.slice(3, 5), 16);
+  const blue = Number.parseInt(normalized.slice(5, 7), 16);
+  const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+
+  return luminance > 0.62 ? "#0f172a" : "#f8fafc";
 }
 
 function normalizeHeader(value: string): string {
@@ -142,6 +440,28 @@ function parseCsvRows(text: string, delimiter: "," | ";"): string[][] {
   return rows;
 }
 
+function resolveBoardTheme(theme?: Partial<BoardTheme>): BoardTheme {
+  if (!theme) return DEFAULT_BOARD_THEME;
+  const overlay = Number.isFinite(theme.boardBackgroundOverlay)
+    ? clamp(theme.boardBackgroundOverlay as number, 0, 100)
+    : DEFAULT_BOARD_THEME.boardBackgroundOverlay;
+
+  return {
+    boardBorderColor: theme.boardBorderColor ?? DEFAULT_BOARD_THEME.boardBorderColor,
+    boardBackgroundColor: theme.boardBackgroundColor ?? DEFAULT_BOARD_THEME.boardBackgroundColor,
+    categoryBgStart: theme.categoryBgStart ?? DEFAULT_BOARD_THEME.categoryBgStart,
+    categoryBgEnd: theme.categoryBgEnd ?? DEFAULT_BOARD_THEME.categoryBgEnd,
+    categoryTextColor: theme.categoryTextColor ?? DEFAULT_BOARD_THEME.categoryTextColor,
+    cellBgColor: theme.cellBgColor ?? DEFAULT_BOARD_THEME.cellBgColor,
+    cellTextColor: theme.cellTextColor ?? DEFAULT_BOARD_THEME.cellTextColor,
+    cellBorderColor: theme.cellBorderColor ?? DEFAULT_BOARD_THEME.cellBorderColor,
+    usedCellBgColor: theme.usedCellBgColor ?? DEFAULT_BOARD_THEME.usedCellBgColor,
+    usedCellTextColor: theme.usedCellTextColor ?? DEFAULT_BOARD_THEME.usedCellTextColor,
+    boardBackgroundImage: theme.boardBackgroundImage ?? DEFAULT_BOARD_THEME.boardBackgroundImage,
+    boardBackgroundOverlay: overlay,
+  };
+}
+
 function createBoard(categoryCount: number, rowCount: number, baseValue: number): CategoryData[] {
   return Array.from({ length: categoryCount }, (_, categoryIndex) => ({
     title: `קטגוריה ${categoryIndex + 1}`,
@@ -200,6 +520,8 @@ function DnaMark({ value }: { value: number }) {
 function App() {
   const [mode, setMode] = useState<AppMode>("editor");
   const [gameTopic, setGameTopic] = useState("משחק ג'פרדי");
+  const [aiPromptText, setAiPromptText] = useState(AI_CSV_PROMPT_TEMPLATE);
+  const [boardTheme, setBoardTheme] = useState<BoardTheme>(DEFAULT_BOARD_THEME);
   const [categoryCount, setCategoryCount] = useState(6);
   const [rowCount, setRowCount] = useState(5);
   const [baseValue, setBaseValue] = useState(200);
@@ -212,6 +534,7 @@ function App() {
   const [statusMessage, setStatusMessage] = useState<string>("");
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const csvImportInputRef = useRef<HTMLInputElement | null>(null);
+  const boardBackgroundInputRef = useRef<HTMLInputElement | null>(null);
 
   const activeQuestion = activeCell
     ? board[activeCell.categoryIndex]?.cells[activeCell.rowIndex] ?? null
@@ -234,6 +557,36 @@ function App() {
   const canStartGame = missingFieldsCount === 0;
   const currentTeam = teams[currentTurnIndex] ?? teams[0];
   const resolvedGameTopic = gameTopic.trim() || "משחק ג'פרדי";
+  const boardOverlayAlpha = boardTheme.boardBackgroundOverlay / 100;
+  const boardBackgroundImage = boardTheme.boardBackgroundImage
+    ? `linear-gradient(rgba(2, 6, 23, ${boardOverlayAlpha}), rgba(2, 6, 23, ${boardOverlayAlpha})), url("${boardTheme.boardBackgroundImage}")`
+    : undefined;
+  const modalTextColor = getTextColorForBackground(boardTheme.boardBackgroundColor);
+  const modalQuestionTextColor = getTextColorForBackground(boardTheme.cellBgColor);
+  const modalAnswerTextColor = getTextColorForBackground(boardTheme.usedCellBgColor);
+  const modalPrimaryTextColor = getTextColorForBackground(boardTheme.categoryBgStart);
+  const modalCloseTextColor = getTextColorForBackground(boardTheme.usedCellBgColor);
+  const modalThemeStyle = {
+    ["--modal-border-color" as string]: boardTheme.boardBorderColor,
+    ["--modal-bg-color" as string]: `linear-gradient(160deg, ${boardTheme.boardBackgroundColor}, ${boardTheme.usedCellBgColor})`,
+    ["--modal-text-color" as string]: modalTextColor,
+    ["--modal-question-bg-color" as string]: boardTheme.cellBgColor,
+    ["--modal-question-border-color" as string]: boardTheme.cellBorderColor,
+    ["--modal-question-text-color" as string]: modalQuestionTextColor,
+    ["--modal-answer-label-color" as string]: boardTheme.cellTextColor,
+    ["--modal-answer-bg-color" as string]: `linear-gradient(135deg, ${boardTheme.usedCellBgColor}, ${boardTheme.boardBackgroundColor})`,
+    ["--modal-answer-border-color" as string]: boardTheme.cellBorderColor,
+    ["--modal-answer-text-color" as string]: modalAnswerTextColor,
+    ["--modal-turn-bg-color" as string]: boardTheme.boardBackgroundColor,
+    ["--modal-turn-border-color" as string]: boardTheme.cellBorderColor,
+    ["--modal-value-color" as string]: boardTheme.cellTextColor,
+    ["--modal-primary-start" as string]: boardTheme.categoryBgStart,
+    ["--modal-primary-end" as string]: boardTheme.categoryBgEnd,
+    ["--modal-primary-text" as string]: modalPrimaryTextColor,
+    ["--modal-close-bg-color" as string]: boardTheme.usedCellBgColor,
+    ["--modal-close-border-color" as string]: boardTheme.cellBorderColor,
+    ["--modal-close-text-color" as string]: modalCloseTextColor,
+  };
 
   const updateBoardShape = (nextCategoryCount: number, nextRowCount: number, nextBaseValue: number) => {
     setBoard((previous) => resizeBoard(previous, nextCategoryCount, nextRowCount, nextBaseValue));
@@ -302,9 +655,65 @@ function App() {
     setTeams((previous) => previous.map((team) => (team.id === teamId ? { ...team, name } : team)));
   };
 
+  const activePaletteId = useMemo(() => {
+    const matched = BOARD_THEME_PALETTES.find((palette) =>
+      BOARD_THEME_COLOR_KEYS.every((key) => boardTheme[key] === palette.colors[key]),
+    );
+    return matched?.id ?? null;
+  }, [boardTheme]);
+
+  const applyPalette = (paletteId: string) => {
+    const palette = BOARD_THEME_PALETTES.find((candidate) => candidate.id === paletteId);
+    if (!palette) return;
+    setBoardTheme((previous) => ({
+      ...previous,
+      ...palette.colors,
+    }));
+    setStatusMessage(`הוחלה פלטת צבעים: ${palette.name}.`);
+  };
+
+  const updateBoardThemeOverlay = (value: number) => {
+    setBoardTheme((previous) => ({ ...previous, boardBackgroundOverlay: clamp(value, 0, 100) }));
+  };
+
+  const importBoardBackgroundImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setStatusMessage("ניתן להעלות רק קובצי תמונה לרקע.");
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ""));
+        reader.onerror = () => reject(new Error("failed"));
+        reader.readAsDataURL(file);
+      });
+      setBoardTheme((previous) => ({ ...previous, boardBackgroundImage: dataUrl }));
+      setStatusMessage("תמונת הרקע נטענה בהצלחה.");
+    } catch {
+      setStatusMessage("שגיאה בטעינת תמונת הרקע.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const removeBoardBackgroundImage = () => {
+    setBoardTheme((previous) => ({ ...previous, boardBackgroundImage: null }));
+    setStatusMessage("תמונת הרקע הוסרה.");
+  };
+
+  const resetBoardTheme = () => {
+    setBoardTheme(DEFAULT_BOARD_THEME);
+    setStatusMessage("עיצוב הלוח אופס לברירת המחדל.");
+  };
+
   const copyAiPromptToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(AI_CSV_PROMPT_TEMPLATE);
+      await navigator.clipboard.writeText(aiPromptText);
       setStatusMessage("הפרומפט הועתק ללוח.");
     } catch {
       setStatusMessage("לא ניתן להעתיק אוטומטית. סמני את הטקסט והעתיקי ידנית.");
@@ -409,6 +818,7 @@ function App() {
         baseValue,
         teamCount: teams.length,
         teamNames: teams.map((team) => team.name),
+        boardTheme,
       },
       categories: board.map((category) => ({
         title: category.title,
@@ -615,6 +1025,7 @@ function App() {
       setRowCount(importedRowCount);
       setBaseValue(importedBaseValue);
       setGameTopic(parsed.settings?.gameTopic?.trim() || "משחק ג'פרדי");
+      setBoardTheme(resolveBoardTheme(parsed.settings?.boardTheme));
       setBoard(nextBoard);
       setTeams(
         Array.from({ length: importedTeamCount }, (_, index) => ({
@@ -767,6 +1178,102 @@ function App() {
             </p>
           </section>
 
+          <section className="card board-theme-card">
+            <div className="board-theme-header">
+              <h2>עיצוב לוח</h2>
+              <div className="board-theme-actions">
+                <button type="button" onClick={() => boardBackgroundInputRef.current?.click()}>
+                  העלאת תמונת רקע
+                </button>
+                <input
+                  ref={boardBackgroundInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={importBoardBackgroundImage}
+                  hidden
+                />
+                <button type="button" onClick={removeBoardBackgroundImage} disabled={!boardTheme.boardBackgroundImage}>
+                  הסרת תמונה
+                </button>
+                <button type="button" onClick={resetBoardTheme}>
+                  איפוס עיצוב
+                </button>
+              </div>
+            </div>
+
+            <div className="palette-grid">
+              {BOARD_THEME_PALETTES.map((palette) => {
+                const isActive = activePaletteId === palette.id;
+                return (
+                  <button
+                    key={palette.id}
+                    type="button"
+                    onClick={() => applyPalette(palette.id)}
+                    className={`palette-card ${isActive ? "is-active" : ""}`}
+                    style={{ borderColor: isActive ? palette.colors.boardBorderColor : undefined }}
+                  >
+                    <div className="palette-title-row">
+                      <strong>{palette.name}</strong>
+                      {isActive && <span>נבחרה</span>}
+                    </div>
+                    <p>{palette.description}</p>
+                    <div className="palette-swatches">
+                      <span style={{ backgroundColor: palette.colors.boardBackgroundColor }} />
+                      <span style={{ backgroundColor: palette.colors.categoryBgStart }} />
+                      <span style={{ backgroundColor: palette.colors.categoryBgEnd }} />
+                      <span style={{ backgroundColor: palette.colors.cellBgColor }} />
+                      <span style={{ backgroundColor: palette.colors.cellTextColor }} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <label className="overlay-control">
+              כהות שכבת רקע מעל התמונה: {boardTheme.boardBackgroundOverlay}%
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={boardTheme.boardBackgroundOverlay}
+                onChange={(event) => updateBoardThemeOverlay(Number(event.target.value))}
+              />
+            </label>
+
+            <div className="board-theme-preview" style={{ borderColor: boardTheme.boardBorderColor }}>
+              <div
+                className="board-theme-preview-surface"
+                style={{
+                  backgroundColor: boardTheme.boardBackgroundColor,
+                  backgroundImage: boardBackgroundImage,
+                  backgroundSize: boardTheme.boardBackgroundImage ? "cover" : undefined,
+                  backgroundPosition: boardTheme.boardBackgroundImage ? "center" : undefined,
+                }}
+              >
+                <div
+                  className="board-theme-preview-category"
+                  style={{
+                    borderColor: boardTheme.cellBorderColor,
+                    color: boardTheme.categoryTextColor,
+                    background: `linear-gradient(180deg, ${boardTheme.categoryBgStart}, ${boardTheme.categoryBgEnd})`,
+                  }}
+                >
+                  קטגוריה לדוגמה
+                </div>
+                <div
+                  className="board-theme-preview-cell"
+                  style={{
+                    borderColor: boardTheme.cellBorderColor,
+                    color: boardTheme.cellTextColor,
+                    backgroundColor: boardTheme.cellBgColor,
+                  }}
+                >
+                  400
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section className="card">
             <h2>שמות קבוצות</h2>
             <div className="teams-edit-grid">
@@ -799,7 +1306,12 @@ function App() {
             <p className="ai-prompt-note">
               אפשר להדביק את הטקסט בכל מחולל שפה, להחליף את הערכים שבסוגריים מרובעים, ולבקש פלט CSV.
             </p>
-            <textarea className="ai-prompt-textarea" readOnly rows={6} value={AI_CSV_PROMPT_TEMPLATE} />
+            <textarea
+              className="ai-prompt-textarea"
+              rows={6}
+              value={aiPromptText}
+              onChange={(event) => setAiPromptText(event.target.value)}
+            />
           </section>
 
           <section
@@ -875,8 +1387,30 @@ function App() {
             })}
           </section>
 
-          <section className="game-board">
-            <div className="game-grid" style={{ gridTemplateColumns: `repeat(${categoryCount}, minmax(0, 1fr))` }}>
+          <section
+            className="game-board"
+            style={{
+              borderColor: boardTheme.boardBorderColor,
+              backgroundColor: boardTheme.boardBackgroundColor,
+              backgroundImage: boardBackgroundImage,
+              backgroundSize: boardTheme.boardBackgroundImage ? "cover" : undefined,
+              backgroundPosition: boardTheme.boardBackgroundImage ? "center" : undefined,
+            }}
+          >
+            <div
+              className="game-grid"
+              style={{
+                gridTemplateColumns: `repeat(${categoryCount}, minmax(0, 1fr))`,
+                ["--category-bg-start" as string]: boardTheme.categoryBgStart,
+                ["--category-bg-end" as string]: boardTheme.categoryBgEnd,
+                ["--category-text-color" as string]: boardTheme.categoryTextColor,
+                ["--cell-bg-color" as string]: boardTheme.cellBgColor,
+                ["--cell-text-color" as string]: boardTheme.cellTextColor,
+                ["--cell-border-color" as string]: boardTheme.cellBorderColor,
+                ["--used-cell-bg-color" as string]: boardTheme.usedCellBgColor,
+                ["--used-cell-text-color" as string]: boardTheme.usedCellTextColor,
+              }}
+            >
               {board.map((category, categoryIndex) => (
                 <div key={`game-category-${categoryIndex}`} className="game-category-title">
                   {category.title}
@@ -911,10 +1445,10 @@ function App() {
 
       {activeQuestion && (
         <div className="modal-overlay">
-          <div className="modal">
+          <div className="modal" style={modalThemeStyle}>
             <div className="modal-header">
               <DnaMark value={activeQuestion.value} />
-              <button type="button" onClick={closeQuestion}>
+              <button type="button" onClick={closeQuestion} className="modal-close-button">
                 סגירה
               </button>
             </div>
