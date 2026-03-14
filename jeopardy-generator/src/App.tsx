@@ -506,13 +506,10 @@ function createTeams(teamCount: number): TeamData[] {
   }));
 }
 
-function DnaMark({ value }: { value: number }) {
+function ValueMark({ value }: { value: number }) {
   return (
-    <span className="dna-mark" dir="ltr">
-      <span>{value}</span>
-      <svg viewBox="0 0 32 32" aria-hidden="true">
-        <path d="M8 3c6 5 10 5 16 0M8 29c6-5 10-5 16 0M10 5c8 7 8 15 0 22M22 5c-8 7-8 15 0 22M10 10h12M8.8 16h14.4M10 22h12" />
-      </svg>
+    <span className="value-mark" dir="ltr">
+      {value}
     </span>
   );
 }
@@ -563,7 +560,7 @@ function App() {
     const scale = clamp(categoryScale * rowScale, 0.78, 1.3);
 
     return {
-      categoryFontSize: `${clamp(1.02 * scale, 0.88, 1.45).toFixed(3)}rem`,
+      categoryFontSize: `${clamp(1.08 * scale, 0.92, 1.5).toFixed(3)}rem`,
       cellFontSize: `${clamp(1.34 * scale, 1.02, 2).toFixed(3)}rem`,
       teamNameFontSize: `${clamp(0.96 * scale, 0.9, 1.2).toFixed(3)}rem`,
       teamScoreFontSize: `${clamp(1.34 * scale, 1.2, 1.9).toFixed(3)}rem`,
@@ -1343,7 +1340,7 @@ function App() {
                 {category.cells.map((cell, rowIndex) => (
                   <div key={`cell-${categoryIndex}-${rowIndex}`} className="cell-editor">
                     <h3>
-                      <DnaMark value={cell.value} />
+                      <ValueMark value={cell.value} />
                     </h3>
                     <label>
                       שאלה
@@ -1449,7 +1446,7 @@ function App() {
                       disabled={isDisabled}
                       className={`game-cell ${isDisabled ? "used" : ""}`}
                     >
-                      {isDisabled ? "✓" : <DnaMark value={cell.value} />}
+                      {isDisabled ? "✓" : <ValueMark value={cell.value} />}
                     </button>
                   );
                 }),
@@ -1467,7 +1464,7 @@ function App() {
         <div className="modal-overlay">
           <div className="modal" style={modalThemeStyle}>
             <div className="modal-header">
-              <DnaMark value={activeQuestion.value} />
+              <ValueMark value={activeQuestion.value} />
               <button type="button" onClick={closeQuestion} className="modal-close-button">
                 סגירה
               </button>
