@@ -70,6 +70,14 @@ const TEAM_COLORS = [
   "#a78bfa",
 ];
 
+const AI_CSV_PROMPT_TEMPLATE =
+  "צור קובץ CSV UTF-8 עם העמודות: category, value, question, answer. " +
+  "מלא אותו ב-6 קטגוריות שונות בנושא [הכנס נושא]. בכל קטגוריה צור 5 שאלות בערכים 200, 400, 600, 800, 1000, " +
+  "בסדר קושי עולה ובהתאמה לרמת תלמידי כיתה [הכנס כיתה]. " +
+  "נסח את השאלות בסגנון ג׳פרדי, בעברית מלאה ותקינה, והקפד שלא יהיו כפילויות מושגיות בין השאלות. " +
+  "לכל שאלה הוסף תשובה קצרה, מדויקת וברורה. " +
+  "אם מצורף קובץ, יש להתבסס רק על התוכן שבו בלבד, ללא הוספת מידע חיצוני, ותוך שמירה על המינוחים המקוריים של הקובץ ככל האפשר.";
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -292,6 +300,15 @@ function App() {
 
   const updateTeamName = (teamId: string, name: string) => {
     setTeams((previous) => previous.map((team) => (team.id === teamId ? { ...team, name } : team)));
+  };
+
+  const copyAiPromptToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(AI_CSV_PROMPT_TEMPLATE);
+      setStatusMessage("הפרומפט הועתק ללוח.");
+    } catch {
+      setStatusMessage("לא ניתן להעתיק אוטומטית. סמני את הטקסט והעתיקי ידנית.");
+    }
   };
 
   const startGame = () => {
@@ -753,13 +770,36 @@ function App() {
           <section className="card">
             <h2>שמות קבוצות</h2>
             <div className="teams-edit-grid">
-              {teams.map((team, index) => (
-                <label key={team.id}>
+              {teams.map((team, index) => {
+                const teamColor = TEAM_COLORS[index % TEAM_COLORS.length];
+                return (
+                <label
+                  key={team.id}
+                  className="team-name-field"
+                  style={{
+                    ["--team-accent" as string]: teamColor,
+                    ["--team-accent-soft" as string]: `${teamColor}22`,
+                  }}
+                >
                   קבוצה {index + 1}
                   <input value={team.name} onChange={(event) => updateTeamName(team.id, event.target.value)} />
                 </label>
-              ))}
+              );
+            })}
             </div>
+          </section>
+
+          <section className="card ai-prompt-card">
+            <div className="ai-prompt-header">
+              <h2>פרומפט מוכן ליצירת CSV ב-AI</h2>
+              <button type="button" onClick={copyAiPromptToClipboard}>
+                העתקת הפרומפט
+              </button>
+            </div>
+            <p className="ai-prompt-note">
+              אפשר להדביק את הטקסט בכל מחולל שפה, להחליף את הערכים שבסוגריים מרובעים, ולבקש פלט CSV.
+            </p>
+            <textarea className="ai-prompt-textarea" readOnly rows={6} value={AI_CSV_PROMPT_TEMPLATE} />
           </section>
 
           <section
@@ -816,11 +856,16 @@ function App() {
           <section className="teams-scoreboard">
             {teams.map((team, index) => {
               const isCurrent = index === currentTurnIndex;
+              const teamColor = TEAM_COLORS[index % TEAM_COLORS.length];
               return (
                 <div
                   key={`score-${team.id}`}
                   className={`team-score-card ${isCurrent ? "is-current-turn" : ""}`}
-                  style={{ ["--team-accent" as string]: TEAM_COLORS[index % TEAM_COLORS.length] }}
+                  style={{
+                    ["--team-accent" as string]: teamColor,
+                    ["--team-accent-soft" as string]: `${teamColor}20`,
+                    ["--team-accent-strong" as string]: `${teamColor}55`,
+                  }}
                 >
                   <strong>{team.name}</strong>
                   <span>{team.score}</span>
