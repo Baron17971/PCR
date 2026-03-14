@@ -367,26 +367,60 @@ textarea {
   border-color: rgba(56, 189, 248, 0.45);
 }
 
-.archive-card {
-  border-color: rgba(16, 185, 129, 0.4);
+.archive-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.56);
+  z-index: 140;
 }
 
-.archive-header {
+.archive-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(480px, 92vw);
+  border-left: 1px solid rgba(56, 189, 248, 0.35);
+  background: rgba(3, 12, 34, 0.96);
+  backdrop-filter: blur(8px);
+  padding: 1rem;
+  overflow-y: auto;
+  box-shadow: -16px 0 36px rgba(2, 6, 23, 0.5);
+  animation: archive-drawer-enter 0.2s ease-out;
+}
+
+@keyframes archive-drawer-enter {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.archive-drawer-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.7rem;
+  gap: 0.65rem;
+  margin-bottom: 0.6rem;
 }
 
-.archive-header h2 {
+.archive-drawer-header h2 {
   margin: 0;
+  font-size: 1.12rem;
 }
 
-.archive-header-actions {
+.archive-drawer-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
+}
+
+.archive-drawer-content {
+  margin-top: 0.8rem;
 }
 
 .archive-empty {
@@ -788,9 +822,9 @@ textarea {
 }
 
 @media (max-width: 720px) {
-  .archive-header {
-    align-items: flex-start;
-    flex-direction: column;
+  .archive-drawer {
+    width: 100%;
+    border-left: none;
   }
 
   .archive-row {

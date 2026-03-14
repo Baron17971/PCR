@@ -659,6 +659,7 @@ function App() {
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [archiveActionKey, setArchiveActionKey] = useState<string | null>(null);
   const [activeArchiveGameId, setActiveArchiveGameId] = useState<string | null>(null);
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const csvImportInputRef = useRef<HTMLInputElement | null>(null);
   const boardBackgroundInputRef = useRef<HTMLInputElement | null>(null);
@@ -1014,6 +1015,26 @@ function App() {
     if (!isSupabaseConfigured || mode !== "editor") return;
     void loadArchiveGames();
   }, [loadArchiveGames, mode]);
+
+  useEffect(() => {
+    if (mode !== "editor") {
+      setIsArchiveOpen(false);
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    if (!isArchiveOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsArchiveOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isArchiveOpen]);
 
   const saveArchiveGameAsNew = async () => {
     if (!supabase) {
@@ -1610,6 +1631,11 @@ function App() {
               onChange={importBoardFromFile}
               hidden
             />
+            {isSupabaseConfigured && (
+              <button type="button" onClick={() => setIsArchiveOpen(true)}>
+                ארכיון משחקים
+              </button>
+            )}
             <button type="button" onClick={startGame} className="primary-button" disabled={!canStartGame}>
               הפעל משחק
             </button>
@@ -1677,6 +1703,87 @@ function App() {
       )}
 
       {statusMessage && <div className="status-message">{statusMessage}</div>}
+
+      {mode === "editor" && isSupabaseConfigured && isArchiveOpen && (
+        <div className="archive-drawer-backdrop" onClick={() => setIsArchiveOpen(false)}>
+          <aside
+            className="archive-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="ארכיון משחקים"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="archive-drawer-header">
+              <h2>ארכיון משחקים</h2>
+              <button type="button" onClick={() => setIsArchiveOpen(false)}>
+                סגירה
+              </button>
+            </div>
+
+            <div className="archive-drawer-actions">
+              <button
+                type="button"
+                onClick={saveArchiveGameAsNew}
+                disabled={archiveLoading || archiveActionKey !== null}
+              >
+                שמור כחדש
+              </button>
+              <button
+                type="button"
+                onClick={() => void loadArchiveGames()}
+                disabled={archiveLoading || archiveActionKey !== null}
+              >
+                רענון
+              </button>
+            </div>
+
+            <div className="archive-drawer-content">
+              {archiveLoading ? (
+                <p className="archive-empty">טוען ארכיון משחקים...</p>
+              ) : archiveGames.length === 0 ? (
+                <p className="archive-empty">אין עדיין משחקים בארכיון.</p>
+              ) : (
+                <div className="archive-list">
+                  {archiveGames.map((record) => {
+                    const isActiveRecord = activeArchiveGameId === record.id;
+                    const isBusy = archiveActionKey !== null;
+                    return (
+                      <article
+                        key={record.id}
+                        className={`archive-row ${isActiveRecord ? "is-active" : ""}`}
+                      >
+                        <div className="archive-row-main">
+                          <strong>{record.title?.trim() || "ללא כותרת"}</strong>
+                          <small>עודכן: {formatDateTime(record.updated_at)}</small>
+                        </div>
+                        <div className="archive-row-actions">
+                          <button type="button" onClick={() => loadArchiveGameIntoEditor(record)} disabled={isBusy}>
+                            טען לעריכה
+                          </button>
+                          <button type="button" onClick={() => void updateArchiveGame(record.id)} disabled={isBusy}>
+                            עדכן
+                          </button>
+                          <button type="button" onClick={() => void copyArchiveViewLink(record.id)} disabled={isBusy}>
+                            קישור לצפייה
+                          </button>
+                          <button
+                            type="button"
+                            className="danger-button"
+                            onClick={() => void deleteArchiveGame(record.id)}
+                            disabled={isBusy}
+                          >
+                            מחק
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
 
       {mode === "editor" ? (
         <>
@@ -1855,75 +1962,6 @@ function App() {
               );
             })}
             </div>
-          </section>
-
-          <section className="card archive-card">
-            <div className="archive-header">
-              <h2>ארכיון משחקים (Supabase)</h2>
-              <div className="archive-header-actions">
-                <button
-                  type="button"
-                  onClick={saveArchiveGameAsNew}
-                  disabled={!isSupabaseConfigured || archiveLoading || archiveActionKey !== null}
-                >
-                  שמור כחדש
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void loadArchiveGames()}
-                  disabled={!isSupabaseConfigured || archiveLoading || archiveActionKey !== null}
-                >
-                  רענון
-                </button>
-              </div>
-            </div>
-
-            {!isSupabaseConfigured ? (
-              <p className="archive-empty">
-                כדי להפעיל ארכיון שרת, הגדירי `VITE_SUPABASE_URL` ו-`VITE_SUPABASE_ANON_KEY`.
-              </p>
-            ) : archiveLoading ? (
-              <p className="archive-empty">טוען ארכיון משחקים...</p>
-            ) : archiveGames.length === 0 ? (
-              <p className="archive-empty">אין עדיין משחקים בארכיון.</p>
-            ) : (
-              <div className="archive-list">
-                {archiveGames.map((record) => {
-                  const isActiveRecord = activeArchiveGameId === record.id;
-                  const isBusy = archiveActionKey !== null;
-                  return (
-                    <article
-                      key={record.id}
-                      className={`archive-row ${isActiveRecord ? "is-active" : ""}`}
-                    >
-                      <div className="archive-row-main">
-                        <strong>{record.title?.trim() || "ללא כותרת"}</strong>
-                        <small>עודכן: {formatDateTime(record.updated_at)}</small>
-                      </div>
-                      <div className="archive-row-actions">
-                        <button type="button" onClick={() => loadArchiveGameIntoEditor(record)} disabled={isBusy}>
-                          טען לעריכה
-                        </button>
-                        <button type="button" onClick={() => void updateArchiveGame(record.id)} disabled={isBusy}>
-                          עדכן
-                        </button>
-                        <button type="button" onClick={() => void copyArchiveViewLink(record.id)} disabled={isBusy}>
-                          קישור לצפייה
-                        </button>
-                        <button
-                          type="button"
-                          className="danger-button"
-                          onClick={() => void deleteArchiveGame(record.id)}
-                          disabled={isBusy}
-                        >
-                          מחק
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
           </section>
 
           <section className="card ai-prompt-card">
