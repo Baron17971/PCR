@@ -157,6 +157,45 @@ button:disabled {
   background: rgba(8, 47, 73, 0.7);
 }
 
+.danger-button {
+  background: rgba(127, 29, 29, 0.86);
+  border-color: rgba(252, 165, 165, 0.45);
+}
+
+.share-link-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.share-link-toast {
+  position: absolute;
+  right: calc(100% + 0.55rem);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 130;
+  max-width: min(74vw, 560px);
+  white-space: nowrap;
+  padding: 0.62rem 0.88rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  background: rgba(8, 47, 73, 0.94);
+  color: #e2e8f0;
+  box-shadow: 0 10px 28px rgba(2, 6, 23, 0.4);
+  animation: share-toast-pop 0.2s ease-out;
+  pointer-events: none;
+}
+
+@keyframes share-toast-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0) scale(1);
+  }
+}
+
 .card {
   padding: 1rem;
 }
@@ -326,6 +365,81 @@ textarea {
 
 .ai-prompt-card {
   border-color: rgba(56, 189, 248, 0.45);
+}
+
+.archive-card {
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.archive-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
+}
+
+.archive-header h2 {
+  margin: 0;
+}
+
+.archive-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.archive-empty {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.archive-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.archive-row {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.85rem;
+  background: rgba(2, 6, 23, 0.45);
+  padding: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.archive-row.is-active {
+  border-color: rgba(16, 185, 129, 0.65);
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.3);
+}
+
+.archive-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.archive-row-main strong {
+  font-size: 1rem;
+}
+
+.archive-row-main small {
+  color: var(--text-muted);
+}
+
+.archive-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.archive-row-actions button {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.9rem;
 }
 
 .ai-prompt-header {
@@ -674,6 +788,20 @@ textarea {
 }
 
 @media (max-width: 720px) {
+  .archive-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .archive-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .archive-row-actions {
+    width: 100%;
+  }
+
   .score-actions {
     grid-template-columns: 1fr;
   }

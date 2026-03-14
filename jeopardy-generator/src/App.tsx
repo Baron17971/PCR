@@ -1,5 +1,6 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
+import { isSupabaseConfigured, supabase } from "./supabaseClient";
 
 type AppMode = "editor" | "game";
 
@@ -109,6 +110,14 @@ interface SharePayload {
   };
 }
 
+interface ArchiveGameRecord {
+  id: string;
+  title: string;
+  payload: unknown;
+  created_at: string;
+  updated_at: string;
+}
+
 interface CsvQuestionRow {
   category: string;
   value: number | null;
@@ -125,6 +134,9 @@ const MAX_TEAMS = 5;
 const MIN_BASE_VALUE = 100;
 const MAX_BASE_VALUE = 500;
 const SHARE_QUERY_PARAM = "game";
+const SERVER_GAME_QUERY_PARAM = "sgame";
+const SERVER_ACCESS_QUERY_PARAM = "access";
+const SUPABASE_GAMES_TABLE = "jeopardy_games";
 
 const TEAM_COLORS = [
   "#22d3ee",
@@ -462,6 +474,15 @@ function getTextColorForBackground(backgroundColor: string): string {
     : lightText;
 }
 
+function formatDateTime(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "-";
+  return new Intl.DateTimeFormat("he-IL", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(parsed);
+}
+
 function encodeBase64Url(value: string): string {
   const bytes = new TextEncoder().encode(value);
   let binary = "";
@@ -630,11 +651,18 @@ function App() {
   const [showAnswer, setShowAnswer] = useState(false);
   const [didScoreCurrentQuestion, setDidScoreCurrentQuestion] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>("");
+  const [overlayMessage, setOverlayMessage] = useState<string>("");
+  const [overlayAnchor, setOverlayAnchor] = useState<ShareAccess | null>(null);
   const [isSharedViewOnly, setIsSharedViewOnly] = useState(false);
   const [canCreateEditShare, setCanCreateEditShare] = useState(true);
+  const [archiveGames, setArchiveGames] = useState<ArchiveGameRecord[]>([]);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archiveActionKey, setArchiveActionKey] = useState<string | null>(null);
+  const [activeArchiveGameId, setActiveArchiveGameId] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const csvImportInputRef = useRef<HTMLInputElement | null>(null);
   const boardBackgroundInputRef = useRef<HTMLInputElement | null>(null);
+  const overlayTimeoutRef = useRef<number | null>(null);
 
   const activeQuestion = activeCell
     ? board[activeCell.categoryIndex]?.cells[activeCell.rowIndex] ?? null
@@ -700,100 +728,198 @@ function App() {
     ["--modal-close-text-color" as string]: modalCloseTextColor,
   };
 
+  const buildCurrentGameSnapshot = (): SharePayload["game"] => ({
+    gameTopic: resolvedGameTopic,
+    boardTheme: { ...boardTheme, boardBackgroundImage: null },
+    board: board.map((category) => ({
+      title: category.title,
+      cells: category.cells.map((cell) => ({
+        value: cell.value,
+        question: cell.question,
+        answer: cell.answer,
+        used: cell.used,
+      })),
+    })),
+    teams: teams.map((team) => ({
+      name: team.name,
+      score: team.score,
+    })),
+    currentTurnIndex,
+  });
+
+  const applySharedGameState = (
+    sharedGame: SharePayload["game"],
+    options: {
+      mode: AppMode;
+      access: ShareAccess;
+      canShareEdit: boolean;
+    },
+  ) => {
+    if (!sharedGame || !Array.isArray(sharedGame.board) || sharedGame.board.length === 0) {
+      throw new Error("Invalid game payload");
+    }
+
+    const importedCategoryCount = clamp(sharedGame.board.length, MIN_CATEGORIES, MAX_CATEGORIES);
+    const maxRowsInBoard = Math.max(...sharedGame.board.map((category) => category?.cells?.length ?? 0));
+    const importedRowCount = clamp(maxRowsInBoard || MIN_ROWS, MIN_ROWS, MAX_ROWS);
+    const explicitValues = sharedGame.board.reduce<number[]>((values, category) => {
+      const categoryValues = (category?.cells ?? [])
+        .map((cell) => Number(cell?.value))
+        .filter((value): value is number => Number.isFinite(value) && value > 0);
+      return values.concat(categoryValues);
+    }, []);
+    const importedBaseValue = clamp(
+      explicitValues.length > 0 ? Math.min(...explicitValues) : 200,
+      MIN_BASE_VALUE,
+      MAX_BASE_VALUE,
+    );
+
+    const nextBoard: CategoryData[] = Array.from({ length: importedCategoryCount }, (_, categoryIndex) => {
+      const sourceCategory = sharedGame.board?.[categoryIndex];
+      return {
+        title:
+          typeof sourceCategory?.title === "string" && sourceCategory.title.trim()
+            ? sourceCategory.title
+            : `קטגוריה ${categoryIndex + 1}`,
+        cells: Array.from({ length: importedRowCount }, (_, rowIndex) => {
+          const sourceCell = sourceCategory?.cells?.[rowIndex];
+          const rawValue = Number(sourceCell?.value);
+          return {
+            value:
+              Number.isFinite(rawValue) && rawValue > 0
+                ? Math.round(rawValue)
+                : (rowIndex + 1) * importedBaseValue,
+            question: typeof sourceCell?.question === "string" ? sourceCell.question : "",
+            answer: typeof sourceCell?.answer === "string" ? sourceCell.answer : "",
+            used: Boolean(sourceCell?.used),
+          };
+        }),
+      };
+    });
+
+    const sharedTeams = Array.isArray(sharedGame.teams) ? sharedGame.teams : [];
+    const importedTeamCount = clamp(sharedTeams.length || 2, MIN_TEAMS, MAX_TEAMS);
+    const normalizedTurnIndex = Number.isFinite(Number(sharedGame.currentTurnIndex))
+      ? clamp(Math.round(Number(sharedGame.currentTurnIndex)), 0, importedTeamCount - 1)
+      : 0;
+
+    setCategoryCount(importedCategoryCount);
+    setRowCount(importedRowCount);
+    setBaseValue(importedBaseValue);
+    setGameTopic(sharedGame.gameTopic?.trim() || "משחק ג'פרדי");
+    setBoardTheme(resolveBoardTheme(sharedGame.boardTheme));
+    setBoard(nextBoard);
+    setTeams(
+      Array.from({ length: importedTeamCount }, (_, index) => {
+        const sourceTeam = sharedTeams[index];
+        const sourceScore = Number(sourceTeam?.score);
+        return {
+          id: `team-${index + 1}`,
+          name:
+            typeof sourceTeam?.name === "string" && sourceTeam.name.trim()
+              ? sourceTeam.name
+              : `קבוצה ${index + 1}`,
+          score: Number.isFinite(sourceScore) ? Math.round(sourceScore) : 0,
+        };
+      }),
+    );
+    setCurrentTurnIndex(normalizedTurnIndex);
+    setActiveCell(null);
+    setShowAnswer(false);
+    setDidScoreCurrentQuestion(false);
+    setIsSharedViewOnly(options.access === "view");
+    setCanCreateEditShare(options.canShareEdit);
+    setMode(options.mode);
+    setStatusMessage("");
+  };
+
+  const buildServerGameLink = (gameId: string, access: ShareAccess): string => {
+    const shareUrl = new URL(window.location.href);
+    shareUrl.searchParams.delete(SHARE_QUERY_PARAM);
+    shareUrl.searchParams.set(SERVER_GAME_QUERY_PARAM, gameId);
+    shareUrl.searchParams.set(SERVER_ACCESS_QUERY_PARAM, access);
+    return shareUrl.toString();
+  };
+
+  const showOverlayMessage = (message: string, anchor: ShareAccess, durationMs = 1000) => {
+    setOverlayAnchor(anchor);
+    setOverlayMessage(message);
+    if (overlayTimeoutRef.current !== null) {
+      window.clearTimeout(overlayTimeoutRef.current);
+    }
+    overlayTimeoutRef.current = window.setTimeout(() => {
+      setOverlayMessage("");
+      setOverlayAnchor(null);
+      overlayTimeoutRef.current = null;
+    }, durationMs);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (overlayTimeoutRef.current !== null) {
+        window.clearTimeout(overlayTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const encodedGame = params.get(SHARE_QUERY_PARAM);
-    if (!encodedGame) return;
+    const serverGameId = params.get(SERVER_GAME_QUERY_PARAM);
+    if (!encodedGame && !serverGameId) return;
 
-    try {
-      const decodedPayload = decodeBase64Url(encodedGame);
-      const parsed = JSON.parse(decodedPayload) as Partial<SharePayload>;
-      const shareAccess: ShareAccess = parsed.access === "edit" ? "edit" : "view";
-      const canShareEditFromLink =
-        typeof parsed.canShareEdit === "boolean" ? parsed.canShareEdit : shareAccess === "edit";
-      const sharedGame = parsed.game;
-      if (!sharedGame || !Array.isArray(sharedGame.board) || sharedGame.board.length === 0) {
-        throw new Error("Invalid share payload");
+    const loadSharedGame = async () => {
+      if (encodedGame) {
+        const decodedPayload = decodeBase64Url(encodedGame);
+        const parsed = JSON.parse(decodedPayload) as Partial<SharePayload>;
+        const shareAccess: ShareAccess = parsed.access === "edit" ? "edit" : "view";
+        const canShareEditFromLink =
+          typeof parsed.canShareEdit === "boolean" ? parsed.canShareEdit : shareAccess === "edit";
+        if (!parsed.game) {
+          throw new Error("Invalid share payload");
+        }
+        setActiveArchiveGameId(null);
+        applySharedGameState(parsed.game, {
+          mode: "game",
+          access: shareAccess,
+          canShareEdit: canShareEditFromLink,
+        });
+        return;
       }
 
-      const importedCategoryCount = clamp(sharedGame.board.length, MIN_CATEGORIES, MAX_CATEGORIES);
-      const maxRowsInBoard = Math.max(...sharedGame.board.map((category) => category?.cells?.length ?? 0));
-      const importedRowCount = clamp(maxRowsInBoard || MIN_ROWS, MIN_ROWS, MAX_ROWS);
-      const explicitValues = sharedGame.board.reduce<number[]>((values, category) => {
-        const categoryValues = (category?.cells ?? [])
-          .map((cell) => Number(cell?.value))
-          .filter((value): value is number => Number.isFinite(value) && value > 0);
-        return values.concat(categoryValues);
-      }, []);
-      const importedBaseValue = clamp(
-        explicitValues.length > 0 ? Math.min(...explicitValues) : 200,
-        MIN_BASE_VALUE,
-        MAX_BASE_VALUE,
-      );
+      if (!serverGameId) {
+        return;
+      }
+      if (!supabase) {
+        setStatusMessage("חסרה הגדרת Supabase לטעינת משחק מהשרת.");
+        return;
+      }
 
-      const nextBoard: CategoryData[] = Array.from({ length: importedCategoryCount }, (_, categoryIndex) => {
-        const sourceCategory = sharedGame.board?.[categoryIndex];
-        return {
-          title:
-            typeof sourceCategory?.title === "string" && sourceCategory.title.trim()
-              ? sourceCategory.title
-              : `קטגוריה ${categoryIndex + 1}`,
-          cells: Array.from({ length: importedRowCount }, (_, rowIndex) => {
-            const sourceCell = sourceCategory?.cells?.[rowIndex];
-            const rawValue = Number(sourceCell?.value);
-            return {
-              value:
-                Number.isFinite(rawValue) && rawValue > 0
-                  ? Math.round(rawValue)
-                  : (rowIndex + 1) * importedBaseValue,
-              question: typeof sourceCell?.question === "string" ? sourceCell.question : "",
-              answer: typeof sourceCell?.answer === "string" ? sourceCell.answer : "",
-              used: Boolean(sourceCell?.used),
-            };
-          }),
-        };
+      const shareAccess: ShareAccess = params.get(SERVER_ACCESS_QUERY_PARAM) === "edit" ? "edit" : "view";
+      const { data, error } = await supabase
+        .from(SUPABASE_GAMES_TABLE)
+        .select("id, payload")
+        .eq("id", serverGameId)
+        .single();
+
+      if (error || !data) {
+        throw new Error("Server game not found");
+      }
+
+      applySharedGameState(data.payload as SharePayload["game"], {
+        mode: "game",
+        access: shareAccess,
+        canShareEdit: shareAccess === "edit",
       });
+      setActiveArchiveGameId(data.id);
+    };
 
-      const sharedTeams = Array.isArray(sharedGame.teams) ? sharedGame.teams : [];
-      const importedTeamCount = clamp(sharedTeams.length || 2, MIN_TEAMS, MAX_TEAMS);
-      const normalizedTurnIndex = Number.isFinite(Number(sharedGame.currentTurnIndex))
-        ? clamp(Math.round(Number(sharedGame.currentTurnIndex)), 0, importedTeamCount - 1)
-        : 0;
-
-      setCategoryCount(importedCategoryCount);
-      setRowCount(importedRowCount);
-      setBaseValue(importedBaseValue);
-      setGameTopic(sharedGame.gameTopic?.trim() || "משחק ג'פרדי");
-      setBoardTheme(resolveBoardTheme(sharedGame.boardTheme));
-      setBoard(nextBoard);
-      setTeams(
-        Array.from({ length: importedTeamCount }, (_, index) => {
-          const sourceTeam = sharedTeams[index];
-          const sourceScore = Number(sourceTeam?.score);
-          return {
-            id: `team-${index + 1}`,
-            name:
-              typeof sourceTeam?.name === "string" && sourceTeam.name.trim()
-                ? sourceTeam.name
-                : `קבוצה ${index + 1}`,
-            score: Number.isFinite(sourceScore) ? Math.round(sourceScore) : 0,
-          };
-        }),
-      );
-      setCurrentTurnIndex(normalizedTurnIndex);
-      setActiveCell(null);
-      setShowAnswer(false);
-      setDidScoreCurrentQuestion(false);
-      setIsSharedViewOnly(shareAccess === "view");
-      setCanCreateEditShare(canShareEditFromLink);
-      setMode("game");
-      setStatusMessage("");
-    } catch {
+    void loadSharedGame().catch(() => {
       setIsSharedViewOnly(false);
       setCanCreateEditShare(true);
-      setStatusMessage("קישור המשחק אינו תקין או פגום.");
-    }
+      setStatusMessage("לא ניתן לטעון את המשחק מהקישור.");
+    });
   }, []);
 
   const updateBoardShape = (nextCategoryCount: number, nextRowCount: number, nextBaseValue: number) => {
@@ -861,6 +987,144 @@ function App() {
 
   const updateTeamName = (teamId: string, name: string) => {
     setTeams((previous) => previous.map((team) => (team.id === teamId ? { ...team, name } : team)));
+  };
+
+  const loadArchiveGames = useCallback(async () => {
+    if (!supabase) return;
+    setArchiveLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from(SUPABASE_GAMES_TABLE)
+        .select("id, title, payload, created_at, updated_at")
+        .order("updated_at", { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      setArchiveGames((data ?? []) as ArchiveGameRecord[]);
+    } catch {
+      setStatusMessage("לא ניתן לטעון את ארכיון המשחקים מהשרת.");
+    } finally {
+      setArchiveLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || mode !== "editor") return;
+    void loadArchiveGames();
+  }, [loadArchiveGames, mode]);
+
+  const saveArchiveGameAsNew = async () => {
+    if (!supabase) {
+      setStatusMessage("חסרה הגדרת Supabase לשמירה בשרת.");
+      return;
+    }
+
+    setArchiveActionKey("save-new");
+    try {
+      const { error, data } = await supabase
+        .from(SUPABASE_GAMES_TABLE)
+        .insert({
+          title: resolvedGameTopic,
+          payload: buildCurrentGameSnapshot(),
+        })
+        .select("id")
+        .single();
+
+      if (error || !data) {
+        throw error;
+      }
+
+      setActiveArchiveGameId(data.id);
+      setStatusMessage("המשחק נשמר בארכיון כקובץ חדש.");
+      await loadArchiveGames();
+    } catch {
+      setStatusMessage("שמירה כחדש נכשלה.");
+    } finally {
+      setArchiveActionKey(null);
+    }
+  };
+
+  const loadArchiveGameIntoEditor = (record: ArchiveGameRecord) => {
+    try {
+      applySharedGameState(record.payload as SharePayload["game"], {
+        mode: "editor",
+        access: "edit",
+        canShareEdit: true,
+      });
+      setActiveArchiveGameId(record.id);
+      setStatusMessage(`נטען מהארכיון: ${record.title || "ללא כותרת"}.`);
+    } catch {
+      setStatusMessage("לא ניתן לטעון את הרשומה שנבחרה מהארכיון.");
+    }
+  };
+
+  const updateArchiveGame = async (recordId: string) => {
+    if (!supabase) {
+      setStatusMessage("חסרה הגדרת Supabase לעדכון בשרת.");
+      return;
+    }
+
+    setArchiveActionKey(`update-${recordId}`);
+    try {
+      const { error } = await supabase
+        .from(SUPABASE_GAMES_TABLE)
+        .update({
+          title: resolvedGameTopic,
+          payload: buildCurrentGameSnapshot(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", recordId);
+
+      if (error) {
+        throw error;
+      }
+
+      setActiveArchiveGameId(recordId);
+      setStatusMessage("השינויים נשמרו בארכיון.");
+      await loadArchiveGames();
+    } catch {
+      setStatusMessage("עדכון הרשומה נכשל.");
+    } finally {
+      setArchiveActionKey(null);
+    }
+  };
+
+  const deleteArchiveGame = async (recordId: string) => {
+    if (!supabase) {
+      setStatusMessage("חסרה הגדרת Supabase למחיקה מהשרת.");
+      return;
+    }
+    const shouldDelete = window.confirm("למחוק את המשחק מהארכיון?");
+    if (!shouldDelete) return;
+
+    setArchiveActionKey(`delete-${recordId}`);
+    try {
+      const { error } = await supabase.from(SUPABASE_GAMES_TABLE).delete().eq("id", recordId);
+      if (error) {
+        throw error;
+      }
+
+      if (activeArchiveGameId === recordId) {
+        setActiveArchiveGameId(null);
+      }
+      setStatusMessage("הרשומה נמחקה מהארכיון.");
+      await loadArchiveGames();
+    } catch {
+      setStatusMessage("מחיקת הרשומה נכשלה.");
+    } finally {
+      setArchiveActionKey(null);
+    }
+  };
+
+  const copyArchiveViewLink = async (recordId: string) => {
+    try {
+      await navigator.clipboard.writeText(buildServerGameLink(recordId, "view"));
+      setStatusMessage("קישור לצפייה הועתק מהארכיון.");
+    } catch {
+      setStatusMessage("לא ניתן להעתיק קישור צפייה כרגע.");
+    }
   };
 
   const activePaletteId = useMemo(() => {
@@ -943,36 +1207,23 @@ function App() {
         version: 1,
         access,
         canShareEdit: access === "edit",
-        game: {
-          gameTopic: resolvedGameTopic,
-          boardTheme: { ...boardTheme, boardBackgroundImage: null },
-          board: board.map((category) => ({
-            title: category.title,
-            cells: category.cells.map((cell) => ({
-              value: cell.value,
-              question: cell.question,
-              answer: cell.answer,
-              used: cell.used,
-            })),
-          })),
-          teams: teams.map((team) => ({
-            name: team.name,
-            score: team.score,
-          })),
-          currentTurnIndex,
-        },
+        game: buildCurrentGameSnapshot(),
       };
 
       const encodedPayload = encodeBase64Url(JSON.stringify(payload));
       const shareUrl = new URL(window.location.href);
+      shareUrl.searchParams.delete(SERVER_GAME_QUERY_PARAM);
+      shareUrl.searchParams.delete(SERVER_ACCESS_QUERY_PARAM);
       shareUrl.searchParams.set(SHARE_QUERY_PARAM, encodedPayload);
       const directLink = shareUrl.toString();
       await navigator.clipboard.writeText(directLink);
-      setStatusMessage(
+      showOverlayMessage(
         access === "view"
           ? "קישור שיתוף לצפייה הועתק ללוח."
           : "קישור שיתוף לעריכה הועתק ללוח.",
+        access,
       );
+      setStatusMessage("");
     } catch {
       setStatusMessage("לא ניתן ליצור קישור שיתוף כרגע.");
     }
@@ -1371,13 +1622,27 @@ function App() {
             <span className="mode-pill">משחק פעיל</span>
           </div>
           <div className="toolbar-actions">
-            <button type="button" onClick={() => copyActiveGameLink("view")}>
-              שיתוף לצפייה
-            </button>
-            {canCreateEditShare && (
-              <button type="button" onClick={() => copyActiveGameLink("edit")}>
-                שיתוף לעריכה
+            <div className="share-link-anchor">
+              <button type="button" onClick={() => copyActiveGameLink("view")}>
+                שיתוף לצפייה
               </button>
+              {overlayMessage && overlayAnchor === "view" && (
+                <div className="share-link-toast" role="status" aria-live="polite">
+                  {overlayMessage}
+                </div>
+              )}
+            </div>
+            {canCreateEditShare && (
+              <div className="share-link-anchor">
+                <button type="button" onClick={() => copyActiveGameLink("edit")}>
+                  שיתוף לעריכה
+                </button>
+                {overlayMessage && overlayAnchor === "edit" && (
+                  <div className="share-link-toast" role="status" aria-live="polite">
+                    {overlayMessage}
+                  </div>
+                )}
+              </div>
             )}
             {isSharedViewOnly && (
               <label className="viewer-team-count">
@@ -1590,6 +1855,75 @@ function App() {
               );
             })}
             </div>
+          </section>
+
+          <section className="card archive-card">
+            <div className="archive-header">
+              <h2>ארכיון משחקים (Supabase)</h2>
+              <div className="archive-header-actions">
+                <button
+                  type="button"
+                  onClick={saveArchiveGameAsNew}
+                  disabled={!isSupabaseConfigured || archiveLoading || archiveActionKey !== null}
+                >
+                  שמור כחדש
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void loadArchiveGames()}
+                  disabled={!isSupabaseConfigured || archiveLoading || archiveActionKey !== null}
+                >
+                  רענון
+                </button>
+              </div>
+            </div>
+
+            {!isSupabaseConfigured ? (
+              <p className="archive-empty">
+                כדי להפעיל ארכיון שרת, הגדירי `VITE_SUPABASE_URL` ו-`VITE_SUPABASE_ANON_KEY`.
+              </p>
+            ) : archiveLoading ? (
+              <p className="archive-empty">טוען ארכיון משחקים...</p>
+            ) : archiveGames.length === 0 ? (
+              <p className="archive-empty">אין עדיין משחקים בארכיון.</p>
+            ) : (
+              <div className="archive-list">
+                {archiveGames.map((record) => {
+                  const isActiveRecord = activeArchiveGameId === record.id;
+                  const isBusy = archiveActionKey !== null;
+                  return (
+                    <article
+                      key={record.id}
+                      className={`archive-row ${isActiveRecord ? "is-active" : ""}`}
+                    >
+                      <div className="archive-row-main">
+                        <strong>{record.title?.trim() || "ללא כותרת"}</strong>
+                        <small>עודכן: {formatDateTime(record.updated_at)}</small>
+                      </div>
+                      <div className="archive-row-actions">
+                        <button type="button" onClick={() => loadArchiveGameIntoEditor(record)} disabled={isBusy}>
+                          טען לעריכה
+                        </button>
+                        <button type="button" onClick={() => void updateArchiveGame(record.id)} disabled={isBusy}>
+                          עדכן
+                        </button>
+                        <button type="button" onClick={() => void copyArchiveViewLink(record.id)} disabled={isBusy}>
+                          קישור לצפייה
+                        </button>
+                        <button
+                          type="button"
+                          className="danger-button"
+                          onClick={() => void deleteArchiveGame(record.id)}
+                          disabled={isBusy}
+                        >
+                          מחק
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           <section className="card ai-prompt-card">

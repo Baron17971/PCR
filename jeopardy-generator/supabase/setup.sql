@@ -1,29 +1,3 @@
-# Jeopardy Generator
-
-React + Vite app for building custom Jeopardy-style boards and running a live classroom game.
-
-## Features
-- Board editor (categories, rows, base score)
-- Question/answer authoring for every cell
-- Team setup (2-5 teams)
-- Game mode with turn tracking and scoring
-- Share links (view/edit) from active game
-- JSON export/import
-- CSV template download + CSV import (`category,value,question,answer`)
-- Supabase game archive (save new / update / delete / view link)
-
-## Local Run
-```bash
-npm install
-npm run dev
-```
-
-## Supabase Server Setup
-1. Create a Supabase project.
-2. In Supabase SQL Editor, run:
-   - You can copy directly from [supabase/setup.sql](supabase/setup.sql)
-
-```sql
 create extension if not exists pgcrypto;
 
 create table if not exists public.jeopardy_games (
@@ -80,27 +54,3 @@ on public.jeopardy_games
 for delete
 to anon
 using (true);
-```
-
-3. Add environment variables in `.env.local`:
-
-```bash
-VITE_SUPABASE_URL=your-project-url
-VITE_SUPABASE_ANON_KEY=your-anon-key
-```
-
-4. Restart dev server.
-
-Notes:
-- This policy setup is intentionally open (`anon`) for quick internal usage.
-- For production, move to authenticated users and owner-based RLS policies.
-
-## Build
-```bash
-npm run build
-```
-
-## Lint
-```bash
-npm run lint
-```
