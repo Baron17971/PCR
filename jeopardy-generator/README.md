@@ -11,6 +11,9 @@ React + Vite app for building custom Jeopardy-style boards and running a live cl
 - JSON export/import
 - CSV template download + CSV import (`category,value,question,answer`)
 - Supabase game archive (save new / update / delete / view link)
+- Editor support for game page background:
+  - built-in local gallery from `public/backgrounds`
+  - custom upload with validation (min `1920x1080`, approx `16:9`, up to `5MB`)
 
 ## Local Run
 ```bash

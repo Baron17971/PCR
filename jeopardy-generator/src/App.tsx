@@ -40,6 +40,8 @@ interface BoardTheme {
   usedCellTextColor: string;
   boardBackgroundImage: string | null;
   boardBackgroundOverlay: number;
+  pageBackgroundImage: string | null;
+  pageBackgroundOverlay: number;
 }
 
 type BoardThemeColorKey =
@@ -61,6 +63,12 @@ interface BoardThemePalette {
   name: string;
   description: string;
   colors: BoardThemeColorSet;
+}
+
+interface GamePageBackgroundPreset {
+  id: string;
+  name: string;
+  image: string;
 }
 
 interface ExportPayload {
@@ -154,6 +162,58 @@ const AI_CSV_PROMPT_TEMPLATE =
   "לכל שאלה הוסף תשובה קצרה, מדויקת וברורה. " +
   "אם מצורף קובץ, יש להתבסס רק על התוכן שבו בלבד, ללא הוספת מידע חיצוני, ותוך שמירה על המינוחים המקוריים של הקובץ ככל האפשר.";
 
+const GAME_PAGE_BACKGROUND_FILES = [
+  "/backgrounds/ant7119__teenager_boy_watching_the_moon_bright_watercolors_a__31e023b8-01bb-44cf-8772-9afc48f25a89_1.png",
+  "/backgrounds/ant7119_a_delicate_watercolor_flowers_beguige_tones_high_reso_f69ab29d-5270-47bb-a31d-7c77c8a902b2_3.png",
+  "/backgrounds/ant7119_a_delicate_watercolor_flowers_blue_tones_high_resolut_e1d76836-106d-4b7a-b432-4a5c035df3a0_3.png",
+  "/backgrounds/ant7119_a_delicate_watercolor_flowers_brown_tones_Moses_high__e1cdaa02-f3f9-44e3-8a25-36ae3bf4dc66_3.png",
+  "/backgrounds/ant7119_a_delicate_watercolor_flowers_pink_tones_high_resolut_cc02b3aa-fc34-455e-b7e9-b1e4cf255eaf_0.png",
+  "/backgrounds/ant7119_a_delicate_watercolor_stars_white_blue_and_green_tones__ac562747-efef-4bd3-9332-b72920010597.png",
+  "/backgrounds/ant7119_a_photograph_of_DNA_copy_space_banner_--ar_4726_--qua_0b263ee9-bcbc-41db-b45c-68e0270be771_2.png",
+  "/backgrounds/ant7119_A_watercolor_painting_of_a_woman_seen_from_behind_her_d92727ba-d49e-4a92-b281-a4da3efb4b9b_3.png",
+  "/backgrounds/ant7119_ancient_Egypt_copy_space_with_spacefortext_--ar_169_-_1886861f-294a-4136-b7d2-233130708e13_1.png",
+  "/backgrounds/ant7119_ancient_Egypt_piramids_copy_space_with_spacefortext_--a_1c25f057-f12d-4024-9169-364fbc87dcdb.png",
+  "/backgrounds/ant7119_banner_hd_cow_milk_wheat_beige_light_blue_light_soft__7fcf58d5-ed94-47ff-86a4-f9852150b4dc_2.png",
+  "/backgrounds/ant7119_banner_hd_cow_milk_wheat_beige_light_blue_light_soft_co_b7385156-3f60-4602-9566-8425a5b3ec32.png",
+  "/backgrounds/ant7119_beige_light_blue_soft_colors_background_--ar_74_--quali_6b709ff6-35c3-4cd4-9d80-fc071148d2d6.png",
+  "/backgrounds/ant7119_beige_light_blue_ultra_soft_colors_background_--ar_74_-_6f04d9b5-9183-412f-a5d2-ede46af325d6.png",
+  "/backgrounds/ant7119_biblical_figures_in_a_desert_with_sheep_--ar_169_--v__7fa14871-4807-473a-81e6-09da6d7caa45_2.png",
+  "/backgrounds/ant7119_Calamagrostis_canescens_one_of_the_most_common_species__78e53fbc-8c2b-4a08-9a79-574cee20734d.png",
+  "/backgrounds/ant7119_empty_interior_of_a_museum-like_building_completely_e_95fc752a-5a67-48b1-bc1d-8a8068d110b8_2.png",
+  "/backgrounds/ant7119_flip-flops_on_the_beach_on_a_full_moon_night_--ar_169_e1d1a921-dd74-465d-a434-b7d3fa09ecb0_0.png",
+  "/backgrounds/ant7119_httpss.mj.run5riRyCCJkfo_an_illustration_of_teen_girl_b17a3664-3e16-4a8d-a5eb-10b53a8297cc_1.png",
+  "/backgrounds/ant7119_illustration_of_a_laboratory_sketch_black_and_whitespla_46c9c6ab-9f00-40dc-a53a-415c705557d8.png",
+  "/backgrounds/ant7119_interior_of_a_museum-like_building__photorealistic_3d_r_c2d44078-8cf4-4261-be0c-9acadfb0828f.png",
+  "/backgrounds/ant7119_Life_Drawing_style_sketch_of_a_inspiring_female_teach_f4f856e6-bdd6-40ef-b136-2241c42a216c_3.png",
+  "/backgrounds/ant7119_Life_Drawing_style_sketch_of_a_inspiring_female_teacher_c8c39d51-a598-481f-921e-99ac90bbca14.png",
+  "/backgrounds/ant7119_light_blue_and_beige_oil_painting_of_the_horizon_--ar_17028ed6-1343-4063-80e8-59393982f99c_0.png",
+  "/backgrounds/ant7119_mistirios_laboratory_with_modern_lab_equipment_alarmed__1c9e6572-f41d-4ccf-9477-86d8134d47d5.png",
+  "/backgrounds/ant7119_mistirios_office_with_sofa_pictures_on_the_walls_--ar_1_b65c91f6-51db-4d76-8d4e-20e85b5af0ea.png",
+  "/backgrounds/ant7119_spring_delicate_light_begiuge_watercolor_illustration_14685c51-86a1-434a-ac8d-56e28d663b43_2.png",
+  "/backgrounds/ant7119_spring_delicate_light_begiuge_watercolor_illustration_c77a4ecd-0217-45cc-95a1-31996fcf13fb_0.png",
+  "/backgrounds/ant7119_spring_delicate_light_watercolor_illustration_with_ro_a6c8d853-1984-48d4-aeb5-9dd67caf7edf_3.png",
+  "/backgrounds/ant7119_Watercolor_illustration_pastel_blue_green_and_brown_c_356a5bb1-589b-49d1-bf10-38935608746e_2.png",
+  "/backgrounds/ant7119_west_wall_Jerusalem_gold_--ar_169_--v_5.1_4daa2642-74b4-422a-9d43-e5824cd8149f_3.png",
+  "/backgrounds/ant7119_Wet-on-wet_technique_Soft_feathers_floating_in_the_ai_8871cbea-dc05-454b-83b2-0c5dcd463263_2.png",
+  "/backgrounds/mist-teal.svg",
+  "/backgrounds/pastel-bloom.svg",
+  "/backgrounds/sunset-haze.svg",
+] as const;
+
+const GAME_PAGE_BACKGROUND_PRESETS: GamePageBackgroundPreset[] = GAME_PAGE_BACKGROUND_FILES.map(
+  (image, index) => ({
+    id: `local-bg-${index + 1}`,
+    name: buildBackgroundPresetName(image, index),
+    image,
+  }),
+);
+
+const GAME_PAGE_BACKGROUND_MIN_WIDTH = 1920;
+const GAME_PAGE_BACKGROUND_MIN_HEIGHT = 1080;
+const GAME_PAGE_BACKGROUND_MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const GAME_PAGE_BACKGROUND_TARGET_RATIO = 16 / 9;
+const GAME_PAGE_BACKGROUND_RATIO_TOLERANCE = 0.22;
+
 const DEFAULT_BOARD_THEME: BoardTheme = {
   boardBorderColor: "#38bdf8",
   boardBackgroundColor: "#0d224f",
@@ -167,6 +227,8 @@ const DEFAULT_BOARD_THEME: BoardTheme = {
   usedCellTextColor: "#64748b",
   boardBackgroundImage: null,
   boardBackgroundOverlay: 55,
+  pageBackgroundImage: null,
+  pageBackgroundOverlay: 58,
 };
 
 const BOARD_THEME_COLOR_KEYS: BoardThemeColorKey[] = [
@@ -474,6 +536,78 @@ function getTextColorForBackground(backgroundColor: string): string {
     : lightText;
 }
 
+function getReadableTextColor(
+  preferredTextColor: string,
+  backgroundColor: string,
+  minimumContrast = 3.6,
+): string {
+  const preferred = normalizeHexColor(preferredTextColor);
+  const background = normalizeHexColor(backgroundColor);
+  if (!preferred || !background) {
+    return getTextColorForBackground(backgroundColor);
+  }
+
+  return getContrastRatio(preferred, background) >= minimumContrast
+    ? preferred
+    : getTextColorForBackground(background);
+}
+
+function withAlpha(color: string, alpha: number): string {
+  const normalized = normalizeHexColor(color);
+  if (!normalized) return color;
+  const red = Number.parseInt(normalized.slice(1, 3), 16);
+  const green = Number.parseInt(normalized.slice(3, 5), 16);
+  const blue = Number.parseInt(normalized.slice(5, 7), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${clamp(alpha, 0, 1)})`;
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      const dimensions = {
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      };
+      URL.revokeObjectURL(objectUrl);
+      resolve(dimensions);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("invalid-image"));
+    };
+    image.src = objectUrl;
+  });
+}
+
+function buildBackgroundPresetName(imagePath: string, index: number): string {
+  const filename = imagePath.split("/").pop() ?? "";
+  const base = filename.replace(/\.[^.]+$/, "");
+  const cleaned = base
+    .replace(/^ant\d+_?/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b[0-9a-f]{8,}\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) {
+    return `רקע ${index + 1}`;
+  }
+
+  const words = cleaned.split(" ").slice(0, 5);
+  return words.join(" ");
+}
+
 function formatDateTime(value: string): string {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "-";
@@ -564,9 +698,12 @@ function parseCsvRows(text: string, delimiter: "," | ";"): string[][] {
 
 function resolveBoardTheme(theme?: Partial<BoardTheme>): BoardTheme {
   if (!theme) return DEFAULT_BOARD_THEME;
-  const overlay = Number.isFinite(theme.boardBackgroundOverlay)
+  const boardOverlay = Number.isFinite(theme.boardBackgroundOverlay)
     ? clamp(theme.boardBackgroundOverlay as number, 0, 100)
     : DEFAULT_BOARD_THEME.boardBackgroundOverlay;
+  const pageOverlay = Number.isFinite(theme.pageBackgroundOverlay)
+    ? clamp(theme.pageBackgroundOverlay as number, 0, 100)
+    : DEFAULT_BOARD_THEME.pageBackgroundOverlay;
 
   return {
     boardBorderColor: theme.boardBorderColor ?? DEFAULT_BOARD_THEME.boardBorderColor,
@@ -580,7 +717,9 @@ function resolveBoardTheme(theme?: Partial<BoardTheme>): BoardTheme {
     usedCellBgColor: theme.usedCellBgColor ?? DEFAULT_BOARD_THEME.usedCellBgColor,
     usedCellTextColor: theme.usedCellTextColor ?? DEFAULT_BOARD_THEME.usedCellTextColor,
     boardBackgroundImage: theme.boardBackgroundImage ?? DEFAULT_BOARD_THEME.boardBackgroundImage,
-    boardBackgroundOverlay: overlay,
+    boardBackgroundOverlay: boardOverlay,
+    pageBackgroundImage: theme.pageBackgroundImage ?? DEFAULT_BOARD_THEME.pageBackgroundImage,
+    pageBackgroundOverlay: pageOverlay,
   };
 }
 
@@ -664,6 +803,7 @@ function App() {
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const csvImportInputRef = useRef<HTMLInputElement | null>(null);
   const boardBackgroundInputRef = useRef<HTMLInputElement | null>(null);
+  const pageBackgroundInputRef = useRef<HTMLInputElement | null>(null);
   const overlayTimeoutRef = useRef<number | null>(null);
 
   const activeQuestion = activeCell
@@ -703,6 +843,42 @@ function App() {
   const boardBackgroundImage = boardTheme.boardBackgroundImage
     ? `linear-gradient(rgba(2, 6, 23, ${boardOverlayAlpha}), rgba(2, 6, 23, ${boardOverlayAlpha})), url("${boardTheme.boardBackgroundImage}")`
     : undefined;
+  const pageOverlayAlpha = boardTheme.pageBackgroundOverlay / 100;
+  const pageImageOverlayStrong = clamp(0.16 + pageOverlayAlpha * 0.72, 0, 0.92);
+  const pageImageOverlaySoft = clamp(0.12 + pageOverlayAlpha * 0.58, 0, 0.86);
+  const palettePageBackgroundImage =
+    `radial-gradient(circle at 82% 10%, ${withAlpha(boardTheme.categoryBgStart, 0.24)}, transparent 46%), ` +
+    `radial-gradient(circle at 14% 88%, ${withAlpha(boardTheme.cellBorderColor, 0.2)}, transparent 42%), ` +
+    `linear-gradient(145deg, ${boardTheme.boardBackgroundColor}, ${boardTheme.categoryBgEnd} 48%, ${boardTheme.cellBgColor})`;
+  const gamePageBackgroundImage = boardTheme.pageBackgroundImage
+    ? `linear-gradient(135deg, ${withAlpha(boardTheme.boardBackgroundColor, pageImageOverlayStrong)}, ${withAlpha(boardTheme.categoryBgEnd, pageImageOverlaySoft)}), url("${boardTheme.pageBackgroundImage}")`
+    : palettePageBackgroundImage;
+  const gameShellTextColor = getTextColorForBackground(boardTheme.categoryBgEnd);
+  const gameShellControlTextColor = getTextColorForBackground(boardTheme.boardBackgroundColor);
+  const gameShellTopicTextColor = getReadableTextColor(
+    boardTheme.categoryTextColor,
+    boardTheme.categoryBgEnd,
+  );
+  const pageShellStyle =
+    mode === "game"
+      ? {
+          backgroundImage: gamePageBackgroundImage,
+          backgroundSize: boardTheme.pageBackgroundImage ? "cover" : undefined,
+          backgroundPosition: boardTheme.pageBackgroundImage ? "center" : undefined,
+          backgroundAttachment: boardTheme.pageBackgroundImage ? "fixed" : undefined,
+          ["--game-shell-card-bg" as string]: withAlpha(boardTheme.boardBackgroundColor, 0.64),
+          ["--game-shell-card-border" as string]: withAlpha(boardTheme.boardBorderColor, 0.55),
+          ["--game-shell-accent-bg" as string]: withAlpha(boardTheme.categoryBgEnd, 0.44),
+          ["--game-shell-accent-border" as string]: withAlpha(boardTheme.cellBorderColor, 0.52),
+          ["--game-shell-text-color" as string]: gameShellTextColor,
+          ["--game-shell-control-bg" as string]: withAlpha(boardTheme.boardBackgroundColor, 0.82),
+          ["--game-shell-control-border" as string]: withAlpha(boardTheme.cellBorderColor, 0.62),
+          ["--game-shell-control-text" as string]: gameShellControlTextColor,
+          ["--game-shell-pill-bg" as string]: withAlpha(boardTheme.categoryBgStart, 0.42),
+          ["--game-shell-pill-border" as string]: withAlpha(boardTheme.boardBorderColor, 0.65),
+          ["--game-shell-topic-text" as string]: gameShellTopicTextColor,
+        }
+      : undefined;
   const modalTextColor = getTextColorForBackground(boardTheme.boardBackgroundColor);
   const modalQuestionTextColor = getTextColorForBackground(boardTheme.cellBgColor);
   const modalAnswerTextColor = getTextColorForBackground(boardTheme.usedCellBgColor);
@@ -730,24 +906,38 @@ function App() {
     ["--modal-close-text-color" as string]: modalCloseTextColor,
   };
 
-  const buildCurrentGameSnapshot = (): SharePayload["game"] => ({
-    gameTopic: resolvedGameTopic,
-    boardTheme: { ...boardTheme, boardBackgroundImage: null },
-    board: board.map((category) => ({
-      title: category.title,
-      cells: category.cells.map((cell) => ({
-        value: cell.value,
-        question: cell.question,
-        answer: cell.answer,
-        used: cell.used,
+  const buildCurrentGameSnapshot = (options?: { stripInlineImages?: boolean }): SharePayload["game"] => {
+    const sanitizeImage = (image: string | null): string | null => {
+      if (!image) return null;
+      if (options?.stripInlineImages && image.startsWith("data:")) {
+        return null;
+      }
+      return image;
+    };
+
+    return {
+      gameTopic: resolvedGameTopic,
+      boardTheme: {
+        ...boardTheme,
+        boardBackgroundImage: sanitizeImage(boardTheme.boardBackgroundImage),
+        pageBackgroundImage: sanitizeImage(boardTheme.pageBackgroundImage),
+      },
+      board: board.map((category) => ({
+        title: category.title,
+        cells: category.cells.map((cell) => ({
+          value: cell.value,
+          question: cell.question,
+          answer: cell.answer,
+          used: cell.used,
+        })),
       })),
-    })),
-    teams: teams.map((team) => ({
-      name: team.name,
-      score: team.score,
-    })),
-    currentTurnIndex,
-  });
+      teams: teams.map((team) => ({
+        name: team.name,
+        score: team.score,
+      })),
+      currentTurnIndex,
+    };
+  };
 
   const applySharedGameState = (
     sharedGame: SharePayload["game"],
@@ -1174,6 +1364,13 @@ function App() {
     return matched?.id ?? null;
   }, [boardTheme]);
 
+  const activePageBackgroundPresetId = useMemo(() => {
+    const matched = GAME_PAGE_BACKGROUND_PRESETS.find(
+      (preset) => preset.image === boardTheme.pageBackgroundImage,
+    );
+    return matched?.id ?? null;
+  }, [boardTheme.pageBackgroundImage]);
+
   const applyPalette = (paletteId: string) => {
     const palette = BOARD_THEME_PALETTES.find((candidate) => candidate.id === paletteId);
     if (!palette) return;
@@ -1188,6 +1385,10 @@ function App() {
     setBoardTheme((previous) => ({ ...previous, boardBackgroundOverlay: clamp(value, 0, 100) }));
   };
 
+  const updatePageBackgroundOverlay = (value: number) => {
+    setBoardTheme((previous) => ({ ...previous, pageBackgroundOverlay: clamp(value, 0, 100) }));
+  };
+
   const importBoardBackgroundImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -1198,12 +1399,7 @@ function App() {
     }
 
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result ?? ""));
-        reader.onerror = () => reject(new Error("failed"));
-        reader.readAsDataURL(file);
-      });
+      const dataUrl = await fileToDataUrl(file);
       setBoardTheme((previous) => ({ ...previous, boardBackgroundImage: dataUrl }));
       setStatusMessage("תמונת הרקע נטענה בהצלחה.");
     } catch {
@@ -1216,6 +1412,59 @@ function App() {
   const removeBoardBackgroundImage = () => {
     setBoardTheme((previous) => ({ ...previous, boardBackgroundImage: null }));
     setStatusMessage("תמונת הרקע הוסרה.");
+  };
+
+  const applyPageBackgroundPreset = (image: string | null) => {
+    setBoardTheme((previous) => ({ ...previous, pageBackgroundImage: image }));
+    setStatusMessage(image ? "הוחל רקע כללי מגלריית הרקעים." : "הוחל רקע כללי לפי פלטת הצבעים.");
+  };
+
+  const importPageBackgroundImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setStatusMessage("ניתן להעלות רק קובצי תמונה לרקע הכללי.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > GAME_PAGE_BACKGROUND_MAX_UPLOAD_BYTES) {
+      setStatusMessage("תמונת רקע כללית גדולה מדי. המקסימום הוא 5MB.");
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      const { width, height } = await readImageDimensions(file);
+      const ratio = width / height;
+      const ratioDelta = Math.abs(ratio - GAME_PAGE_BACKGROUND_TARGET_RATIO);
+
+      if (width < GAME_PAGE_BACKGROUND_MIN_WIDTH || height < GAME_PAGE_BACKGROUND_MIN_HEIGHT) {
+        setStatusMessage("רזולוציית הרקע נמוכה מדי. נדרש לפחות 1920x1080.");
+        event.target.value = "";
+        return;
+      }
+
+      if (ratioDelta > GAME_PAGE_BACKGROUND_RATIO_TOLERANCE) {
+        setStatusMessage("יחס התמונה אינו מתאים. מומלץ יחס 16:9 לרקע כללי.");
+        event.target.value = "";
+        return;
+      }
+
+      const dataUrl = await fileToDataUrl(file);
+      setBoardTheme((previous) => ({ ...previous, pageBackgroundImage: dataUrl }));
+      setStatusMessage("תמונת הרקע הכללית נטענה בהצלחה.");
+    } catch {
+      setStatusMessage("שגיאה בטעינת תמונת הרקע הכללית.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const removePageBackgroundImage = () => {
+    setBoardTheme((previous) => ({ ...previous, pageBackgroundImage: null }));
+    setStatusMessage("תמונת הרקע הכללית הוסרה.");
   };
 
   const resetBoardTheme = () => {
@@ -1247,7 +1496,7 @@ function App() {
         version: 1,
         access,
         canShareEdit: access === "edit",
-        game: buildCurrentGameSnapshot(),
+        game: buildCurrentGameSnapshot({ stripInlineImages: true }),
       };
 
       const encodedPayload = encodeBase64Url(JSON.stringify(payload));
@@ -1600,7 +1849,7 @@ function App() {
   };
 
   return (
-    <div className="page-shell" dir="rtl">
+    <div className="page-shell" dir="rtl" style={pageShellStyle}>
       {!(mode === "game" && isSharedViewOnly) && (
         <header className="top-header">
           {mode === "editor" ? (
@@ -1987,6 +2236,80 @@ function App() {
                 </div>
               </div>
             </div>
+
+            <div className="page-background-section">
+              <div className="board-theme-header page-background-header">
+                <h3>רקע כללי של דף המשחק</h3>
+                <div className="board-theme-actions">
+                  <button type="button" onClick={() => applyPageBackgroundPreset(null)}>
+                    רקע לפי פלטה
+                  </button>
+                  <button type="button" onClick={() => pageBackgroundInputRef.current?.click()}>
+                    העלאת תמונה אישית
+                  </button>
+                  <input
+                    ref={pageBackgroundInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={importPageBackgroundImage}
+                    hidden
+                  />
+                  <button type="button" onClick={removePageBackgroundImage} disabled={!boardTheme.pageBackgroundImage}>
+                    הסרת תמונה
+                  </button>
+                </div>
+              </div>
+              <p className="page-background-note">
+                אפשר לבחור רקע מתוך התיקייה הלוקאלית `public/backgrounds` או להעלות תמונה אישית
+                (מינימום 1920x1080, יחס קרוב ל-16:9, עד 5MB).
+              </p>
+
+              <div className="page-background-gallery">
+                {GAME_PAGE_BACKGROUND_PRESETS.map((preset) => {
+                  const isActive = activePageBackgroundPresetId === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => applyPageBackgroundPreset(preset.image)}
+                      className={`page-background-card ${isActive ? "is-active" : ""}`}
+                    >
+                      <span
+                        className="page-background-thumb"
+                        style={{ backgroundImage: `url("${preset.image}")` }}
+                        aria-hidden="true"
+                      />
+                      <strong>{preset.name}</strong>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <label className="overlay-control">
+                כהות שכבה מעל הרקע הכללי: {boardTheme.pageBackgroundOverlay}%
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={boardTheme.pageBackgroundOverlay}
+                  onChange={(event) => updatePageBackgroundOverlay(Number(event.target.value))}
+                  disabled={!boardTheme.pageBackgroundImage}
+                />
+              </label>
+
+              <div className="page-background-preview">
+                <div
+                  className="page-background-preview-surface"
+                  style={{
+                    backgroundImage: gamePageBackgroundImage,
+                    backgroundSize: boardTheme.pageBackgroundImage ? "cover" : undefined,
+                    backgroundPosition: boardTheme.pageBackgroundImage ? "center" : undefined,
+                  }}
+                >
+                  <span>תצוגה מקדימה לרקע הכללי</span>
+                </div>
+              </div>
+            </div>
           </section>
 
           <section className="card">
@@ -2169,9 +2492,11 @@ function App() {
             </div>
           </section>
 
-          <p className="hint-text">
-            התקדמות משחק: {usedCount} מתוך {totalQuestions} שאלות סומנו כמשומשות.
-          </p>
+          {!isSharedViewOnly && (
+            <p className="hint-text">
+              התקדמות משחק: {usedCount} מתוך {totalQuestions} שאלות סומנו כמשומשות.
+            </p>
+          )}
         </>
       )}
 
