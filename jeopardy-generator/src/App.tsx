@@ -177,12 +177,24 @@ const GAME_PAGE_BACKGROUND_FILES = [
   "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_bright_shades_o_5025c836-c78f-4993-bf08-187c0bf2e3dd_1.png",
   "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_bright_shades_o_5025c836-c78f-4993-bf08-187c0bf2e3dd_2.png",
   "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_bright_shades_o_5025c836-c78f-4993-bf08-187c0bf2e3dd_3.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_bright_shades_o_64354d36-0572-45b7-86fa-06a529233fed_0.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_bright_shades_o_64354d36-0572-45b7-86fa-06a529233fed_1.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_bright_shades_o_64354d36-0572-45b7-86fa-06a529233fed_2.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_bright_shades_o_64354d36-0572-45b7-86fa-06a529233fed_3.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_bright_shades_o_f5bd31db-a237-4946-b468-520d01d96177_0.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_bright_shades_o_f5bd31db-a237-4946-b468-520d01d96177_1.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_bright_shades_o_f5bd31db-a237-4946-b468-520d01d96177_2.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_bright_shades_o_f5bd31db-a237-4946-b468-520d01d96177_3.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_light_tones_of__c9527932-47d2-4f21-b296-2713deffe4bd_0.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_light_tones_of__c9527932-47d2-4f21-b296-2713deffe4bd_1.png",
+  "/backgrounds/ant7119_A_delicate_and_pastoral_background_in_light_tones_of__c9527932-47d2-4f21-b296-2713deffe4bd_3.png",
   "/backgrounds/ant7119_A_delicate_and_pastoral_background_of_the_landscapes__1e1336f4-c0cf-480f-afe7-49f52580a075_0.png",
   "/backgrounds/ant7119_A_delicate_and_pastoral_background_of_the_landscapes__1e1336f4-c0cf-480f-afe7-49f52580a075_1.png",
   "/backgrounds/ant7119_A_delicate_and_pastoral_background_of_the_landscapes__1e1336f4-c0cf-480f-afe7-49f52580a075_2.png",
   "/backgrounds/ant7119_A_delicate_and_pastoral_background_of_the_landscapes__1e1336f4-c0cf-480f-afe7-49f52580a075_3.png",
   "/backgrounds/ant7119_A_delicate_and_pastoral_background_of_the_landscapes__e45e908d-fb40-4f64-9ff7-7472fc830617_0.png",
   "/backgrounds/ant7119_A_delicate_and_pastoral_background_of_the_landscapes__e45e908d-fb40-4f64-9ff7-7472fc830617_1.png",
+  "/backgrounds/ant7119_A_delicate_background_in_bright_shades_of_the_Western_f7697d8c-aa93-435b-96ac-7dd7923ac82c_1.png",
   "/backgrounds/ant7119_banner_hd_cow_milk_wheat_beige_light_blue_light_soft__7fcf58d5-ed94-47ff-86a4-f9852150b4dc_2.png",
   "/backgrounds/ant7119_banner_hd_cow_milk_wheat_beige_light_blue_light_soft_co_b7385156-3f60-4602-9566-8425a5b3ec32.png",
   "/backgrounds/ant7119_beige_light_blue_soft_colors_background_--ar_74_--quali_6b709ff6-35c3-4cd4-9d80-fc071148d2d6.png",
@@ -291,19 +303,19 @@ const BOARD_THEME_PALETTES: BoardThemePalette[] = [
   },
   {
     id: "sunset-arcade",
-    name: "שקיעה ארקייד",
-    description: "בהשראת שקיעה סגולה-כתומה: אפרסק זהוב, כתום בוער וסגול עמוק.",
+    name: "זריחה אופטימית",
+    description: "זהב רך ונעים: רקע קרמי, כותרות שמשיות ותאי ניקוד חמים לקריאות גבוהה.",
     colors: {
-      boardBorderColor: "#f8b766",
-      boardBackgroundColor: "#2b2140",
-      categoryBgStart: "#f8b766",
-      categoryBgEnd: "#db6635",
-      categoryTextColor: "#2f1d1a",
-      cellBgColor: "#692e5e",
-      cellTextColor: "#f5dcb7",
-      cellBorderColor: "#ac5a54",
-      usedCellBgColor: "#3a2a4b",
-      usedCellTextColor: "#c5b9cf",
+      boardBorderColor: "#f5ecd5",
+      boardBackgroundColor: "#fffdf7",
+      categoryBgStart: "#f4e3ab",
+      categoryBgEnd: "#e9d28a",
+      categoryTextColor: "#43300f",
+      cellBgColor: "#cfaf66",
+      cellTextColor: "#fffbef",
+      cellBorderColor: "#fff8e8",
+      usedCellBgColor: "#ece1bf",
+      usedCellTextColor: "#725d2f",
     },
   },
   {
@@ -867,6 +879,19 @@ function App() {
   const gamePageBackgroundImage = boardTheme.pageBackgroundImage
     ? `${pageBackgroundOverlayLayer}, url("${boardTheme.pageBackgroundImage}")`
     : `${pageBackgroundOverlayLayer}, ${palettePageBackgroundImage}`;
+  const normalizedBoardBackground = normalizeHexColor(boardTheme.boardBackgroundColor);
+  const boardBackgroundLuminance = normalizedBoardBackground
+    ? getRelativeLuminance(normalizedBoardBackground)
+    : 0.25;
+  const isLightBoardTheme = boardBackgroundLuminance >= 0.62;
+  const shellCardAlpha = isLightBoardTheme ? 0.9 : 0.64;
+  const shellCardBorderAlpha = isLightBoardTheme ? 0.74 : 0.55;
+  const shellAccentAlpha = isLightBoardTheme ? 0.78 : 0.44;
+  const shellAccentBorderAlpha = isLightBoardTheme ? 0.68 : 0.52;
+  const shellControlAlpha = isLightBoardTheme ? 0.94 : 0.82;
+  const shellControlBorderAlpha = isLightBoardTheme ? 0.72 : 0.62;
+  const shellPillAlpha = isLightBoardTheme ? 0.68 : 0.42;
+  const shellPillBorderAlpha = isLightBoardTheme ? 0.74 : 0.65;
   const gameShellTextColor = getTextColorForBackground(boardTheme.categoryBgEnd);
   const gameShellControlTextColor = getTextColorForBackground(boardTheme.boardBackgroundColor);
   const gameShellTopicTextColor = getReadableTextColor(
@@ -880,16 +905,22 @@ function App() {
           backgroundSize: boardTheme.pageBackgroundImage ? "cover" : undefined,
           backgroundPosition: boardTheme.pageBackgroundImage ? "center" : undefined,
           backgroundAttachment: boardTheme.pageBackgroundImage ? "fixed" : undefined,
-          ["--game-shell-card-bg" as string]: withAlpha(boardTheme.boardBackgroundColor, 0.64),
-          ["--game-shell-card-border" as string]: withAlpha(boardTheme.boardBorderColor, 0.55),
-          ["--game-shell-accent-bg" as string]: withAlpha(boardTheme.categoryBgEnd, 0.44),
-          ["--game-shell-accent-border" as string]: withAlpha(boardTheme.cellBorderColor, 0.52),
+          ["--game-shell-card-bg" as string]: withAlpha(boardTheme.boardBackgroundColor, shellCardAlpha),
+          ["--game-shell-card-border" as string]: withAlpha(boardTheme.boardBorderColor, shellCardBorderAlpha),
+          ["--game-shell-accent-bg" as string]: withAlpha(boardTheme.categoryBgEnd, shellAccentAlpha),
+          ["--game-shell-accent-border" as string]: withAlpha(
+            boardTheme.cellBorderColor,
+            shellAccentBorderAlpha,
+          ),
           ["--game-shell-text-color" as string]: gameShellTextColor,
-          ["--game-shell-control-bg" as string]: withAlpha(boardTheme.boardBackgroundColor, 0.82),
-          ["--game-shell-control-border" as string]: withAlpha(boardTheme.cellBorderColor, 0.62),
+          ["--game-shell-control-bg" as string]: withAlpha(boardTheme.boardBackgroundColor, shellControlAlpha),
+          ["--game-shell-control-border" as string]: withAlpha(
+            boardTheme.cellBorderColor,
+            shellControlBorderAlpha,
+          ),
           ["--game-shell-control-text" as string]: gameShellControlTextColor,
-          ["--game-shell-pill-bg" as string]: withAlpha(boardTheme.categoryBgStart, 0.42),
-          ["--game-shell-pill-border" as string]: withAlpha(boardTheme.boardBorderColor, 0.65),
+          ["--game-shell-pill-bg" as string]: withAlpha(boardTheme.categoryBgStart, shellPillAlpha),
+          ["--game-shell-pill-border" as string]: withAlpha(boardTheme.boardBorderColor, shellPillBorderAlpha),
           ["--game-shell-topic-text" as string]: gameShellTopicTextColor,
         }
       : undefined;
