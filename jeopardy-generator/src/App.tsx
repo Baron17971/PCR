@@ -3,6 +3,7 @@ import "./App.css";
 import { isSupabaseConfigured, supabase } from "./supabaseClient";
 
 type AppMode = "editor" | "game";
+type GameType = "jeopardy" | "quick-trivia";
 
 interface CellData {
   value: number;
@@ -20,6 +21,14 @@ interface TeamData {
   id: string;
   name: string;
   score: number;
+}
+
+interface QuickTriviaQuestion {
+  id: string;
+  value: number;
+  question: string;
+  answer: string;
+  used: boolean;
 }
 
 interface ActiveCell {
@@ -75,6 +84,7 @@ interface ExportPayload {
   version: number;
   settings: {
     gameTopic: string;
+    gameType?: GameType;
     categoryCount: number;
     rowCount: number;
     baseValue: number;
@@ -90,6 +100,11 @@ interface ExportPayload {
       answer: string;
     }>;
   }>;
+  quickTriviaQuestions?: Array<{
+    value: number;
+    question: string;
+    answer: string;
+  }>;
 }
 
 type ShareAccess = "view" | "edit";
@@ -99,9 +114,10 @@ interface SharePayload {
   access?: ShareAccess;
   canShareEdit?: boolean;
   game: {
+    gameType?: GameType;
     gameTopic: string;
     boardTheme?: Partial<BoardTheme>;
-    board: Array<{
+    board?: Array<{
       title: string;
       cells: Array<{
         value: number;
@@ -109,6 +125,12 @@ interface SharePayload {
         answer: string;
         used: boolean;
       }>;
+    }>;
+    quickTriviaQuestions?: Array<{
+      value: number;
+      question: string;
+      answer: string;
+      used?: boolean;
     }>;
     teams: Array<{
       name: string;
@@ -141,10 +163,19 @@ const MIN_TEAMS = 2;
 const MAX_TEAMS = 5;
 const MIN_BASE_VALUE = 100;
 const MAX_BASE_VALUE = 500;
+const QUICK_TRIVIA_MIN_QUESTIONS = 5;
+const QUICK_TRIVIA_MAX_QUESTIONS = 30;
+const QUICK_TRIVIA_DEFAULT_QUESTIONS = 10;
+const QUICK_TRIVIA_DEFAULT_VALUE = 100;
 const SHARE_QUERY_PARAM = "game";
 const SERVER_GAME_QUERY_PARAM = "sgame";
 const SERVER_ACCESS_QUERY_PARAM = "access";
 const SUPABASE_GAMES_TABLE = "jeopardy_games";
+
+const GAME_TYPE_OPTIONS: Array<{ value: GameType; label: string }> = [
+  { value: "jeopardy", label: "ג׳פרדי קלאסי" },
+  { value: "quick-trivia", label: "טריוויה מהירה" },
+];
 
 const TEAM_COLORS = [
   "#22d3ee",
@@ -789,6 +820,43 @@ function createTeams(teamCount: number): TeamData[] {
   }));
 }
 
+function createQuickTriviaQuestions(
+  count = QUICK_TRIVIA_DEFAULT_QUESTIONS,
+  baseValue = QUICK_TRIVIA_DEFAULT_VALUE,
+): QuickTriviaQuestion[] {
+  const normalizedCount = clamp(count, QUICK_TRIVIA_MIN_QUESTIONS, QUICK_TRIVIA_MAX_QUESTIONS);
+  const normalizedBaseValue = clamp(baseValue, MIN_BASE_VALUE, MAX_BASE_VALUE);
+  return Array.from({ length: normalizedCount }, (_, index) => ({
+    id: `quick-q-${index + 1}`,
+    value: normalizedBaseValue * (index + 1),
+    question: "",
+    answer: "",
+    used: false,
+  }));
+}
+
+function normalizeQuickTriviaQuestions(
+  source: Array<{
+    value: number;
+    question: string;
+    answer: string;
+    used?: boolean;
+  }> | null | undefined,
+): QuickTriviaQuestion[] {
+  if (!Array.isArray(source) || source.length === 0) {
+    return createQuickTriviaQuestions();
+  }
+
+  const limited = source.slice(0, QUICK_TRIVIA_MAX_QUESTIONS);
+  return limited.map((item, index) => ({
+    id: `quick-q-${index + 1}`,
+    value: clamp(Number(item?.value) || QUICK_TRIVIA_DEFAULT_VALUE * (index + 1), MIN_BASE_VALUE, 5000),
+    question: typeof item?.question === "string" ? item.question : "",
+    answer: typeof item?.answer === "string" ? item.answer : "",
+    used: Boolean(item?.used),
+  }));
+}
+
 function ValueMark({ value }: { value: number }) {
   return (
     <span className="value-mark" dir="ltr">
@@ -799,6 +867,7 @@ function ValueMark({ value }: { value: number }) {
 
 function App() {
   const [mode, setMode] = useState<AppMode>("editor");
+  const [gameType, setGameType] = useState<GameType>("jeopardy");
   const [gameTopic, setGameTopic] = useState("משחק ג'פרדי");
   const [aiPromptText, setAiPromptText] = useState(AI_CSV_PROMPT_TEMPLATE);
   const [boardTheme, setBoardTheme] = useState<BoardTheme>(DEFAULT_BOARD_THEME);
@@ -806,9 +875,13 @@ function App() {
   const [rowCount, setRowCount] = useState(5);
   const [baseValue, setBaseValue] = useState(200);
   const [board, setBoard] = useState<CategoryData[]>(() => createBoard(6, 5, 200));
+  const [quickTriviaQuestions, setQuickTriviaQuestions] = useState<QuickTriviaQuestion[]>(() =>
+    createQuickTriviaQuestions(),
+  );
   const [teams, setTeams] = useState<TeamData[]>(() => createTeams(2));
   const [currentTurnIndex, setCurrentTurnIndex] = useState(0);
   const [activeCell, setActiveCell] = useState<ActiveCell | null>(null);
+  const [activeQuickQuestionId, setActiveQuickQuestionId] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [didScoreCurrentQuestion, setDidScoreCurrentQuestion] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>("");
@@ -829,11 +902,19 @@ function App() {
   const pageBackgroundInputRef = useRef<HTMLInputElement | null>(null);
   const overlayTimeoutRef = useRef<number | null>(null);
 
-  const activeQuestion = activeCell
-    ? board[activeCell.categoryIndex]?.cells[activeCell.rowIndex] ?? null
-    : null;
+  const activeQuickQuestion = useMemo(() => {
+    if (!activeQuickQuestionId) return null;
+    return quickTriviaQuestions.find((question) => question.id === activeQuickQuestionId) ?? null;
+  }, [activeQuickQuestionId, quickTriviaQuestions]);
 
-  const missingFieldsCount = useMemo(() => {
+  const activeQuestion =
+    gameType === "quick-trivia"
+      ? activeQuickQuestion
+      : activeCell
+        ? board[activeCell.categoryIndex]?.cells[activeCell.rowIndex] ?? null
+        : null;
+
+  const jeopardyMissingFieldsCount = useMemo(() => {
     return board.reduce((total, category) => {
       return (
         total +
@@ -842,14 +923,26 @@ function App() {
     }, 0);
   }, [board]);
 
-  const usedCount = useMemo(() => {
+  const quickTriviaMissingFieldsCount = useMemo(() => {
+    return quickTriviaQuestions.filter((question) => !question.question.trim() || !question.answer.trim()).length;
+  }, [quickTriviaQuestions]);
+
+  const missingFieldsCount =
+    gameType === "quick-trivia" ? quickTriviaMissingFieldsCount : jeopardyMissingFieldsCount;
+
+  const jeopardyUsedCount = useMemo(() => {
     return board.reduce((total, category) => total + category.cells.filter((cell) => cell.used).length, 0);
   }, [board]);
 
-  const totalQuestions = categoryCount * rowCount;
-  const canStartGame = missingFieldsCount === 0;
+  const quickTriviaUsedCount = useMemo(() => {
+    return quickTriviaQuestions.filter((question) => question.used).length;
+  }, [quickTriviaQuestions]);
+
+  const usedCount = gameType === "quick-trivia" ? quickTriviaUsedCount : jeopardyUsedCount;
+  const totalQuestions = gameType === "quick-trivia" ? quickTriviaQuestions.length : categoryCount * rowCount;
+  const canStartGame = missingFieldsCount === 0 && totalQuestions > 0;
   const currentTeam = teams[currentTurnIndex] ?? teams[0];
-  const resolvedGameTopic = gameTopic.trim() || "משחק ג'פרדי";
+  const resolvedGameTopic = gameTopic.trim() || (gameType === "quick-trivia" ? "טריוויה מהירה" : "משחק ג'פרדי");
   const boardTypography = useMemo(() => {
     const categoryScale = clamp(6 / categoryCount, 0.72, 1.28);
     const rowScale = clamp(5 / rowCount, 0.82, 1.18);
@@ -973,6 +1066,7 @@ function App() {
     };
 
     return {
+      gameType,
       gameTopic: resolvedGameTopic,
       boardTheme: {
         ...boardTheme,
@@ -987,6 +1081,12 @@ function App() {
           answer: cell.answer,
           used: cell.used,
         })),
+      })),
+      quickTriviaQuestions: quickTriviaQuestions.map((question) => ({
+        value: question.value,
+        question: question.question,
+        answer: question.answer,
+        used: question.used,
       })),
       teams: teams.map((team) => ({
         name: team.name,
@@ -1004,47 +1104,61 @@ function App() {
       canShareEdit: boolean;
     },
   ) => {
-    if (!sharedGame || !Array.isArray(sharedGame.board) || sharedGame.board.length === 0) {
+    if (!sharedGame) {
       throw new Error("Invalid game payload");
     }
 
-    const importedCategoryCount = clamp(sharedGame.board.length, MIN_CATEGORIES, MAX_CATEGORIES);
-    const maxRowsInBoard = Math.max(...sharedGame.board.map((category) => category?.cells?.length ?? 0));
-    const importedRowCount = clamp(maxRowsInBoard || MIN_ROWS, MIN_ROWS, MAX_ROWS);
-    const explicitValues = sharedGame.board.reduce<number[]>((values, category) => {
-      const categoryValues = (category?.cells ?? [])
-        .map((cell) => Number(cell?.value))
-        .filter((value): value is number => Number.isFinite(value) && value > 0);
-      return values.concat(categoryValues);
-    }, []);
-    const importedBaseValue = clamp(
-      explicitValues.length > 0 ? Math.min(...explicitValues) : 200,
-      MIN_BASE_VALUE,
-      MAX_BASE_VALUE,
-    );
+    const sharedGameType: GameType = sharedGame.gameType === "quick-trivia" ? "quick-trivia" : "jeopardy";
+    const sharedBoard = Array.isArray(sharedGame.board) ? sharedGame.board : [];
+    const hasSharedBoard = sharedBoard.length > 0;
+    if (sharedGameType === "jeopardy" && !hasSharedBoard) {
+      throw new Error("Invalid game payload");
+    }
 
-    const nextBoard: CategoryData[] = Array.from({ length: importedCategoryCount }, (_, categoryIndex) => {
-      const sourceCategory = sharedGame.board?.[categoryIndex];
-      return {
-        title:
-          typeof sourceCategory?.title === "string" && sourceCategory.title.trim()
-            ? sourceCategory.title
-            : `קטגוריה ${categoryIndex + 1}`,
-        cells: Array.from({ length: importedRowCount }, (_, rowIndex) => {
-          const sourceCell = sourceCategory?.cells?.[rowIndex];
-          const rawValue = Number(sourceCell?.value);
-          return {
-            value:
-              Number.isFinite(rawValue) && rawValue > 0
-                ? Math.round(rawValue)
-                : (rowIndex + 1) * importedBaseValue,
-            question: typeof sourceCell?.question === "string" ? sourceCell.question : "",
-            answer: typeof sourceCell?.answer === "string" ? sourceCell.answer : "",
-            used: Boolean(sourceCell?.used),
-          };
-        }),
-      };
-    });
+    if (hasSharedBoard) {
+      const importedCategoryCount = clamp(sharedBoard.length, MIN_CATEGORIES, MAX_CATEGORIES);
+      const maxRowsInBoard = Math.max(...sharedBoard.map((category) => category?.cells?.length ?? 0));
+      const importedRowCount = clamp(maxRowsInBoard || MIN_ROWS, MIN_ROWS, MAX_ROWS);
+      const explicitValues = sharedBoard.reduce<number[]>((values, category) => {
+        const categoryValues = (category?.cells ?? [])
+          .map((cell) => Number(cell?.value))
+          .filter((value): value is number => Number.isFinite(value) && value > 0);
+        return values.concat(categoryValues);
+      }, []);
+      const importedBaseValue = clamp(
+        explicitValues.length > 0 ? Math.min(...explicitValues) : 200,
+        MIN_BASE_VALUE,
+        MAX_BASE_VALUE,
+      );
+
+      const nextBoard: CategoryData[] = Array.from({ length: importedCategoryCount }, (_, categoryIndex) => {
+        const sourceCategory = sharedBoard?.[categoryIndex];
+        return {
+          title:
+            typeof sourceCategory?.title === "string" && sourceCategory.title.trim()
+              ? sourceCategory.title
+              : `קטגוריה ${categoryIndex + 1}`,
+          cells: Array.from({ length: importedRowCount }, (_, rowIndex) => {
+            const sourceCell = sourceCategory?.cells?.[rowIndex];
+            const rawValue = Number(sourceCell?.value);
+            return {
+              value:
+                Number.isFinite(rawValue) && rawValue > 0
+                  ? Math.round(rawValue)
+                  : (rowIndex + 1) * importedBaseValue,
+              question: typeof sourceCell?.question === "string" ? sourceCell.question : "",
+              answer: typeof sourceCell?.answer === "string" ? sourceCell.answer : "",
+              used: Boolean(sourceCell?.used),
+            };
+          }),
+        };
+      });
+
+      setCategoryCount(importedCategoryCount);
+      setRowCount(importedRowCount);
+      setBaseValue(importedBaseValue);
+      setBoard(nextBoard);
+    }
 
     const sharedTeams = Array.isArray(sharedGame.teams) ? sharedGame.teams : [];
     const importedTeamCount = clamp(sharedTeams.length || 2, MIN_TEAMS, MAX_TEAMS);
@@ -1052,12 +1166,10 @@ function App() {
       ? clamp(Math.round(Number(sharedGame.currentTurnIndex)), 0, importedTeamCount - 1)
       : 0;
 
-    setCategoryCount(importedCategoryCount);
-    setRowCount(importedRowCount);
-    setBaseValue(importedBaseValue);
-    setGameTopic(sharedGame.gameTopic?.trim() || "משחק ג'פרדי");
+    setGameType(sharedGameType);
+    setGameTopic(sharedGame.gameTopic?.trim() || (sharedGameType === "quick-trivia" ? "טריוויה מהירה" : "משחק ג'פרדי"));
     setBoardTheme(resolveBoardTheme(sharedGame.boardTheme));
-    setBoard(nextBoard);
+    setQuickTriviaQuestions(normalizeQuickTriviaQuestions(sharedGame.quickTriviaQuestions));
     setTeams(
       Array.from({ length: importedTeamCount }, (_, index) => {
         const sourceTeam = sharedTeams[index];
@@ -1074,6 +1186,7 @@ function App() {
     );
     setCurrentTurnIndex(normalizedTurnIndex);
     setActiveCell(null);
+    setActiveQuickQuestionId(null);
     setShowAnswer(false);
     setDidScoreCurrentQuestion(false);
     setIsSharedViewOnly(options.access === "view");
@@ -1214,6 +1327,46 @@ function App() {
             rIndex === rowIndex ? { ...cell, [field]: text } : cell,
           ),
         };
+      }),
+    );
+  };
+
+  const updateQuickTriviaCount = (nextValue: number) => {
+    const clamped = clamp(nextValue, QUICK_TRIVIA_MIN_QUESTIONS, QUICK_TRIVIA_MAX_QUESTIONS);
+    setQuickTriviaQuestions((previous) => {
+      if (clamped === previous.length) {
+        return previous;
+      }
+      if (clamped < previous.length) {
+        return previous.slice(0, clamped);
+      }
+      const lastValue = previous[previous.length - 1]?.value ?? QUICK_TRIVIA_DEFAULT_VALUE;
+      const additions = Array.from({ length: clamped - previous.length }, (_, offset) => ({
+        id: `quick-q-${previous.length + offset + 1}`,
+        value: lastValue + QUICK_TRIVIA_DEFAULT_VALUE * (offset + 1),
+        question: "",
+        answer: "",
+        used: false,
+      }));
+      return [...previous, ...additions];
+    });
+  };
+
+  const updateQuickTriviaQuestion = (
+    questionId: string,
+    field: "value" | "question" | "answer",
+    nextValue: string | number,
+  ) => {
+    setQuickTriviaQuestions((previous) =>
+      previous.map((question) => {
+        if (question.id !== questionId) return question;
+        if (field === "value") {
+          return {
+            ...question,
+            value: clamp(Number(nextValue) || QUICK_TRIVIA_DEFAULT_VALUE, MIN_BASE_VALUE, 5000),
+          };
+        }
+        return { ...question, [field]: String(nextValue) };
       }),
     );
   };
@@ -1597,18 +1750,23 @@ function App() {
     }
 
     if (!gameTopic.trim()) {
-      setGameTopic("משחק ג'פרדי");
+      setGameTopic(gameType === "quick-trivia" ? "טריוויה מהירה" : "משחק ג'פרדי");
     }
 
-    setBoard((previous) =>
-      previous.map((category) => ({
-        ...category,
-        cells: category.cells.map((cell) => ({ ...cell, used: false })),
-      })),
-    );
+    if (gameType === "quick-trivia") {
+      setQuickTriviaQuestions((previous) => previous.map((question) => ({ ...question, used: false })));
+    } else {
+      setBoard((previous) =>
+        previous.map((category) => ({
+          ...category,
+          cells: category.cells.map((cell) => ({ ...cell, used: false })),
+        })),
+      );
+    }
     setTeams((previous) => previous.map((team) => ({ ...team, score: 0 })));
     setCurrentTurnIndex(0);
     setActiveCell(null);
+    setActiveQuickQuestionId(null);
     setShowAnswer(false);
     setDidScoreCurrentQuestion(false);
     setIsSharedViewOnly(false);
@@ -1623,22 +1781,37 @@ function App() {
       return;
     }
     setActiveCell(null);
+    setActiveQuickQuestionId(null);
     setShowAnswer(false);
     setDidScoreCurrentQuestion(false);
     setMode("editor");
   };
 
   const openQuestion = (categoryIndex: number, rowIndex: number) => {
+    if (gameType !== "jeopardy") return;
     const cell = board[categoryIndex]?.cells[rowIndex];
     if (!cell || cell.used) return;
 
     setActiveCell({ categoryIndex, rowIndex });
+    setActiveQuickQuestionId(null);
+    setShowAnswer(false);
+    setDidScoreCurrentQuestion(false);
+  };
+
+  const openQuickTriviaQuestion = (questionId: string) => {
+    if (gameType !== "quick-trivia") return;
+    const question = quickTriviaQuestions.find((item) => item.id === questionId);
+    if (!question || question.used) return;
+
+    setActiveQuickQuestionId(questionId);
+    setActiveCell(null);
     setShowAnswer(false);
     setDidScoreCurrentQuestion(false);
   };
 
   const closeQuestion = () => {
     setActiveCell(null);
+    setActiveQuickQuestionId(null);
     setShowAnswer(false);
     setDidScoreCurrentQuestion(false);
   };
@@ -1654,6 +1827,18 @@ function App() {
   };
 
   const finishQuestion = () => {
+    if (gameType === "quick-trivia") {
+      if (!activeQuickQuestionId) return;
+      setQuickTriviaQuestions((previous) =>
+        previous.map((question) =>
+          question.id === activeQuickQuestionId ? { ...question, used: true } : question,
+        ),
+      );
+      setCurrentTurnIndex((previous) => (teams.length > 0 ? (previous + 1) % teams.length : 0));
+      closeQuestion();
+      return;
+    }
+
     if (!activeCell) return;
 
     setBoard((previous) =>
@@ -1673,12 +1858,16 @@ function App() {
   };
 
   const resetGameBoard = () => {
-    setBoard((previous) =>
-      previous.map((category) => ({
-        ...category,
-        cells: category.cells.map((cell) => ({ ...cell, used: false })),
-      })),
-    );
+    if (gameType === "quick-trivia") {
+      setQuickTriviaQuestions((previous) => previous.map((question) => ({ ...question, used: false })));
+    } else {
+      setBoard((previous) =>
+        previous.map((category) => ({
+          ...category,
+          cells: category.cells.map((cell) => ({ ...cell, used: false })),
+        })),
+      );
+    }
     setTeams((previous) => previous.map((team) => ({ ...team, score: 0 })));
     setCurrentTurnIndex(0);
     closeQuestion();
@@ -1689,6 +1878,7 @@ function App() {
       version: 1,
       settings: {
         gameTopic: resolvedGameTopic,
+        gameType,
         categoryCount,
         rowCount,
         baseValue,
@@ -1704,13 +1894,18 @@ function App() {
           answer: cell.answer,
         })),
       })),
+      quickTriviaQuestions: quickTriviaQuestions.map((question) => ({
+        value: question.value,
+        question: question.question,
+        answer: question.answer,
+      })),
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "dna-jeopardy-board.json";
+    anchor.download = gameType === "quick-trivia" ? "quick-trivia-board.json" : "dna-jeopardy-board.json";
     anchor.click();
     URL.revokeObjectURL(url);
   };
@@ -1859,36 +2054,48 @@ function App() {
     try {
       const text = await file.text();
       const parsed = JSON.parse(text) as Partial<ExportPayload>;
-      if (!parsed.categories || !Array.isArray(parsed.categories) || parsed.categories.length === 0) {
+      const importedGameType: GameType =
+        parsed.settings?.gameType === "quick-trivia" ? "quick-trivia" : "jeopardy";
+      const hasCategories = Array.isArray(parsed.categories) && parsed.categories.length > 0;
+      const hasQuickTrivia =
+        Array.isArray(parsed.quickTriviaQuestions) && parsed.quickTriviaQuestions.length > 0;
+      if (!hasCategories && !hasQuickTrivia) {
         throw new Error("קובץ לא תקין.");
       }
 
-      const importedCategoryCount = clamp(parsed.categories.length, MIN_CATEGORIES, MAX_CATEGORIES);
-      const importedRowCount = clamp(
-        parsed.settings?.rowCount ?? parsed.categories[0]?.cells?.length ?? 5,
-        MIN_ROWS,
-        MAX_ROWS,
-      );
-      const importedBaseValue = clamp(parsed.settings?.baseValue ?? 200, MIN_BASE_VALUE, MAX_BASE_VALUE);
+      if (hasCategories) {
+        const importedCategoryCount = clamp(parsed.categories!.length, MIN_CATEGORIES, MAX_CATEGORIES);
+        const importedRowCount = clamp(
+          parsed.settings?.rowCount ?? parsed.categories?.[0]?.cells?.length ?? 5,
+          MIN_ROWS,
+          MAX_ROWS,
+        );
+        const importedBaseValue = clamp(parsed.settings?.baseValue ?? 200, MIN_BASE_VALUE, MAX_BASE_VALUE);
 
-      const nextBoard = Array.from({ length: importedCategoryCount }, (_, categoryIndex) => {
-        const sourceCategory = parsed.categories?.[categoryIndex];
-        return {
-          title:
-            typeof sourceCategory?.title === "string" && sourceCategory.title.trim()
-              ? sourceCategory.title
-              : `קטגוריה ${categoryIndex + 1}`,
-          cells: Array.from({ length: importedRowCount }, (_, rowIndex) => {
-            const sourceCell = sourceCategory?.cells?.[rowIndex];
-            return {
-              value: (rowIndex + 1) * importedBaseValue,
-              question: typeof sourceCell?.question === "string" ? sourceCell.question : "",
-              answer: typeof sourceCell?.answer === "string" ? sourceCell.answer : "",
-              used: false,
-            };
-          }),
-        };
-      });
+        const nextBoard = Array.from({ length: importedCategoryCount }, (_, categoryIndex) => {
+          const sourceCategory = parsed.categories?.[categoryIndex];
+          return {
+            title:
+              typeof sourceCategory?.title === "string" && sourceCategory.title.trim()
+                ? sourceCategory.title
+                : `קטגוריה ${categoryIndex + 1}`,
+            cells: Array.from({ length: importedRowCount }, (_, rowIndex) => {
+              const sourceCell = sourceCategory?.cells?.[rowIndex];
+              return {
+                value: (rowIndex + 1) * importedBaseValue,
+                question: typeof sourceCell?.question === "string" ? sourceCell.question : "",
+                answer: typeof sourceCell?.answer === "string" ? sourceCell.answer : "",
+                used: false,
+              };
+            }),
+          };
+        });
+
+        setCategoryCount(importedCategoryCount);
+        setRowCount(importedRowCount);
+        setBaseValue(importedBaseValue);
+        setBoard(nextBoard);
+      }
 
       const importedTeamNames = parsed.settings?.teamNames ?? [];
       const importedTeamCount = clamp(
@@ -1897,12 +2104,13 @@ function App() {
         MAX_TEAMS,
       );
 
-      setCategoryCount(importedCategoryCount);
-      setRowCount(importedRowCount);
-      setBaseValue(importedBaseValue);
-      setGameTopic(parsed.settings?.gameTopic?.trim() || "משחק ג'פרדי");
+      setGameType(importedGameType);
+      setQuickTriviaQuestions(normalizeQuickTriviaQuestions(parsed.quickTriviaQuestions));
+      setGameTopic(
+        parsed.settings?.gameTopic?.trim() ||
+          (importedGameType === "quick-trivia" ? "טריוויה מהירה" : "משחק ג'פרדי"),
+      );
       setBoardTheme(resolveBoardTheme(parsed.settings?.boardTheme));
-      setBoard(nextBoard);
       setTeams(
         Array.from({ length: importedTeamCount }, (_, index) => ({
           id: `team-${index + 1}`,
@@ -1911,8 +2119,14 @@ function App() {
         })),
       );
       setCurrentTurnIndex(0);
+      setActiveCell(null);
+      setActiveQuickQuestionId(null);
+      setShowAnswer(false);
+      setDidScoreCurrentQuestion(false);
       setMode("editor");
-      setStatusMessage("הלוח נטען בהצלחה.");
+      setStatusMessage(
+        importedGameType === "quick-trivia" ? "משחק טריוויה מהירה נטען בהצלחה." : "הלוח נטען בהצלחה.",
+      );
     } catch {
       setStatusMessage("שגיאה בייבוא הקובץ. ודאי שזה JSON בפורמט הנתמך.");
     } finally {
@@ -1926,8 +2140,12 @@ function App() {
         <header className="top-header">
           {mode === "editor" ? (
             <>
-              <h1>מחולל ג'פרדי</h1>
-              <p>מצב עריכה: בונים את הלוח, מגדירים נושא, קבוצות ושאלות.</p>
+              <h1>{gameType === "quick-trivia" ? "מחולל טריוויה מהירה" : "מחולל ג'פרדי"}</h1>
+              <p>
+                {gameType === "quick-trivia"
+                  ? "מצב עריכה: מגדירים נושא, קבוצות ורשימת שאלות מהירות."
+                  : "מצב עריכה: בונים את הלוח, מגדירים נושא, קבוצות ושאלות."}
+              </p>
             </>
           ) : (
             <>
@@ -1945,19 +2163,23 @@ function App() {
             <span className="mode-pill">עריכת לוח</span>
           </div>
           <div className="toolbar-actions">
-            <button type="button" onClick={downloadCsvTemplate}>
-              הורדת תבנית CSV
-            </button>
-            <button type="button" onClick={() => csvImportInputRef.current?.click()}>
-              ייבוא CSV
-            </button>
-            <input
-              ref={csvImportInputRef}
-              type="file"
-              accept=".csv,text/csv"
-              onChange={importBoardFromCsvFile}
-              hidden
-            />
+            {gameType === "jeopardy" && (
+              <>
+                <button type="button" onClick={downloadCsvTemplate}>
+                  הורדת תבנית CSV
+                </button>
+                <button type="button" onClick={() => csvImportInputRef.current?.click()}>
+                  ייבוא CSV
+                </button>
+                <input
+                  ref={csvImportInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={importBoardFromCsvFile}
+                  hidden
+                />
+              </>
+            )}
             <button type="button" onClick={exportBoardToJson}>
               ייצוא JSON
             </button>
@@ -2030,7 +2252,7 @@ function App() {
               </label>
             )}
             <button type="button" onClick={resetGameBoard}>
-              איפוס ניקוד ולוח
+              {gameType === "quick-trivia" ? "איפוס ניקוד ושאלות" : "איפוס ניקוד ולוח"}
             </button>
             {!isSharedViewOnly && (
               <button type="button" onClick={returnToEditor} className="primary-button">
@@ -2247,6 +2469,31 @@ function App() {
           <section className="card">
             <h2>הגדרות לוח</h2>
             <div className="settings-grid">
+              <label>
+                סוג משחק
+                <select
+                  value={gameType}
+                  onChange={(event) => {
+                    const nextType = event.target.value === "quick-trivia" ? "quick-trivia" : "jeopardy";
+                    setGameType(nextType);
+                    setMode("editor");
+                    setStatusMessage("");
+                    setActiveCell(null);
+                    setActiveQuickQuestionId(null);
+                    setShowAnswer(false);
+                    setDidScoreCurrentQuestion(false);
+                    if (!gameTopic.trim()) {
+                      setGameTopic(nextType === "quick-trivia" ? "טריוויה מהירה" : "משחק ג'פרדי");
+                    }
+                  }}
+                >
+                  {GAME_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label className="topic-field">
                 נושא המשחק
                 <input
@@ -2256,37 +2503,52 @@ function App() {
                   placeholder="לדוגמה: ביולוגיה מולקולרית"
                 />
               </label>
-              <label>
-                מספר קטגוריות
-                <input
-                  type="number"
-                  min={MIN_CATEGORIES}
-                  max={MAX_CATEGORIES}
-                  value={categoryCount}
-                  onChange={(event) => updateCategoryCount(Number(event.target.value))}
-                />
-              </label>
-              <label>
-                מספר שורות ניקוד
-                <input
-                  type="number"
-                  min={MIN_ROWS}
-                  max={MAX_ROWS}
-                  value={rowCount}
-                  onChange={(event) => updateRowCount(Number(event.target.value))}
-                />
-              </label>
-              <label>
-                ניקוד בסיס
-                <input
-                  type="number"
-                  min={MIN_BASE_VALUE}
-                  max={MAX_BASE_VALUE}
-                  step={100}
-                  value={baseValue}
-                  onChange={(event) => updateBaseValue(Number(event.target.value))}
-                />
-              </label>
+              {gameType === "jeopardy" ? (
+                <>
+                  <label>
+                    מספר קטגוריות
+                    <input
+                      type="number"
+                      min={MIN_CATEGORIES}
+                      max={MAX_CATEGORIES}
+                      value={categoryCount}
+                      onChange={(event) => updateCategoryCount(Number(event.target.value))}
+                    />
+                  </label>
+                  <label>
+                    מספר שורות ניקוד
+                    <input
+                      type="number"
+                      min={MIN_ROWS}
+                      max={MAX_ROWS}
+                      value={rowCount}
+                      onChange={(event) => updateRowCount(Number(event.target.value))}
+                    />
+                  </label>
+                  <label>
+                    ניקוד בסיס
+                    <input
+                      type="number"
+                      min={MIN_BASE_VALUE}
+                      max={MAX_BASE_VALUE}
+                      step={100}
+                      value={baseValue}
+                      onChange={(event) => updateBaseValue(Number(event.target.value))}
+                    />
+                  </label>
+                </>
+              ) : (
+                <label>
+                  מספר שאלות
+                  <input
+                    type="number"
+                    min={QUICK_TRIVIA_MIN_QUESTIONS}
+                    max={QUICK_TRIVIA_MAX_QUESTIONS}
+                    value={quickTriviaQuestions.length}
+                    onChange={(event) => updateQuickTriviaCount(Number(event.target.value))}
+                  />
+                </label>
+              )}
               <label>
                 מספר קבוצות
                 <input
@@ -2299,7 +2561,9 @@ function App() {
               </label>
             </div>
             <p className="hint-text">
-              חייבים למלא את כל השאלות והתשובות לפני הפעלת המשחק. חסרים כרגע: {missingFieldsCount}.
+              {gameType === "quick-trivia"
+                ? `יש למלא את כל שאלות הטריוויה לפני הפעלה. חסרות כרגע: ${missingFieldsCount}.`
+                : `חייבים למלא את כל השאלות והתשובות לפני הפעלת המשחק. חסרים כרגע: ${missingFieldsCount}.`}
             </p>
           </section>
 
@@ -2442,50 +2706,101 @@ function App() {
             </div>
           </section>
 
-          <section className="card ai-prompt-card">
-            <div className="ai-prompt-header">
-              <h2>פרומפט מוכן ליצירת CSV ב-AI</h2>
-              <button type="button" onClick={copyAiPromptToClipboard}>
-                העתקת הפרומפט
-              </button>
-            </div>
-            <p className="ai-prompt-note">
-              אפשר להדביק את הטקסט בכל מחולל שפה, להחליף את הערכים שבסוגריים מרובעים, ולבקש פלט CSV.
-            </p>
-            <textarea
-              className="ai-prompt-textarea"
-              rows={6}
-              value={aiPromptText}
-              onChange={(event) => setAiPromptText(event.target.value)}
-            />
-          </section>
+          {gameType === "jeopardy" ? (
+            <>
+              <section className="card ai-prompt-card">
+                <div className="ai-prompt-header">
+                  <h2>פרומפט מוכן ליצירת CSV ב-AI</h2>
+                  <button type="button" onClick={copyAiPromptToClipboard}>
+                    העתקת הפרומפט
+                  </button>
+                </div>
+                <p className="ai-prompt-note">
+                  אפשר להדביק את הטקסט בכל מחולל שפה, להחליף את הערכים שבסוגריים מרובעים, ולבקש פלט CSV.
+                </p>
+                <textarea
+                  className="ai-prompt-textarea"
+                  rows={6}
+                  value={aiPromptText}
+                  onChange={(event) => setAiPromptText(event.target.value)}
+                />
+              </section>
 
-          <section
-            className="editor-grid"
-            style={{ gridTemplateColumns: `repeat(${categoryCount}, minmax(0, 1fr))` }}
-          >
-            {board.map((category, categoryIndex) => (
-              <article key={`editor-${categoryIndex}`} className="category-editor">
-                <label className="category-title-input">
-                  <span>שם קטגוריה</span>
-                  <input
-                    value={category.title}
-                    onChange={(event) => updateCategoryTitle(categoryIndex, event.target.value)}
-                  />
-                </label>
+              <section
+                className="editor-grid"
+                style={{ gridTemplateColumns: `repeat(${categoryCount}, minmax(0, 1fr))` }}
+              >
+                {board.map((category, categoryIndex) => (
+                  <article key={`editor-${categoryIndex}`} className="category-editor">
+                    <label className="category-title-input">
+                      <span>שם קטגוריה</span>
+                      <input
+                        value={category.title}
+                        onChange={(event) => updateCategoryTitle(categoryIndex, event.target.value)}
+                      />
+                    </label>
 
-                {category.cells.map((cell, rowIndex) => (
-                  <div key={`cell-${categoryIndex}-${rowIndex}`} className="cell-editor">
-                    <h3>
-                      <ValueMark value={cell.value} />
-                    </h3>
+                    {category.cells.map((cell, rowIndex) => (
+                      <div key={`cell-${categoryIndex}-${rowIndex}`} className="cell-editor">
+                        <h3>
+                          <ValueMark value={cell.value} />
+                        </h3>
+                        <label>
+                          שאלה
+                          <textarea
+                            rows={3}
+                            value={cell.question}
+                            onChange={(event) =>
+                              updateCellText(categoryIndex, rowIndex, "question", event.target.value)
+                            }
+                          />
+                        </label>
+                        <label>
+                          תשובה
+                          <textarea
+                            rows={3}
+                            value={cell.answer}
+                            onChange={(event) =>
+                              updateCellText(categoryIndex, rowIndex, "answer", event.target.value)
+                            }
+                          />
+                        </label>
+                      </div>
+                    ))}
+                  </article>
+                ))}
+              </section>
+            </>
+          ) : (
+            <section className="card">
+              <h2>שאלות טריוויה מהירה</h2>
+              <p className="hint-text">כל שאלה נפתחת ככרטיס עצמאי במהלך המשחק.</p>
+              <div className="quick-trivia-editor-list">
+                {quickTriviaQuestions.map((question, index) => (
+                  <article key={question.id} className="quick-trivia-editor-item">
+                    <div className="quick-trivia-editor-header">
+                      <strong>שאלה {index + 1}</strong>
+                      <label>
+                        ניקוד
+                        <input
+                          type="number"
+                          min={MIN_BASE_VALUE}
+                          max={5000}
+                          step={100}
+                          value={question.value}
+                          onChange={(event) =>
+                            updateQuickTriviaQuestion(question.id, "value", Number(event.target.value))
+                          }
+                        />
+                      </label>
+                    </div>
                     <label>
                       שאלה
                       <textarea
                         rows={3}
-                        value={cell.question}
+                        value={question.question}
                         onChange={(event) =>
-                          updateCellText(categoryIndex, rowIndex, "question", event.target.value)
+                          updateQuickTriviaQuestion(question.id, "question", event.target.value)
                         }
                       />
                     </label>
@@ -2493,17 +2808,17 @@ function App() {
                       תשובה
                       <textarea
                         rows={3}
-                        value={cell.answer}
+                        value={question.answer}
                         onChange={(event) =>
-                          updateCellText(categoryIndex, rowIndex, "answer", event.target.value)
+                          updateQuickTriviaQuestion(question.id, "answer", event.target.value)
                         }
                       />
                     </label>
-                  </div>
+                  </article>
                 ))}
-              </article>
-            ))}
-          </section>
+              </div>
+            </section>
+          )}
         </>
       ) : (
         <>
@@ -2548,57 +2863,104 @@ function App() {
             })}
           </section>
 
-          <section
-            className="game-board"
-            style={{
-              borderColor: boardTheme.boardBorderColor,
-              backgroundColor: boardTheme.boardBackgroundColor,
-              backgroundImage: boardBackgroundImage,
-              backgroundSize: boardTheme.boardBackgroundImage ? "cover" : undefined,
-              backgroundPosition: boardTheme.boardBackgroundImage ? "center" : undefined,
-            }}
-          >
-            <div
-              className="game-grid"
+          {gameType === "jeopardy" ? (
+            <section
+              className="game-board"
               style={{
-                gridTemplateColumns: `repeat(${categoryCount}, minmax(0, 1fr))`,
-                ["--category-font-size" as string]: boardTypography.categoryFontSize,
-                ["--cell-font-size" as string]: boardTypography.cellFontSize,
-                ["--category-bg-start" as string]: boardTheme.categoryBgStart,
-                ["--category-bg-end" as string]: boardTheme.categoryBgEnd,
-                ["--category-text-color" as string]: boardTheme.categoryTextColor,
-                ["--cell-bg-color" as string]: boardTheme.cellBgColor,
-                ["--cell-text-color" as string]: boardTheme.cellTextColor,
-                ["--cell-border-color" as string]: boardTheme.cellBorderColor,
-                ["--used-cell-bg-color" as string]: boardTheme.usedCellBgColor,
-                ["--used-cell-text-color" as string]: boardTheme.usedCellTextColor,
+                borderColor: boardTheme.boardBorderColor,
+                backgroundColor: boardTheme.boardBackgroundColor,
+                backgroundImage: boardBackgroundImage,
+                backgroundSize: boardTheme.boardBackgroundImage ? "cover" : undefined,
+                backgroundPosition: boardTheme.boardBackgroundImage ? "center" : undefined,
               }}
             >
-              {board.map((category, categoryIndex) => (
-                <div key={`game-category-${categoryIndex}`} className="game-category-title">
-                  {category.title}
-                </div>
-              ))}
+              <div
+                className="game-grid"
+                style={{
+                  gridTemplateColumns: `repeat(${categoryCount}, minmax(0, 1fr))`,
+                  ["--category-font-size" as string]: boardTypography.categoryFontSize,
+                  ["--cell-font-size" as string]: boardTypography.cellFontSize,
+                  ["--category-bg-start" as string]: boardTheme.categoryBgStart,
+                  ["--category-bg-end" as string]: boardTheme.categoryBgEnd,
+                  ["--category-text-color" as string]: boardTheme.categoryTextColor,
+                  ["--cell-bg-color" as string]: boardTheme.cellBgColor,
+                  ["--cell-text-color" as string]: boardTheme.cellTextColor,
+                  ["--cell-border-color" as string]: boardTheme.cellBorderColor,
+                  ["--used-cell-bg-color" as string]: boardTheme.usedCellBgColor,
+                  ["--used-cell-text-color" as string]: boardTheme.usedCellTextColor,
+                }}
+              >
+                {board.map((category, categoryIndex) => (
+                  <div key={`game-category-${categoryIndex}`} className="game-category-title">
+                    {category.title}
+                  </div>
+                ))}
 
-              {Array.from({ length: rowCount }, (_, rowIndex) =>
-                board.map((category, categoryIndex) => {
-                  const cell = category.cells[rowIndex];
-                  const isUsed = !cell || cell.used;
+                {Array.from({ length: rowCount }, (_, rowIndex) =>
+                  board.map((category, categoryIndex) => {
+                    const cell = category.cells[rowIndex];
+                    const isUsed = !cell || cell.used;
+                    return (
+                      <button
+                        key={`game-cell-${categoryIndex}-${rowIndex}`}
+                        type="button"
+                        onClick={() => openQuestion(categoryIndex, rowIndex)}
+                        disabled={isUsed}
+                        className={`game-cell ${isUsed ? "used" : ""}`}
+                      >
+                        {isUsed ? "✓" : <ValueMark value={cell.value} />}
+                      </button>
+                    );
+                  }),
+                )}
+              </div>
+            </section>
+          ) : (
+            <section
+              className="game-board"
+              style={{
+                borderColor: boardTheme.boardBorderColor,
+                backgroundColor: boardTheme.boardBackgroundColor,
+                backgroundImage: boardBackgroundImage,
+                backgroundSize: boardTheme.boardBackgroundImage ? "cover" : undefined,
+                backgroundPosition: boardTheme.boardBackgroundImage ? "center" : undefined,
+              }}
+            >
+              <div
+                className="quick-trivia-grid"
+                style={{
+                  ["--cell-font-size" as string]: boardTypography.cellFontSize,
+                  ["--cell-bg-color" as string]: boardTheme.cellBgColor,
+                  ["--cell-text-color" as string]: boardTheme.cellTextColor,
+                  ["--cell-border-color" as string]: boardTheme.cellBorderColor,
+                  ["--used-cell-bg-color" as string]: boardTheme.usedCellBgColor,
+                  ["--used-cell-text-color" as string]: boardTheme.usedCellTextColor,
+                }}
+              >
+                {quickTriviaQuestions.map((question, index) => {
+                  const isUsed = question.used;
                   return (
                     <button
-                      key={`game-cell-${categoryIndex}-${rowIndex}`}
+                      key={question.id}
                       type="button"
-                      onClick={() => openQuestion(categoryIndex, rowIndex)}
+                      onClick={() => openQuickTriviaQuestion(question.id)}
                       disabled={isUsed}
-                      className={`game-cell ${isUsed ? "used" : ""}`}
+                      className={`game-cell quick-trivia-cell ${isUsed ? "used" : ""}`}
                     >
-                      {isUsed ? "✓" : <ValueMark value={cell.value} />}
+                      {isUsed ? (
+                        "✓"
+                      ) : (
+                        <>
+                          <span className="quick-trivia-index">שאלה {index + 1}</span>
+                          <ValueMark value={question.value} />
+                        </>
+                      )}
                     </button>
                   );
-                }),
-              )}
-            </div>
-          </section>
+                })}
+              </div>
+            </section>
+          )}
 
           {!isSharedViewOnly && (
             <p className="hint-text">

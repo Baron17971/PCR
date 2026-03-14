@@ -788,6 +788,36 @@ textarea {
   gap: 1rem;
 }
 
+.quick-trivia-editor-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.quick-trivia-editor-item {
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 0.9rem;
+  background: rgba(2, 6, 23, 0.5);
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.quick-trivia-editor-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.quick-trivia-editor-header strong {
+  font-size: 1rem;
+}
+
+.quick-trivia-editor-header label {
+  min-width: 130px;
+}
+
 .category-editor {
   border: 1px solid var(--border-main);
   border-radius: 1rem;
@@ -913,6 +943,12 @@ textarea {
   gap: 0.5rem;
 }
 
+.quick-trivia-grid {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
 .game-category-title {
   min-height: 74px;
   border-radius: 0.9rem;
@@ -950,6 +986,18 @@ textarea {
 .game-cell.used {
   color: var(--used-cell-text-color, #64748b);
   background: var(--used-cell-bg-color, rgba(2, 6, 23, 0.85));
+}
+
+.quick-trivia-cell {
+  flex-direction: column;
+  gap: 0.35rem;
+  min-height: 86px;
+  line-height: 1.15;
+}
+
+.quick-trivia-index {
+  font-size: clamp(0.82rem, 0.35vw + 0.72rem, 0.98rem);
+  font-weight: 500;
 }
 
 .value-mark {
