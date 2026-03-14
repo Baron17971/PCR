@@ -1,4 +1,4 @@
-﻿import { useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
 type AppMode = "editor" | "game";
@@ -83,6 +83,32 @@ interface ExportPayload {
   }>;
 }
 
+type ShareAccess = "view" | "edit";
+
+interface SharePayload {
+  version: number;
+  access?: ShareAccess;
+  canShareEdit?: boolean;
+  game: {
+    gameTopic: string;
+    boardTheme?: Partial<BoardTheme>;
+    board: Array<{
+      title: string;
+      cells: Array<{
+        value: number;
+        question: string;
+        answer: string;
+        used: boolean;
+      }>;
+    }>;
+    teams: Array<{
+      name: string;
+      score: number;
+    }>;
+    currentTurnIndex: number;
+  };
+}
+
 interface CsvQuestionRow {
   category: string;
   value: number | null;
@@ -98,6 +124,7 @@ const MIN_TEAMS = 2;
 const MAX_TEAMS = 5;
 const MIN_BASE_VALUE = 100;
 const MAX_BASE_VALUE = 500;
+const SHARE_QUERY_PARAM = "game";
 
 const TEAM_COLORS = [
   "#22d3ee",
@@ -435,6 +462,25 @@ function getTextColorForBackground(backgroundColor: string): string {
     : lightText;
 }
 
+function encodeBase64Url(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function decodeBase64Url(value: string): string {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padding = "=".repeat((4 - (normalized.length % 4)) % 4);
+  const binary = atob(`${normalized}${padding}`);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
 function normalizeHeader(value: string): string {
   return value.trim().toLowerCase().replace(/[\s_-]/g, "");
 }
@@ -584,6 +630,8 @@ function App() {
   const [showAnswer, setShowAnswer] = useState(false);
   const [didScoreCurrentQuestion, setDidScoreCurrentQuestion] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>("");
+  const [isSharedViewOnly, setIsSharedViewOnly] = useState(false);
+  const [canCreateEditShare, setCanCreateEditShare] = useState(true);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const csvImportInputRef = useRef<HTMLInputElement | null>(null);
   const boardBackgroundInputRef = useRef<HTMLInputElement | null>(null);
@@ -651,6 +699,102 @@ function App() {
     ["--modal-close-border-color" as string]: boardTheme.cellBorderColor,
     ["--modal-close-text-color" as string]: modalCloseTextColor,
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const encodedGame = params.get(SHARE_QUERY_PARAM);
+    if (!encodedGame) return;
+
+    try {
+      const decodedPayload = decodeBase64Url(encodedGame);
+      const parsed = JSON.parse(decodedPayload) as Partial<SharePayload>;
+      const shareAccess: ShareAccess = parsed.access === "edit" ? "edit" : "view";
+      const canShareEditFromLink =
+        typeof parsed.canShareEdit === "boolean" ? parsed.canShareEdit : shareAccess === "edit";
+      const sharedGame = parsed.game;
+      if (!sharedGame || !Array.isArray(sharedGame.board) || sharedGame.board.length === 0) {
+        throw new Error("Invalid share payload");
+      }
+
+      const importedCategoryCount = clamp(sharedGame.board.length, MIN_CATEGORIES, MAX_CATEGORIES);
+      const maxRowsInBoard = Math.max(...sharedGame.board.map((category) => category?.cells?.length ?? 0));
+      const importedRowCount = clamp(maxRowsInBoard || MIN_ROWS, MIN_ROWS, MAX_ROWS);
+      const explicitValues = sharedGame.board.reduce<number[]>((values, category) => {
+        const categoryValues = (category?.cells ?? [])
+          .map((cell) => Number(cell?.value))
+          .filter((value): value is number => Number.isFinite(value) && value > 0);
+        return values.concat(categoryValues);
+      }, []);
+      const importedBaseValue = clamp(
+        explicitValues.length > 0 ? Math.min(...explicitValues) : 200,
+        MIN_BASE_VALUE,
+        MAX_BASE_VALUE,
+      );
+
+      const nextBoard: CategoryData[] = Array.from({ length: importedCategoryCount }, (_, categoryIndex) => {
+        const sourceCategory = sharedGame.board?.[categoryIndex];
+        return {
+          title:
+            typeof sourceCategory?.title === "string" && sourceCategory.title.trim()
+              ? sourceCategory.title
+              : `קטגוריה ${categoryIndex + 1}`,
+          cells: Array.from({ length: importedRowCount }, (_, rowIndex) => {
+            const sourceCell = sourceCategory?.cells?.[rowIndex];
+            const rawValue = Number(sourceCell?.value);
+            return {
+              value:
+                Number.isFinite(rawValue) && rawValue > 0
+                  ? Math.round(rawValue)
+                  : (rowIndex + 1) * importedBaseValue,
+              question: typeof sourceCell?.question === "string" ? sourceCell.question : "",
+              answer: typeof sourceCell?.answer === "string" ? sourceCell.answer : "",
+              used: Boolean(sourceCell?.used),
+            };
+          }),
+        };
+      });
+
+      const sharedTeams = Array.isArray(sharedGame.teams) ? sharedGame.teams : [];
+      const importedTeamCount = clamp(sharedTeams.length || 2, MIN_TEAMS, MAX_TEAMS);
+      const normalizedTurnIndex = Number.isFinite(Number(sharedGame.currentTurnIndex))
+        ? clamp(Math.round(Number(sharedGame.currentTurnIndex)), 0, importedTeamCount - 1)
+        : 0;
+
+      setCategoryCount(importedCategoryCount);
+      setRowCount(importedRowCount);
+      setBaseValue(importedBaseValue);
+      setGameTopic(sharedGame.gameTopic?.trim() || "משחק ג'פרדי");
+      setBoardTheme(resolveBoardTheme(sharedGame.boardTheme));
+      setBoard(nextBoard);
+      setTeams(
+        Array.from({ length: importedTeamCount }, (_, index) => {
+          const sourceTeam = sharedTeams[index];
+          const sourceScore = Number(sourceTeam?.score);
+          return {
+            id: `team-${index + 1}`,
+            name:
+              typeof sourceTeam?.name === "string" && sourceTeam.name.trim()
+                ? sourceTeam.name
+                : `קבוצה ${index + 1}`,
+            score: Number.isFinite(sourceScore) ? Math.round(sourceScore) : 0,
+          };
+        }),
+      );
+      setCurrentTurnIndex(normalizedTurnIndex);
+      setActiveCell(null);
+      setShowAnswer(false);
+      setDidScoreCurrentQuestion(false);
+      setIsSharedViewOnly(shareAccess === "view");
+      setCanCreateEditShare(canShareEditFromLink);
+      setMode("game");
+      setStatusMessage("");
+    } catch {
+      setIsSharedViewOnly(false);
+      setCanCreateEditShare(true);
+      setStatusMessage("קישור המשחק אינו תקין או פגום.");
+    }
+  }, []);
 
   const updateBoardShape = (nextCategoryCount: number, nextRowCount: number, nextBaseValue: number) => {
     setBoard((previous) => resizeBoard(previous, nextCategoryCount, nextRowCount, nextBaseValue));
@@ -784,6 +928,56 @@ function App() {
     }
   };
 
+  const copyActiveGameLink = async (access: ShareAccess) => {
+    if (mode !== "game") {
+      setStatusMessage("קישור שיתוף זמין רק בזמן משחק פעיל.");
+      return;
+    }
+    if (access === "edit" && !canCreateEditShare) {
+      setStatusMessage("בקישור זה אין הרשאה ליצירת שיתוף לעריכה.");
+      return;
+    }
+
+    try {
+      const payload: SharePayload = {
+        version: 1,
+        access,
+        canShareEdit: access === "edit",
+        game: {
+          gameTopic: resolvedGameTopic,
+          boardTheme: { ...boardTheme, boardBackgroundImage: null },
+          board: board.map((category) => ({
+            title: category.title,
+            cells: category.cells.map((cell) => ({
+              value: cell.value,
+              question: cell.question,
+              answer: cell.answer,
+              used: cell.used,
+            })),
+          })),
+          teams: teams.map((team) => ({
+            name: team.name,
+            score: team.score,
+          })),
+          currentTurnIndex,
+        },
+      };
+
+      const encodedPayload = encodeBase64Url(JSON.stringify(payload));
+      const shareUrl = new URL(window.location.href);
+      shareUrl.searchParams.set(SHARE_QUERY_PARAM, encodedPayload);
+      const directLink = shareUrl.toString();
+      await navigator.clipboard.writeText(directLink);
+      setStatusMessage(
+        access === "view"
+          ? "קישור שיתוף לצפייה הועתק ללוח."
+          : "קישור שיתוף לעריכה הועתק ללוח.",
+      );
+    } catch {
+      setStatusMessage("לא ניתן ליצור קישור שיתוף כרגע.");
+    }
+  };
+
   const startGame = () => {
     if (!canStartGame) {
       setStatusMessage("אי אפשר להתחיל משחק לפני שממלאים את כל השאלות והתשובות.");
@@ -805,11 +999,17 @@ function App() {
     setActiveCell(null);
     setShowAnswer(false);
     setDidScoreCurrentQuestion(false);
+    setIsSharedViewOnly(false);
+    setCanCreateEditShare(true);
     setStatusMessage("");
     setMode("game");
   };
 
   const returnToEditor = () => {
+    if (isSharedViewOnly) {
+      setStatusMessage("קישור זה מוגדר לצפייה בלבד.");
+      return;
+    }
     setActiveCell(null);
     setShowAnswer(false);
     setDidScoreCurrentQuestion(false);
@@ -1110,19 +1310,21 @@ function App() {
 
   return (
     <div className="page-shell" dir="rtl">
-      <header className="top-header">
-        {mode === "editor" ? (
-          <>
-            <h1>מחולל ג'פרדי</h1>
-            <p>מצב עריכה: בונים את הלוח, מגדירים נושא, קבוצות ושאלות.</p>
-          </>
-        ) : (
-          <>
-            <h1>{resolvedGameTopic}</h1>
-            <p>מצב משחק פעיל: הלוח נעול לעריכה עד חזרה למצב עריכה.</p>
-          </>
-        )}
-      </header>
+      {!(mode === "game" && isSharedViewOnly) && (
+        <header className="top-header">
+          {mode === "editor" ? (
+            <>
+              <h1>מחולל ג'פרדי</h1>
+              <p>מצב עריכה: בונים את הלוח, מגדירים נושא, קבוצות ושאלות.</p>
+            </>
+          ) : (
+            <>
+              <h1>{resolvedGameTopic}</h1>
+              <p>מצב משחק פעיל: הלוח נעול לעריכה עד חזרה למצב עריכה.</p>
+            </>
+          )}
+        </header>
+      )}
 
       {mode === "editor" ? (
         <section className="toolbar-card editor-toolbar">
@@ -1169,12 +1371,42 @@ function App() {
             <span className="mode-pill">משחק פעיל</span>
           </div>
           <div className="toolbar-actions">
+            <button type="button" onClick={() => copyActiveGameLink("view")}>
+              שיתוף לצפייה
+            </button>
+            {canCreateEditShare && (
+              <button type="button" onClick={() => copyActiveGameLink("edit")}>
+                שיתוף לעריכה
+              </button>
+            )}
+            {isSharedViewOnly && (
+              <label className="viewer-team-count">
+                מספר קבוצות
+                <select
+                  value={teams.length}
+                  onChange={(event) => updateTeamCount(Number(event.target.value))}
+                  aria-label="בחירת מספר קבוצות"
+                >
+                  {Array.from({ length: MAX_TEAMS - MIN_TEAMS + 1 }, (_, index) => {
+                    const count = MIN_TEAMS + index;
+                    return (
+                      <option key={`shared-team-count-${count}`} value={count}>
+                        {count}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+            )}
             <button type="button" onClick={resetGameBoard}>
               איפוס ניקוד ולוח
             </button>
-            <button type="button" onClick={returnToEditor} className="primary-button">
-              חזרה לעריכה
-            </button>
+            {!isSharedViewOnly && (
+              <button type="button" onClick={returnToEditor} className="primary-button">
+                חזרה לעריכה
+              </button>
+            )}
+            {isSharedViewOnly && <span className="mode-pill readonly-pill">צפייה בלבד</span>}
           </div>
         </section>
       )}
@@ -1449,7 +1681,16 @@ function App() {
                     ["--team-accent-strong" as string]: `${teamColor}55`,
                   }}
                 >
-                  <strong>{team.name}</strong>
+                  {isSharedViewOnly ? (
+                    <input
+                      className="team-score-name-input"
+                      value={team.name}
+                      onChange={(event) => updateTeamName(team.id, event.target.value)}
+                      aria-label={`שם קבוצה ${index + 1}`}
+                    />
+                  ) : (
+                    <strong>{team.name}</strong>
+                  )}
                   <span>{team.score}</span>
                   {isCurrent && <small>תור נוכחי</small>}
                 </div>
@@ -1492,16 +1733,16 @@ function App() {
               {Array.from({ length: rowCount }, (_, rowIndex) =>
                 board.map((category, categoryIndex) => {
                   const cell = category.cells[rowIndex];
-                  const isDisabled = !cell || cell.used;
+                  const isUsed = !cell || cell.used;
                   return (
                     <button
                       key={`game-cell-${categoryIndex}-${rowIndex}`}
                       type="button"
                       onClick={() => openQuestion(categoryIndex, rowIndex)}
-                      disabled={isDisabled}
-                      className={`game-cell ${isDisabled ? "used" : ""}`}
+                      disabled={isUsed}
+                      className={`game-cell ${isUsed ? "used" : ""}`}
                     >
-                      {isDisabled ? "✓" : <ValueMark value={cell.value} />}
+                      {isUsed ? "✓" : <ValueMark value={cell.value} />}
                     </button>
                   );
                 }),
@@ -1576,6 +1817,7 @@ function App() {
 }
 
 export default App;
+
 
 
 
