@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Varela_Round } from "next/font/google";
+import { Rubik } from "next/font/google";
 import "./globals.css";
 
-const varela = Varela_Round({
-  weight: "400",
+const rubik = Rubik({
+  weight: ["300", "400", "500", "600", "700"],
   subsets: ["hebrew", "latin"],
-  variable: "--font-varela",
+  variable: "--font-rubik",
 });
 
 export const metadata: Metadata = {
@@ -25,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="he" dir="rtl">
-      <body className={`${varela.className} antialiased bg-pcr-mesh min-h-screen overflow-x-hidden`}>
+      <body className={`${rubik.className} antialiased bg-pcr-mesh min-h-screen overflow-x-hidden`}>
         {/* Soft, Flowing Atmospheric Background Layers - No rigid graphics */}
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
           {/* Organic Sweeping Light Beams */}

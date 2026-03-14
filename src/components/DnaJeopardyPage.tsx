@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Dna, RefreshCcw, Trophy, Users } from "lucide-react";
+import { RefreshCcw, Trophy, Users } from "lucide-react";
 
 interface DnaJeopardyPageProps {
   onComplete: () => void;
@@ -243,22 +243,16 @@ function formatPoints(value: number): string {
   return `${value}`;
 }
 
-function DnaPointsMark({
+function PointsMark({
   value,
-  className,
-  iconClassName
+  className
 }: {
   value: string | number;
   className?: string;
-  iconClassName?: string;
 }) {
   return (
-    <span dir="ltr" className={`inline-flex items-center gap-1.5 ${className ?? ""}`}>
+    <span dir="ltr" className={`inline-flex items-center ${className ?? ""}`}>
       <span className="tabular-nums">{value}</span>
-      <Dna
-        className={iconClassName ?? "w-5 h-5 text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.3)]"}
-        strokeWidth={2.6}
-      />
     </span>
   );
 }
@@ -356,7 +350,6 @@ export default function DnaJeopardyPage({ onComplete }: DnaJeopardyPageProps) {
     <section dir="rtl" className="glass-pcr-card rounded-[2.5rem] border border-slate-700/30 p-6 md:p-8 space-y-6">
       <header className="text-right space-y-2">
         <h2 className="text-3xl md:text-4xl font-black text-white flex items-center justify-start gap-3">
-          <Dna className="w-8 h-8 text-cyan-300" />
           ג&apos;פרדי DNA - אתגר מסכם
         </h2>
         <p className="text-slate-300 text-lg leading-relaxed">
@@ -462,9 +455,9 @@ export default function DnaJeopardyPage({ onComplete }: DnaJeopardyPageProps) {
           {JEOPARDY_CATEGORIES.map((category) => (
             <div
               key={`category-${category.title}`}
-              className="min-h-[84px] rounded-xl border border-cyan-400/30 bg-gradient-to-b from-blue-700 to-blue-900 px-2 py-3 flex items-center justify-center text-center"
+              className="min-h-[88px] rounded-xl border border-cyan-400/30 bg-gradient-to-b from-blue-700 to-blue-900 px-3 py-3 flex items-center justify-center text-center"
             >
-              <span className="text-sm md:text-base font-black text-white leading-tight">{category.title}</span>
+              <span className="text-base md:text-lg font-extrabold text-white leading-snug">{category.title}</span>
             </div>
           ))}
 
@@ -480,16 +473,15 @@ export default function DnaJeopardyPage({ onComplete }: DnaJeopardyPageProps) {
                   type="button"
                   onClick={() => openCell(categoryIndex, rowIndex)}
                   disabled={isUsed}
-                  className={`min-h-[92px] rounded-xl border transition-all flex items-center justify-center ${
+                  className={`min-h-[84px] rounded-xl border transition-all flex items-center justify-center ${
                     isUsed
                       ? "border-slate-800 bg-slate-950/60 text-slate-600 cursor-not-allowed"
                       : "border-blue-500/40 bg-blue-900/80 hover:bg-blue-800 text-amber-300 shadow-[inset_0_0_18px_rgba(0,0,0,0.35)]"
                   }`}
                 >
-                  <DnaPointsMark
+                  <PointsMark
                     value={formatPoints(cell.value)}
-                    className="text-xl md:text-2xl font-black tracking-tight drop-shadow-[2px_2px_0_rgba(0,0,0,0.5)]"
-                    iconClassName="w-5 h-5 md:w-6 md:h-6 text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.35)]"
+                    className="text-lg md:text-xl font-extrabold tracking-tight drop-shadow-[2px_2px_0_rgba(0,0,0,0.45)]"
                   />
                 </button>
               );
@@ -517,12 +509,11 @@ export default function DnaJeopardyPage({ onComplete }: DnaJeopardyPageProps) {
 
       {activeQuestion && (
         <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm p-4 md:p-8 flex items-center justify-center">
-          <div className="w-full max-w-4xl rounded-[2rem] border border-cyan-400/30 bg-slate-950/95 p-6 md:p-8 space-y-5 shadow-2xl">
+          <div className="w-full max-w-3xl rounded-[2rem] border border-cyan-400/30 bg-slate-950/95 p-5 md:p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between gap-3">
-              <DnaPointsMark
+              <PointsMark
                 value={formatPoints(activeQuestion.value)}
-                className="text-xl md:text-2xl font-black text-amber-300"
-                iconClassName="w-5 h-5 md:w-6 md:h-6 text-white"
+                className="text-lg md:text-xl font-extrabold text-amber-300"
               />
               <button
                 type="button"
@@ -533,8 +524,8 @@ export default function DnaJeopardyPage({ onComplete }: DnaJeopardyPageProps) {
               </button>
             </div>
 
-            <div className="rounded-2xl border border-slate-700 bg-slate-900/70 p-5">
-              <p className="text-xl md:text-2xl text-white font-black leading-relaxed text-right">{activeQuestion.question}</p>
+            <div className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4 md:p-5">
+              <p className="text-lg md:text-xl text-white font-bold leading-relaxed text-right">{activeQuestion.question}</p>
             </div>
 
             {!showAnswer ? (
@@ -549,7 +540,7 @@ export default function DnaJeopardyPage({ onComplete }: DnaJeopardyPageProps) {
               <div className="space-y-4">
                 <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4">
                   <p className="text-emerald-200 font-bold text-sm mb-1">תשובה:</p>
-                  <p className="text-white text-lg font-bold leading-relaxed">{activeQuestion.answer}</p>
+                  <p className="text-white text-base md:text-lg font-bold leading-relaxed">{activeQuestion.answer}</p>
                 </div>
 
                 {currentTurnTeam && (

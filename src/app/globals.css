@@ -132,7 +132,7 @@ body {
   --color-primary: var(--primary);
   --color-secondary: var(--secondary);
   --color-accent: var(--accent);
-  --font-sans: var(--font-varela), sans-serif;
+  --font-sans: var(--font-rubik), sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
