@@ -443,11 +443,7 @@ textarea {
   min-height: 74px;
   border-radius: 0.9rem;
   border: 1px solid var(--cell-border-color, rgba(56, 189, 248, 0.35));
-  background: linear-gradient(
-    180deg,
-    var(--category-bg-start, #1d4ed8),
-    var(--category-bg-end, #1e3a8a)
-  );
+  background: var(--category-bg-start, #1d4ed8);
   color: var(--category-text-color, #e2e8f0);
   font-family: "Varela Round", "Rubik", "Noto Sans Hebrew", "Segoe UI", Arial, sans-serif;
   font-weight: 600;

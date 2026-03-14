@@ -164,35 +164,35 @@ const BOARD_THEME_PALETTES: BoardThemePalette[] = [
   {
     id: "emerald-arena",
     name: "אמרלד ארנה",
-    description: "ירוק-טורקיז נקי, מצוין לשיעורים מדעיים.",
+    description: "אמרלד בהשראת שיש טורקיז-לילך, עם ערכים בגוון סגלגל וזהב רך.",
     colors: {
-      boardBorderColor: "#34d399",
-      boardBackgroundColor: "#052e2b",
-      categoryBgStart: "#059669",
-      categoryBgEnd: "#065f46",
-      categoryTextColor: "#dcfce7",
-      cellBgColor: "#064e3b",
-      cellTextColor: "#6ee7b7",
-      cellBorderColor: "#34d399",
-      usedCellBgColor: "#022c22",
-      usedCellTextColor: "#6b7280",
+      boardBorderColor: "#a895bf",
+      boardBackgroundColor: "#e5f2f4",
+      categoryBgStart: "#8bd4d8",
+      categoryBgEnd: "#b29fc7",
+      categoryTextColor: "#202737",
+      cellBgColor: "#67557d",
+      cellTextColor: "#f2e4be",
+      cellBorderColor: "#9d8fb4",
+      usedCellBgColor: "#d6e1e8",
+      usedCellTextColor: "#586476",
     },
   },
   {
     id: "sunset-arcade",
     name: "שקיעה ארקייד",
-    description: "אדום-כתום חי עם אווירת משחק דינמית.",
+    description: "בהשראת שקיעה סגולה-כתומה: אפרסק זהוב, כתום בוער וסגול עמוק.",
     colors: {
-      boardBorderColor: "#fb923c",
-      boardBackgroundColor: "#3b0a1a",
-      categoryBgStart: "#f97316",
-      categoryBgEnd: "#c2410c",
-      categoryTextColor: "#fff7ed",
-      cellBgColor: "#7c2d12",
-      cellTextColor: "#fdba74",
-      cellBorderColor: "#fb923c",
-      usedCellBgColor: "#431407",
-      usedCellTextColor: "#9ca3af",
+      boardBorderColor: "#f8b766",
+      boardBackgroundColor: "#2b2140",
+      categoryBgStart: "#f8b766",
+      categoryBgEnd: "#db6635",
+      categoryTextColor: "#2f1d1a",
+      cellBgColor: "#692e5e",
+      cellTextColor: "#f5dcb7",
+      cellBorderColor: "#ac5a54",
+      usedCellBgColor: "#3a2a4b",
+      usedCellTextColor: "#c5b9cf",
     },
   },
   {
@@ -232,18 +232,18 @@ const BOARD_THEME_PALETTES: BoardThemePalette[] = [
   {
     id: "vintage-mint",
     name: "מנטה וינטג׳",
-    description: "טורקיז עתיק עם בז׳-סגלגל, מאוזן וקריא ללוח מלא.",
+    description: "מנטה מעודנת ובהירה עם תחושת וינטג׳ נקייה ונעימה לעין.",
     colors: {
-      boardBorderColor: "#9bc9c7",
-      boardBackgroundColor: "#1f3437",
-      categoryBgStart: "#7ea9a4",
-      categoryBgEnd: "#8f7b84",
-      categoryTextColor: "#f8fafc",
-      cellBgColor: "#395558",
-      cellTextColor: "#f1decb",
-      cellBorderColor: "#8dbdb4",
-      usedCellBgColor: "#1a2428",
-      usedCellTextColor: "#9ca3af",
+      boardBorderColor: "#a7c8c0",
+      boardBackgroundColor: "#e6f1ef",
+      categoryBgStart: "#9bc8c1",
+      categoryBgEnd: "#7faea7",
+      categoryTextColor: "#163036",
+      cellBgColor: "#c7ded9",
+      cellTextColor: "#20363b",
+      cellBorderColor: "#9fbfb8",
+      usedCellBgColor: "#dce8e5",
+      usedCellTextColor: "#54676d",
     },
   },
   {
@@ -265,19 +265,19 @@ const BOARD_THEME_PALETTES: BoardThemePalette[] = [
   },
   {
     id: "peach-garden",
-    name: "גינת אפרסק",
-    description: "פריחה חמימה עם דגש זית עמוק לערכים ונראות חדה.",
+    name: "לגונת לילך",
+    description: "פריחת לילך על רקע תכול, עם ערכים בסגול אפרפר וניגודיות נקייה.",
     colors: {
-      boardBorderColor: "#eec9a1",
-      boardBackgroundColor: "#2b3729",
-      categoryBgStart: "#e8a69c",
-      categoryBgEnd: "#d88982",
-      categoryTextColor: "#2f1f1d",
-      cellBgColor: "#425338",
-      cellTextColor: "#ffe6b5",
-      cellBorderColor: "#d8b88f",
-      usedCellBgColor: "#253026",
-      usedCellTextColor: "#9ca3af",
+      boardBorderColor: "#a79bb8",
+      boardBackgroundColor: "#dbf7f4",
+      categoryBgStart: "#7cd8e8",
+      categoryBgEnd: "#9fb2de",
+      categoryTextColor: "#203040",
+      cellBgColor: "#70627f",
+      cellTextColor: "#fce7f3",
+      cellBorderColor: "#b8adc6",
+      usedCellBgColor: "#d8e0e6",
+      usedCellTextColor: "#566372",
     },
   },
   {
@@ -334,18 +334,52 @@ const BOARD_THEME_PALETTES: BoardThemePalette[] = [
   {
     id: "pastel-bloom",
     name: "פריחה פסטלית",
-    description: "מנטה-אפרסק-קורל עם תאי ניקוד עמוקים וקריאות גבוהה.",
+    description: "לבנדר בהיר עם ירוק ערפילי, רגוע וקריא ללוח ולחלונות קופצים.",
     colors: {
-      boardBorderColor: "#99c1b4",
-      boardBackgroundColor: "#352e35",
-      categoryBgStart: "#e48390",
-      categoryBgEnd: "#cfa68f",
-      categoryTextColor: "#1f2937",
-      cellBgColor: "#6c5664",
-      cellTextColor: "#f5e8b8",
-      cellBorderColor: "#a8b8a4",
-      usedCellBgColor: "#2e2630",
-      usedCellTextColor: "#98a2ad",
+      boardBorderColor: "#9bb3b6",
+      boardBackgroundColor: "#e9ecf2",
+      categoryBgStart: "#c8b6e2",
+      categoryBgEnd: "#ae9ad3",
+      categoryTextColor: "#251c34",
+      cellBgColor: "#b8c8bf",
+      cellTextColor: "#233238",
+      cellBorderColor: "#9fb4aa",
+      usedCellBgColor: "#dfe5e2",
+      usedCellTextColor: "#56646b",
+    },
+  },
+  {
+    id: "frosted-marsh",
+    name: "ערפל ביצות",
+    description: "פלטה שקטה של ירוק-אפור בהיר עם טיפוגרפיה חדה ללוח ולמודאל.",
+    colors: {
+      boardBorderColor: "#b8c9c6",
+      boardBackgroundColor: "#24363a",
+      categoryBgStart: "#9fb4b1",
+      categoryBgEnd: "#7f9693",
+      categoryTextColor: "#102127",
+      cellBgColor: "#3f585a",
+      cellTextColor: "#f2e7d5",
+      cellBorderColor: "#a8bbb8",
+      usedCellBgColor: "#1a2529",
+      usedCellTextColor: "#95a4ac",
+    },
+  },
+  {
+    id: "blush-botanic",
+    name: "בוטניקה ורדרדה",
+    description: "קורל-ורוד וסייג׳ בהירים כרקע, עם טקסט כהה לחדות גבוהה.",
+    colors: {
+      boardBorderColor: "#aebec4",
+      boardBackgroundColor: "#e5ecef",
+      categoryBgStart: "#e79aa1",
+      categoryBgEnd: "#f0bcc0",
+      categoryTextColor: "#2c1f24",
+      cellBgColor: "#b9cbbd",
+      cellTextColor: "#23353d",
+      cellBorderColor: "#9fb1a8",
+      usedCellBgColor: "#d7e0e4",
+      usedCellTextColor: "#516069",
     },
   },
 ];
@@ -368,16 +402,37 @@ function normalizeHexColor(value: string): string | null {
   return null;
 }
 
+function getRelativeLuminance(color: string): number {
+  const red = Number.parseInt(color.slice(1, 3), 16) / 255;
+  const green = Number.parseInt(color.slice(3, 5), 16) / 255;
+  const blue = Number.parseInt(color.slice(5, 7), 16) / 255;
+
+  const toLinear = (channel: number) =>
+    channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+
+  const linearRed = toLinear(red);
+  const linearGreen = toLinear(green);
+  const linearBlue = toLinear(blue);
+
+  return 0.2126 * linearRed + 0.7152 * linearGreen + 0.0722 * linearBlue;
+}
+
+function getContrastRatio(colorA: string, colorB: string): number {
+  const luminanceA = getRelativeLuminance(colorA);
+  const luminanceB = getRelativeLuminance(colorB);
+  const lighter = Math.max(luminanceA, luminanceB);
+  const darker = Math.min(luminanceA, luminanceB);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 function getTextColorForBackground(backgroundColor: string): string {
   const normalized = normalizeHexColor(backgroundColor);
   if (!normalized) return "#f8fafc";
-
-  const red = Number.parseInt(normalized.slice(1, 3), 16);
-  const green = Number.parseInt(normalized.slice(3, 5), 16);
-  const blue = Number.parseInt(normalized.slice(5, 7), 16);
-  const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
-
-  return luminance > 0.62 ? "#0f172a" : "#f8fafc";
+  const darkText = "#0f172a";
+  const lightText = "#f8fafc";
+  return getContrastRatio(normalized, darkText) >= getContrastRatio(normalized, lightText)
+    ? darkText
+    : lightText;
 }
 
 function normalizeHeader(value: string): string {
@@ -1264,7 +1319,7 @@ function App() {
                   style={{
                     borderColor: boardTheme.cellBorderColor,
                     color: boardTheme.categoryTextColor,
-                    background: `linear-gradient(180deg, ${boardTheme.categoryBgStart}, ${boardTheme.categoryBgEnd})`,
+                    backgroundColor: boardTheme.categoryBgStart,
                   }}
                 >
                   קטגוריה לדוגמה
