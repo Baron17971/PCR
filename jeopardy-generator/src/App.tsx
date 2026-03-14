@@ -800,6 +800,7 @@ function App() {
   const [activeArchiveGameId, setActiveArchiveGameId] = useState<string | null>(null);
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [pendingDeleteRecord, setPendingDeleteRecord] = useState<ArchiveGameRecord | null>(null);
+  const [isBackgroundPickerOpen, setIsBackgroundPickerOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const csvImportInputRef = useRef<HTMLInputElement | null>(null);
   const boardBackgroundInputRef = useRef<HTMLInputElement | null>(null);
@@ -880,8 +881,16 @@ function App() {
         }
       : undefined;
   const modalTextColor = getTextColorForBackground(boardTheme.boardBackgroundColor);
-  const modalQuestionTextColor = getTextColorForBackground(boardTheme.cellBgColor);
-  const modalAnswerTextColor = getTextColorForBackground(boardTheme.usedCellBgColor);
+  const modalQuestionTextColor = getReadableTextColor(
+    boardTheme.categoryTextColor,
+    boardTheme.cellBgColor,
+    4.5,
+  );
+  const modalAnswerTextColor = getReadableTextColor(
+    boardTheme.categoryTextColor,
+    boardTheme.usedCellBgColor,
+    4.5,
+  );
   const modalPrimaryTextColor = getTextColorForBackground(boardTheme.categoryBgStart);
   const modalCloseTextColor = getTextColorForBackground(boardTheme.usedCellBgColor);
   const modalThemeStyle = {
@@ -905,6 +914,10 @@ function App() {
     ["--modal-close-border-color" as string]: boardTheme.cellBorderColor,
     ["--modal-close-text-color" as string]: modalCloseTextColor,
   };
+  const activeQuestionText = activeQuestion?.question?.trim() || "לא הוזן טקסט לשאלה זו.";
+  const activeAnswerText = activeQuestion?.answer?.trim() || "לא הוזן טקסט לתשובה זו.";
+  const isActiveQuestionTextMissing = !activeQuestion?.question?.trim();
+  const isActiveAnswerTextMissing = !activeQuestion?.answer?.trim();
 
   const buildCurrentGameSnapshot = (options?: { stripInlineImages?: boolean }): SharePayload["game"] => {
     const sanitizeImage = (image: string | null): string | null => {
@@ -1211,6 +1224,7 @@ function App() {
     if (mode !== "editor") {
       setIsArchiveOpen(false);
       setPendingDeleteRecord(null);
+      setIsBackgroundPickerOpen(false);
     }
   }, [mode]);
 
@@ -1238,6 +1252,20 @@ function App() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isArchiveOpen, pendingDeleteRecord]);
+
+  useEffect(() => {
+    if (!isBackgroundPickerOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsBackgroundPickerOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isBackgroundPickerOpen]);
 
   const saveArchiveGameAsNew = async () => {
     if (!supabase) {
@@ -2081,6 +2109,96 @@ function App() {
         </div>
       )}
 
+      {mode === "editor" && isBackgroundPickerOpen && (
+        <div className="background-picker-backdrop" onClick={() => setIsBackgroundPickerOpen(false)}>
+          <section
+            className="background-picker-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="רקעים לדף המשחק"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="background-picker-header">
+              <h3>רקע כללי של דף המשחק</h3>
+              <button type="button" onClick={() => setIsBackgroundPickerOpen(false)}>
+                סגירה
+              </button>
+            </div>
+
+            <div className="page-background-section background-picker-section">
+              <div className="board-theme-actions">
+                <button type="button" onClick={() => applyPageBackgroundPreset(null)}>
+                  רקע לפי פלטה
+                </button>
+                <button type="button" onClick={() => pageBackgroundInputRef.current?.click()}>
+                  העלאת תמונה אישית
+                </button>
+                <input
+                  ref={pageBackgroundInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={importPageBackgroundImage}
+                  hidden
+                />
+                <button type="button" onClick={removePageBackgroundImage} disabled={!boardTheme.pageBackgroundImage}>
+                  הסרת תמונה
+                </button>
+              </div>
+              <p className="page-background-note">
+                אפשר לבחור רקע מתוך התיקייה הלוקאלית `public/backgrounds` או להעלות תמונה אישית
+                (מינימום 1920x1080, יחס קרוב ל-16:9, עד 5MB).
+              </p>
+
+              <div className="page-background-gallery">
+                {GAME_PAGE_BACKGROUND_PRESETS.map((preset) => {
+                  const isActive = activePageBackgroundPresetId === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => applyPageBackgroundPreset(preset.image)}
+                      className={`page-background-card ${isActive ? "is-active" : ""}`}
+                    >
+                      <span
+                        className="page-background-thumb"
+                        style={{ backgroundImage: `url("${preset.image}")` }}
+                        aria-hidden="true"
+                      />
+                      <strong>{preset.name}</strong>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <label className="overlay-control">
+                כהות שכבה מעל הרקע הכללי: {boardTheme.pageBackgroundOverlay}%
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={boardTheme.pageBackgroundOverlay}
+                  onChange={(event) => updatePageBackgroundOverlay(Number(event.target.value))}
+                  disabled={!boardTheme.pageBackgroundImage}
+                />
+              </label>
+
+              <div className="page-background-preview">
+                <div
+                  className="page-background-preview-surface"
+                  style={{
+                    backgroundImage: gamePageBackgroundImage,
+                    backgroundSize: boardTheme.pageBackgroundImage ? "cover" : undefined,
+                    backgroundPosition: boardTheme.pageBackgroundImage ? "center" : undefined,
+                  }}
+                >
+                  <span>תצוגה מקדימה לרקע הכללי</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
       {mode === "editor" ? (
         <>
           <section className="card">
@@ -2146,7 +2264,11 @@ function App() {
             <div className="board-theme-header">
               <h2>עיצוב לוח</h2>
               <div className="board-theme-actions">
-                <button type="button" onClick={() => boardBackgroundInputRef.current?.click()}>
+                <button
+                  type="button"
+                  onClick={() => boardBackgroundInputRef.current?.click()}
+                  className="theme-action-btn theme-action-upload"
+                >
                   העלאת תמונת רקע
                 </button>
                 <input
@@ -2156,10 +2278,22 @@ function App() {
                   onChange={importBoardBackgroundImage}
                   hidden
                 />
-                <button type="button" onClick={removeBoardBackgroundImage} disabled={!boardTheme.boardBackgroundImage}>
+                <button
+                  type="button"
+                  onClick={() => setIsBackgroundPickerOpen(true)}
+                  className="theme-action-btn theme-action-library"
+                >
+                  רקעים לדף המשחק
+                </button>
+                <button
+                  type="button"
+                  onClick={removeBoardBackgroundImage}
+                  disabled={!boardTheme.boardBackgroundImage}
+                  className="theme-action-btn theme-action-remove"
+                >
                   הסרת תמונה
                 </button>
-                <button type="button" onClick={resetBoardTheme}>
+                <button type="button" onClick={resetBoardTheme} className="theme-action-btn theme-action-reset">
                   איפוס עיצוב
                 </button>
               </div>
@@ -2237,79 +2371,6 @@ function App() {
               </div>
             </div>
 
-            <div className="page-background-section">
-              <div className="board-theme-header page-background-header">
-                <h3>רקע כללי של דף המשחק</h3>
-                <div className="board-theme-actions">
-                  <button type="button" onClick={() => applyPageBackgroundPreset(null)}>
-                    רקע לפי פלטה
-                  </button>
-                  <button type="button" onClick={() => pageBackgroundInputRef.current?.click()}>
-                    העלאת תמונה אישית
-                  </button>
-                  <input
-                    ref={pageBackgroundInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={importPageBackgroundImage}
-                    hidden
-                  />
-                  <button type="button" onClick={removePageBackgroundImage} disabled={!boardTheme.pageBackgroundImage}>
-                    הסרת תמונה
-                  </button>
-                </div>
-              </div>
-              <p className="page-background-note">
-                אפשר לבחור רקע מתוך התיקייה הלוקאלית `public/backgrounds` או להעלות תמונה אישית
-                (מינימום 1920x1080, יחס קרוב ל-16:9, עד 5MB).
-              </p>
-
-              <div className="page-background-gallery">
-                {GAME_PAGE_BACKGROUND_PRESETS.map((preset) => {
-                  const isActive = activePageBackgroundPresetId === preset.id;
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => applyPageBackgroundPreset(preset.image)}
-                      className={`page-background-card ${isActive ? "is-active" : ""}`}
-                    >
-                      <span
-                        className="page-background-thumb"
-                        style={{ backgroundImage: `url("${preset.image}")` }}
-                        aria-hidden="true"
-                      />
-                      <strong>{preset.name}</strong>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <label className="overlay-control">
-                כהות שכבה מעל הרקע הכללי: {boardTheme.pageBackgroundOverlay}%
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={boardTheme.pageBackgroundOverlay}
-                  onChange={(event) => updatePageBackgroundOverlay(Number(event.target.value))}
-                  disabled={!boardTheme.pageBackgroundImage}
-                />
-              </label>
-
-              <div className="page-background-preview">
-                <div
-                  className="page-background-preview-surface"
-                  style={{
-                    backgroundImage: gamePageBackgroundImage,
-                    backgroundSize: boardTheme.pageBackgroundImage ? "cover" : undefined,
-                    backgroundPosition: boardTheme.pageBackgroundImage ? "center" : undefined,
-                  }}
-                >
-                  <span>תצוגה מקדימה לרקע הכללי</span>
-                </div>
-              </div>
-            </div>
           </section>
 
           <section className="card">
@@ -2510,7 +2571,9 @@ function App() {
               </button>
             </div>
 
-            <div className="modal-question">{activeQuestion.question}</div>
+            <div className={`modal-question ${isActiveQuestionTextMissing ? "is-empty" : ""}`}>
+              {activeQuestionText}
+            </div>
 
             {!showAnswer ? (
               <button type="button" onClick={() => setShowAnswer(true)} className="primary-button full-width">
@@ -2519,7 +2582,7 @@ function App() {
             ) : (
               <div className="answer-panel">
                 <h4>תשובה</h4>
-                <p>{activeQuestion.answer}</p>
+                <p className={isActiveAnswerTextMissing ? "is-empty" : ""}>{activeAnswerText}</p>
 
                 {currentTeam && (
                   <div className="turn-card">
