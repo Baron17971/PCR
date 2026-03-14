@@ -557,6 +557,18 @@ function App() {
   const canStartGame = missingFieldsCount === 0;
   const currentTeam = teams[currentTurnIndex] ?? teams[0];
   const resolvedGameTopic = gameTopic.trim() || "משחק ג'פרדי";
+  const boardTypography = useMemo(() => {
+    const categoryScale = clamp(6 / categoryCount, 0.72, 1.28);
+    const rowScale = clamp(5 / rowCount, 0.82, 1.18);
+    const scale = clamp(categoryScale * rowScale, 0.78, 1.3);
+
+    return {
+      categoryFontSize: `${clamp(1.02 * scale, 0.88, 1.45).toFixed(3)}rem`,
+      cellFontSize: `${clamp(1.34 * scale, 1.02, 2).toFixed(3)}rem`,
+      teamNameFontSize: `${clamp(0.96 * scale, 0.9, 1.2).toFixed(3)}rem`,
+      teamScoreFontSize: `${clamp(1.34 * scale, 1.2, 1.9).toFixed(3)}rem`,
+    };
+  }, [categoryCount, rowCount]);
   const boardOverlayAlpha = boardTheme.boardBackgroundOverlay / 100;
   const boardBackgroundImage = boardTheme.boardBackgroundImage
     ? `linear-gradient(rgba(2, 6, 23, ${boardOverlayAlpha}), rgba(2, 6, 23, ${boardOverlayAlpha})), url("${boardTheme.boardBackgroundImage}")`
@@ -1365,7 +1377,13 @@ function App() {
             <h2>{resolvedGameTopic}</h2>
           </section>
 
-          <section className="teams-scoreboard">
+          <section
+            className="teams-scoreboard"
+            style={{
+              ["--team-name-font-size" as string]: boardTypography.teamNameFontSize,
+              ["--team-score-font-size" as string]: boardTypography.teamScoreFontSize,
+            }}
+          >
             {teams.map((team, index) => {
               const isCurrent = index === currentTurnIndex;
               const teamColor = TEAM_COLORS[index % TEAM_COLORS.length];
@@ -1401,6 +1419,8 @@ function App() {
               className="game-grid"
               style={{
                 gridTemplateColumns: `repeat(${categoryCount}, minmax(0, 1fr))`,
+                ["--category-font-size" as string]: boardTypography.categoryFontSize,
+                ["--cell-font-size" as string]: boardTypography.cellFontSize,
                 ["--category-bg-start" as string]: boardTheme.categoryBgStart,
                 ["--category-bg-end" as string]: boardTheme.categoryBgEnd,
                 ["--category-text-color" as string]: boardTheme.categoryTextColor,
