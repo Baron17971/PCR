@@ -678,16 +678,25 @@ function normalizeHudominoPairs(
       }>
     | null
     | undefined,
+  targetCount = HUDOMINO_DEFAULT_PAIR_COUNT,
 ): HudominoPair[] {
-  if (!Array.isArray(source) || source.length === 0) {
-    return createHudominoPairs();
-  }
-  const limited = source.slice(0, HUDOMINO_MAX_PAIRS);
-  return limited.map((pair, index) => ({
+  const normalizedCount = clamp(targetCount, HUDOMINO_MIN_PAIRS, HUDOMINO_MAX_PAIRS);
+  const normalizedSource = Array.isArray(source) ? source : [];
+  const limited = normalizedSource.slice(0, normalizedCount);
+  const mapped = limited.map((pair, index) => ({
     id: `hudomino-pair-${index + 1}`,
     term: typeof pair?.term === "string" ? pair.term : "",
     definition: typeof pair?.definition === "string" ? pair.definition : "",
   }));
+  if (mapped.length >= normalizedCount) {
+    return mapped;
+  }
+  const additions = Array.from({ length: normalizedCount - mapped.length }, (_, offset) => ({
+    id: `hudomino-pair-${mapped.length + offset + 1}`,
+    term: "",
+    definition: "",
+  }));
+  return [...mapped, ...additions];
 }
 
 function createDefaultHudominoSide(text = "מסיח"): HudominoSide {
@@ -1335,6 +1344,7 @@ function App() {
   const [isBackgroundPickerOpen, setIsBackgroundPickerOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const csvImportInputRef = useRef<HTMLInputElement | null>(null);
+  const quickTriviaCsvImportInputRef = useRef<HTMLInputElement | null>(null);
   const hudominoCsvImportInputRef = useRef<HTMLInputElement | null>(null);
   const boardBackgroundInputRef = useRef<HTMLInputElement | null>(null);
   const pageBackgroundInputRef = useRef<HTMLInputElement | null>(null);
@@ -1543,8 +1553,6 @@ function App() {
     () => new Map((hudominoPuzzle?.cubes ?? []).map((cube) => [cube.id, cube])),
     [hudominoPuzzle],
   );
-  const isHudominoMatchToast =
-    mode === "game" && gameType === "hudomino" && statusMessage.trim().startsWith("חיבור מוצלח");
   const shouldShowHudominoMatches = mode === "game";
   const getHudominoSideMatchesForSlot = useCallback(
     (slotIndex: number): Record<HudominoSideDirection, boolean> => {
@@ -1715,8 +1723,12 @@ function App() {
       sharedGame.hudominoScoringMode === "cooperative" || sharedGame.hudominoScoringMode === "competitive"
         ? sharedGame.hudominoScoringMode
         : "competitive";
-    const normalizedHudominoPairs = normalizeHudominoPairs(sharedGame.hudominoPairs);
     const sharedHudominoBoardSize = getHudominoBoardSize(sharedHudominoDifficulty);
+    const sharedHudominoRequiredPairs = getHudominoRequiredPairs(sharedHudominoBoardSize);
+    const normalizedHudominoPairs = normalizeHudominoPairs(
+      sharedGame.hudominoPairs,
+      sharedHudominoRequiredPairs,
+    );
 
     setGameType(sharedGameType);
     setGameTopic(
@@ -1808,6 +1820,11 @@ function App() {
         : previous,
     );
   }, [gameType, hudominoBoardSize, hudominoPlayMode, hudominoPuzzle, hudominoValidPairs]);
+
+  useEffect(() => {
+    if (gameType !== "hudomino") return;
+    setHudominoPairs((previous) => normalizeHudominoPairs(previous, hudominoRequiredPairs));
+  }, [gameType, hudominoRequiredPairs]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1954,20 +1971,6 @@ function App() {
         return { ...question, [field]: String(nextValue) };
       }),
     );
-  };
-
-  const updateHudominoPairCount = (nextValue: number) => {
-    const clamped = clamp(nextValue, HUDOMINO_MIN_PAIRS, HUDOMINO_MAX_PAIRS);
-    setHudominoPairs((previous) => {
-      if (clamped === previous.length) return previous;
-      if (clamped < previous.length) return previous.slice(0, clamped);
-      const additions = Array.from({ length: clamped - previous.length }, (_, offset) => ({
-        id: `hudomino-pair-${previous.length + offset + 1}`,
-        term: "",
-        definition: "",
-      }));
-      return [...previous, ...additions];
-    });
   };
 
   const updateHudominoPair = (
@@ -2452,7 +2455,7 @@ function App() {
   const startGame = () => {
     if (!canStartGame) {
       if (gameType === "hudomino") {
-        setStatusMessage(`לחודומינו נדרשים לפחות ${hudominoRequiredPairs} זוגות מושג-הגדרה מלאים.`);
+        setStatusMessage(`לחודומינו נדרשים בדיוק ${hudominoRequiredPairs} זוגות מושג-הגדרה מלאים.`);
       } else {
         setStatusMessage("אי אפשר להתחיל משחק לפני שממלאים את כל השאלות והתשובות.");
       }
@@ -2662,6 +2665,37 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
+  const downloadQuickTriviaCsvTemplate = () => {
+    const templateLines = ["value,question,answer"];
+    createQuickTriviaQuestions().forEach((question) => {
+      templateLines.push(`${question.value},,`);
+    });
+    const csvContent = `\uFEFF${templateLines.join("\n")}`;
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "quick-trivia-template.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadHudominoCsvTemplate = () => {
+    const templateLines = ["term,definition"];
+    const templateRowCount = clamp(hudominoRequiredPairs, HUDOMINO_MIN_PAIRS, HUDOMINO_MAX_PAIRS);
+    for (let index = 0; index < templateRowCount; index += 1) {
+      templateLines.push(",");
+    }
+    const csvContent = `\uFEFF${templateLines.join("\n")}`;
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "hudomino-template.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
   const importBoardFromCsvFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -2781,6 +2815,85 @@ function App() {
     }
   };
 
+  const importQuickTriviaFromCsvFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = (await file.text()).replace(/^\uFEFF/, "");
+      const firstLine = text.split(/\r?\n/, 1)[0] ?? "";
+      const delimiter = detectDelimiter(firstLine);
+      const rows = parseCsvRows(text, delimiter);
+      if (rows.length < 2) {
+        throw new Error("CSV must contain header and at least one data row.");
+      }
+
+      const headers = rows[0].map(normalizeHeader);
+      const findHeaderIndex = (aliases: string[]) => headers.findIndex((header) => aliases.includes(header));
+
+      const valueIndex = findHeaderIndex(["value", "points", "score", "ניקוד", "ערך"]);
+      const questionIndex = findHeaderIndex(["question", "q", "שאלה"]);
+      const answerIndex = findHeaderIndex(["answer", "a", "תשובה"]);
+
+      if (questionIndex === -1 || answerIndex === -1) {
+        throw new Error("Missing required columns.");
+      }
+
+      const parsedQuestions: Array<{ value: number; question: string; answer: string }> = [];
+
+      rows.slice(1).forEach((row, rowNumber) => {
+        const rawValue = valueIndex !== -1 ? (row[valueIndex] ?? "").trim() : "";
+        const question = (row[questionIndex] ?? "").trim();
+        const answer = (row[answerIndex] ?? "").trim();
+        const isBlankRow = !rawValue && !question && !answer;
+        if (isBlankRow) return;
+
+        if (!question || !answer) {
+          throw new Error(`Row ${rowNumber + 2} is missing question/answer.`);
+        }
+
+        let value = QUICK_TRIVIA_DEFAULT_VALUE * (parsedQuestions.length + 1);
+        if (rawValue) {
+          const parsedValue = Number(rawValue.replace(",", "."));
+          if (Number.isFinite(parsedValue) && parsedValue > 0) {
+            value = clamp(Math.round(parsedValue), MIN_BASE_VALUE, 5000);
+          }
+        }
+
+        parsedQuestions.push({ value, question, answer });
+      });
+
+      if (parsedQuestions.length === 0) {
+        throw new Error("No valid rows found in CSV.");
+      }
+
+      const limitedQuestions = parsedQuestions.slice(0, QUICK_TRIVIA_MAX_QUESTIONS);
+      if (limitedQuestions.length < QUICK_TRIVIA_MIN_QUESTIONS) {
+        throw new Error("Not enough rows.");
+      }
+
+      setQuickTriviaQuestions(normalizeQuickTriviaQuestions(limitedQuestions));
+      setCurrentTurnIndex(0);
+      setActiveCell(null);
+      setActiveQuickQuestionId(null);
+      setShowAnswer(false);
+      setDidScoreCurrentQuestion(false);
+      setMode("editor");
+
+      const cutNotice =
+        parsedQuestions.length > limitedQuestions.length
+          ? ` שאלות עודפות קוצרו למקסימום ${QUICK_TRIVIA_MAX_QUESTIONS}.`
+          : "";
+      setStatusMessage(`ייבוא CSV לטריוויה הושלם בהצלחה.${cutNotice}`);
+    } catch {
+      setStatusMessage(
+        `שגיאה בייבוא CSV לטריוויה. ודאי שיש עמודות question/answer ולפחות ${QUICK_TRIVIA_MIN_QUESTIONS} שורות.`,
+      );
+    } finally {
+      event.target.value = "";
+    }
+  };
+
   const importHudominoPairsFromCsvFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -2832,15 +2945,20 @@ function App() {
         throw new Error("No valid term/definition pairs found.");
       }
 
-      const limitedPairs = parsedPairs.slice(0, HUDOMINO_MAX_PAIRS);
-      setHudominoPairs(normalizeHudominoPairs(limitedPairs));
+      setHudominoPairs(normalizeHudominoPairs(parsedPairs, hudominoRequiredPairs));
       setHudominoPuzzle(null);
       setHudominoDraggedCubeId(null);
       setMode("editor");
 
       const cutNotice =
-        parsedPairs.length > limitedPairs.length ? ` עודפים קוצרו למקסימום ${HUDOMINO_MAX_PAIRS} זוגות.` : "";
-      setStatusMessage(`ייבוא CSV לזוגות הושלם בהצלחה.${cutNotice}`);
+        parsedPairs.length > hudominoRequiredPairs
+          ? ` זוגות עודפים קוצרו ל-${hudominoRequiredPairs} לפי גודל הלוח.`
+          : "";
+      const fillNotice =
+        parsedPairs.length < hudominoRequiredPairs
+          ? ` נוספו ${hudominoRequiredPairs - parsedPairs.length} שורות ריקות להשלמה לפי גודל הלוח.`
+          : "";
+      setStatusMessage(`ייבוא CSV לזוגות הושלם בהצלחה.${cutNotice}${fillNotice}`);
     } catch {
       setStatusMessage("שגיאה בייבוא CSV לזוגות. ודאי שיש שתי עמודות: term ו-definition.");
     } finally {
@@ -2925,8 +3043,12 @@ function App() {
         parsed.settings?.hudominoScoringMode === "competitive"
           ? parsed.settings.hudominoScoringMode
           : "competitive";
-      const normalizedHudominoPairs = normalizeHudominoPairs(parsed.hudominoPairs);
       const importedHudominoBoardSize = getHudominoBoardSize(importedHudominoDifficulty);
+      const importedHudominoRequiredPairs = getHudominoRequiredPairs(importedHudominoBoardSize);
+      const normalizedHudominoPairs = normalizeHudominoPairs(
+        parsed.hudominoPairs,
+        importedHudominoRequiredPairs,
+      );
       setHudominoDifficulty(importedHudominoDifficulty);
       setHudominoPlayMode(importedHudominoPlayMode);
       setHudominoScoringMode(importedHudominoScoringMode);
@@ -3033,7 +3155,7 @@ function App() {
                   ? "מחולל טריוויה מהירה"
                   : gameType === "hudomino"
                     ? "מחולל חודומינו"
-                    : "מחולל ג'פרדי"}
+                    : "מחולל משחקים חכמים"}
               </h1>
               <p>
                 {gameType === "quick-trivia"
@@ -3072,6 +3194,40 @@ function App() {
                   type="file"
                   accept=".csv,text/csv"
                   onChange={importBoardFromCsvFile}
+                  hidden
+                />
+              </>
+            )}
+            {gameType === "quick-trivia" && (
+              <>
+                <button type="button" onClick={downloadQuickTriviaCsvTemplate}>
+                  הורדת תבנית CSV
+                </button>
+                <button type="button" onClick={() => quickTriviaCsvImportInputRef.current?.click()}>
+                  ייבוא CSV
+                </button>
+                <input
+                  ref={quickTriviaCsvImportInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={importQuickTriviaFromCsvFile}
+                  hidden
+                />
+              </>
+            )}
+            {gameType === "hudomino" && (
+              <>
+                <button type="button" onClick={downloadHudominoCsvTemplate}>
+                  הורדת תבנית CSV
+                </button>
+                <button type="button" onClick={() => hudominoCsvImportInputRef.current?.click()}>
+                  ייבוא CSV
+                </button>
+                <input
+                  ref={hudominoCsvImportInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={importHudominoPairsFromCsvFile}
                   hidden
                 />
               </>
@@ -3160,7 +3316,7 @@ function App() {
         </section>
       )}
 
-      {statusMessage && !isHudominoMatchToast && <div className="status-message">{statusMessage}</div>}
+      {statusMessage && <div className="status-message">{statusMessage}</div>}
 
       {mode === "editor" && isSupabaseConfigured && isArchiveOpen && (
         <div className="archive-drawer-backdrop" onClick={() => setIsArchiveOpen(false)}>
@@ -3512,13 +3668,12 @@ function App() {
                     </select>
                   </label>
                   <label>
-                    מספר זוגות
+                    מספר זוגות קבוע
                     <input
                       type="number"
-                      min={HUDOMINO_MIN_PAIRS}
-                      max={HUDOMINO_MAX_PAIRS}
-                      value={hudominoPairs.length}
-                      onChange={(event) => updateHudominoPairCount(Number(event.target.value))}
+                      value={hudominoRequiredPairs}
+                      readOnly
+                      disabled
                     />
                   </label>
                 </>
@@ -3800,30 +3955,8 @@ function App() {
             <section className="card">
               <h2>זוגות מושג-הגדרה לחודומינו</h2>
               <p className="hint-text">
-                ללוח {hudominoBoardSize}×{hudominoBoardSize} נדרשים לפחות {hudominoRequiredPairs} זוגות מלאים.
+                ללוח {hudominoBoardSize}×{hudominoBoardSize} נדרשים בדיוק {hudominoRequiredPairs} זוגות מלאים.
               </p>
-              <div className="hudomino-editor-actions">
-                <button type="button" onClick={() => hudominoCsvImportInputRef.current?.click()}>
-                  ייבוא זוגות מ-CSV
-                </button>
-                <input
-                  ref={hudominoCsvImportInputRef}
-                  type="file"
-                  accept=".csv,text/csv"
-                  onChange={importHudominoPairsFromCsvFile}
-                  hidden
-                />
-                <button type="button" onClick={() => updateHudominoPairCount(hudominoPairs.length + 1)}>
-                  הוספת זוג
-                </button>
-                <button
-                  type="button"
-                  onClick={() => updateHudominoPairCount(hudominoPairs.length - 1)}
-                  disabled={hudominoPairs.length <= HUDOMINO_MIN_PAIRS}
-                >
-                  הסרת זוג
-                </button>
-              </div>
               <div className="hudomino-pairs-list">
                 {hudominoPairs.map((pair, index) => (
                   <article key={pair.id} className="hudomino-pair-item">
@@ -4013,11 +4146,6 @@ function App() {
                 ["--hudomino-shell-bg" as string]: boardTheme.boardBackgroundColor,
               }}
             >
-              {isHudominoMatchToast && (
-                <div className="hudomino-match-toast" role="status" aria-live="polite">
-                  {statusMessage}
-                </div>
-              )}
               {hudominoPlayMode === "challenge" &&
                 hudominoPuzzle &&
                 !hudominoPuzzle.isChallengeReveal &&
@@ -4146,7 +4274,3 @@ function App() {
 }
 
 export default App;
-
-
-
-
