@@ -237,6 +237,10 @@ export default function handler(req: any, res: any) {
       mode: "width",
       value: 1200,
     },
+    font: {
+      loadSystemFonts: true,
+      defaultFontFamily: "Arial",
+    },
   });
   const png = resvg.render().asPng();
 
