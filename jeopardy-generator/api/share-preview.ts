@@ -5,6 +5,12 @@ const SHARE_QUERY_PARAM = "game";
 const SERVER_GAME_QUERY_PARAM = "sgame";
 const SERVER_ACCESS_QUERY_PARAM = "access";
 const SUPABASE_GAMES_TABLE = "jeopardy_games";
+const PREVIEW_ACCESS_QUERY_PARAM = "a";
+const PREVIEW_TITLE_QUERY_PARAM = "t";
+const PREVIEW_TYPE_QUERY_PARAM = "g";
+const PREVIEW_CATEGORIES_QUERY_PARAM = "c";
+const PREVIEW_ROWS_QUERY_PARAM = "r";
+const PREVIEW_QUESTIONS_QUERY_PARAM = "q";
 
 const GAME_TYPE_LABELS: Record<GameType, string> = {
   jeopardy: "Jeopardy",
@@ -150,14 +156,26 @@ export default async function handler(req: any, res: any) {
 
   const encodedGame = params.get(SHARE_QUERY_PARAM);
   const serverGameId = params.get(SERVER_GAME_QUERY_PARAM);
-  const shareAccess: ShareAccess = params.get(SERVER_ACCESS_QUERY_PARAM) === "edit" ? "edit" : "view";
+  const previewAccess = params.get(PREVIEW_ACCESS_QUERY_PARAM);
+  const shareAccess: ShareAccess =
+    previewAccess === "e" || params.get(SERVER_ACCESS_QUERY_PARAM) === "edit" ? "edit" : "view";
+  const encodedTitle = params.get(PREVIEW_TITLE_QUERY_PARAM);
+  let decodedTitle: string | null = null;
+  if (encodedTitle) {
+    try {
+      decodedTitle = decodeBase64Url(encodedTitle);
+    } catch {
+      decodedTitle = null;
+    }
+  }
 
   let details: GameDetails = {
-    gameType: normalizeGameType(params.get("type")),
-    gameTitle: (params.get("title") || "Trivia Game").trim() || "Trivia Game",
-    categories: toPositiveInt(params.get("cats")),
-    rows: toPositiveInt(params.get("rows")),
-    questions: toPositiveInt(params.get("q")),
+    gameType: normalizeGameType(params.get(PREVIEW_TYPE_QUERY_PARAM) || params.get("type")),
+    gameTitle:
+      (decodedTitle || params.get("title") || "Trivia Game").trim() || "Trivia Game",
+    categories: toPositiveInt(params.get(PREVIEW_CATEGORIES_QUERY_PARAM) || params.get("cats")),
+    rows: toPositiveInt(params.get(PREVIEW_ROWS_QUERY_PARAM) || params.get("rows")),
+    questions: toPositiveInt(params.get(PREVIEW_QUESTIONS_QUERY_PARAM)),
   };
 
   if (encodedGame) {

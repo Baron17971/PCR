@@ -2146,24 +2146,24 @@ function App() {
     const shareUrl = new URL(window.location.href);
     shareUrl.pathname = "/api/share-preview";
     shareUrl.search = "";
+    shareUrl.searchParams.set("a", options.access === "edit" ? "e" : "v");
     if (options.encodedGame) {
       shareUrl.searchParams.set(SHARE_QUERY_PARAM, options.encodedGame);
     }
     if (options.serverGameId) {
       shareUrl.searchParams.set(SERVER_GAME_QUERY_PARAM, options.serverGameId);
-      shareUrl.searchParams.set(SERVER_ACCESS_QUERY_PARAM, options.access);
     }
     if (options.gameTitle) {
-      shareUrl.searchParams.set("title", options.gameTitle);
+      shareUrl.searchParams.set("t", encodeBase64Url(options.gameTitle));
     }
     if (options.gameType) {
-      shareUrl.searchParams.set("type", options.gameType);
+      shareUrl.searchParams.set("g", options.gameType);
     }
     if (typeof options.categories === "number") {
-      shareUrl.searchParams.set("cats", String(options.categories));
+      shareUrl.searchParams.set("c", String(options.categories));
     }
     if (typeof options.rows === "number") {
-      shareUrl.searchParams.set("rows", String(options.rows));
+      shareUrl.searchParams.set("r", String(options.rows));
     }
     if (typeof options.questionCount === "number") {
       shareUrl.searchParams.set("q", String(options.questionCount));
