@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { DragEvent } from "react";
 import "./App.css";
 import { isSupabaseConfigured, supabase } from "./supabaseClient";
 
 type AppMode = "editor" | "game";
-type GameType = "jeopardy" | "quick-trivia";
+type GameType = "jeopardy" | "quick-trivia" | "hudomino";
+type HudominoDifficulty = "easy" | "medium" | "hard";
+type HudominoPlayMode = "learning" | "challenge";
+type HudominoSideDirection = "north" | "east" | "south" | "west";
 
 interface CellData {
   value: number;
@@ -29,6 +33,32 @@ interface QuickTriviaQuestion {
   question: string;
   answer: string;
   used: boolean;
+}
+
+interface HudominoPair {
+  id: string;
+  term: string;
+  definition: string;
+}
+
+interface HudominoSide {
+  text: string;
+  pairId: string | null;
+  kind: "term" | "definition" | "distractor";
+}
+
+interface HudominoCube {
+  id: string;
+  rotation: number;
+  sides: Record<HudominoSideDirection, HudominoSide>;
+}
+
+interface HudominoPuzzleState {
+  size: number;
+  boardSlots: Array<string | null>;
+  bankOrder: string[];
+  cubes: HudominoCube[];
+  isChallengeReveal: boolean;
 }
 
 interface ActiveCell {
@@ -91,6 +121,8 @@ interface ExportPayload {
     teamCount: number;
     teamNames: string[];
     boardTheme?: Partial<BoardTheme>;
+    hudominoDifficulty?: HudominoDifficulty;
+    hudominoPlayMode?: HudominoPlayMode;
   };
   categories: Array<{
     title: string;
@@ -105,6 +137,11 @@ interface ExportPayload {
     question: string;
     answer: string;
   }>;
+  hudominoPairs?: Array<{
+    term: string;
+    definition: string;
+  }>;
+  hudominoPuzzle?: HudominoPuzzleState;
 }
 
 type ShareAccess = "view" | "edit";
@@ -132,6 +169,13 @@ interface SharePayload {
       answer: string;
       used?: boolean;
     }>;
+    hudominoPairs?: Array<{
+      term: string;
+      definition: string;
+    }>;
+    hudominoDifficulty?: HudominoDifficulty;
+    hudominoPlayMode?: HudominoPlayMode;
+    hudominoPuzzle?: HudominoPuzzleState;
     teams: Array<{
       name: string;
       score: number;
@@ -167,6 +211,11 @@ const QUICK_TRIVIA_MIN_QUESTIONS = 5;
 const QUICK_TRIVIA_MAX_QUESTIONS = 30;
 const QUICK_TRIVIA_DEFAULT_QUESTIONS = 10;
 const QUICK_TRIVIA_DEFAULT_VALUE = 100;
+const HUDOMINO_MIN_PAIRS = 8;
+const HUDOMINO_MAX_PAIRS = 80;
+const HUDOMINO_DEFAULT_PAIR_COUNT = 18;
+const HUDOMINO_POINT_PER_MATCH = 1;
+const HUDOMINO_SIDE_DIRECTIONS: HudominoSideDirection[] = ["north", "east", "south", "west"];
 const SHARE_QUERY_PARAM = "game";
 const SERVER_GAME_QUERY_PARAM = "sgame";
 const SERVER_ACCESS_QUERY_PARAM = "access";
@@ -175,6 +224,22 @@ const SUPABASE_GAMES_TABLE = "jeopardy_games";
 const GAME_TYPE_OPTIONS: Array<{ value: GameType; label: string }> = [
   { value: "jeopardy", label: "ג׳פרדי קלאסי" },
   { value: "quick-trivia", label: "טריוויה מהירה" },
+  { value: "hudomino", label: "חודומינו" },
+];
+
+const HUDOMINO_DIFFICULTY_OPTIONS: Array<{
+  value: HudominoDifficulty;
+  label: string;
+  size: number;
+}> = [
+  { value: "easy", label: "קל (2×2)", size: 2 },
+  { value: "medium", label: "בינוני (3×3)", size: 3 },
+  { value: "hard", label: "קשה (4×4)", size: 4 },
+];
+
+const HUDOMINO_PLAY_MODE_OPTIONS: Array<{ value: HudominoPlayMode; label: string }> = [
+  { value: "learning", label: "מצב למידה" },
+  { value: "challenge", label: "מצב אתגר" },
 ];
 
 const TEAM_COLORS = [
@@ -542,6 +607,364 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function shuffleArray<T>(items: T[]): T[] {
+  const next = [...items];
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+  return next;
+}
+
+function getHudominoBoardSize(difficulty: HudominoDifficulty): number {
+  return HUDOMINO_DIFFICULTY_OPTIONS.find((option) => option.value === difficulty)?.size ?? 3;
+}
+
+function getHudominoRequiredPairs(boardSize: number): number {
+  // Cyclic layout: all four sides of all cubes are paired (N*N*4 sides / 2).
+  return boardSize * boardSize * 2;
+}
+
+function getHudominoInternalMatchTarget(boardSize: number): number {
+  // Visible board interfaces (without wrap): horizontal + vertical internal edges.
+  return boardSize * (boardSize - 1) * 2;
+}
+
+function getHudominoBaseDirection(
+  displayDirection: HudominoSideDirection,
+  rotation: number,
+): HudominoSideDirection {
+  const displayIndex = HUDOMINO_SIDE_DIRECTIONS.indexOf(displayDirection);
+  const baseIndex = (displayIndex - (rotation % 4) + 4) % 4;
+  return HUDOMINO_SIDE_DIRECTIONS[baseIndex];
+}
+
+function getHudominoDisplaySide(cube: HudominoCube, direction: HudominoSideDirection): HudominoSide {
+  const baseDirection = getHudominoBaseDirection(direction, cube.rotation);
+  return cube.sides[baseDirection];
+}
+
+function isHudominoSideMatch(left: HudominoSide, right: HudominoSide): boolean {
+  if (!left.pairId || !right.pairId) return false;
+  if (left.pairId !== right.pairId) return false;
+  return (
+    (left.kind === "term" && right.kind === "definition") ||
+    (left.kind === "definition" && right.kind === "term")
+  );
+}
+
+function createHudominoPairs(count = HUDOMINO_DEFAULT_PAIR_COUNT): HudominoPair[] {
+  const normalizedCount = clamp(count, HUDOMINO_MIN_PAIRS, HUDOMINO_MAX_PAIRS);
+  return Array.from({ length: normalizedCount }, (_, index) => ({
+    id: `hudomino-pair-${index + 1}`,
+    term: "",
+    definition: "",
+  }));
+}
+
+function normalizeHudominoPairs(
+  source:
+    | Array<{
+        term: string;
+        definition: string;
+      }>
+    | null
+    | undefined,
+): HudominoPair[] {
+  if (!Array.isArray(source) || source.length === 0) {
+    return createHudominoPairs();
+  }
+  const limited = source.slice(0, HUDOMINO_MAX_PAIRS);
+  return limited.map((pair, index) => ({
+    id: `hudomino-pair-${index + 1}`,
+    term: typeof pair?.term === "string" ? pair.term : "",
+    definition: typeof pair?.definition === "string" ? pair.definition : "",
+  }));
+}
+
+function createDefaultHudominoSide(text = "מסיח"): HudominoSide {
+  return {
+    text,
+    pairId: null,
+    kind: "distractor",
+  };
+}
+
+function createHudominoPuzzle(
+  pairs: HudominoPair[],
+  boardSize: number,
+  playMode: HudominoPlayMode,
+): HudominoPuzzleState {
+  const cubeCount = boardSize * boardSize;
+  const requiredPairs = getHudominoRequiredPairs(boardSize);
+  const shuffledPairs = shuffleArray(pairs).slice(0, requiredPairs);
+
+  const draftCubes: Array<{
+    id: string;
+    sides: Record<HudominoSideDirection, HudominoSide | null>;
+  }> = Array.from({ length: cubeCount }, (_, index) => ({
+    id: `hudocube-${index + 1}`,
+    sides: {
+      north: null,
+      east: null,
+      south: null,
+      west: null,
+    },
+  }));
+
+  let pairCursor = 0;
+
+  const assignPairToEdge = (
+    firstIndex: number,
+    firstDirection: HudominoSideDirection,
+    secondIndex: number,
+    secondDirection: HudominoSideDirection,
+    pair: HudominoPair,
+  ) => {
+    const termOnFirst = Math.random() >= 0.5;
+    draftCubes[firstIndex].sides[firstDirection] = {
+      text: termOnFirst ? pair.term : pair.definition,
+      pairId: pair.id,
+      kind: termOnFirst ? "term" : "definition",
+    };
+    draftCubes[secondIndex].sides[secondDirection] = {
+      text: termOnFirst ? pair.definition : pair.term,
+      pairId: pair.id,
+      kind: termOnFirst ? "definition" : "term",
+    };
+  };
+
+  // Horizontal cyclic edges (includes rightmost -> leftmost per row).
+  for (let rowIndex = 0; rowIndex < boardSize; rowIndex += 1) {
+    for (let colIndex = 0; colIndex < boardSize; colIndex += 1) {
+      const leftIndex = rowIndex * boardSize + colIndex;
+      const rightCol = (colIndex + 1) % boardSize;
+      const rightIndex = rowIndex * boardSize + rightCol;
+      const pair = shuffledPairs[pairCursor];
+      pairCursor += 1;
+      if (!pair) continue;
+      assignPairToEdge(leftIndex, "east", rightIndex, "west", pair);
+    }
+  }
+
+  // Vertical cyclic edges (includes bottom -> top per column).
+  for (let rowIndex = 0; rowIndex < boardSize; rowIndex += 1) {
+    for (let colIndex = 0; colIndex < boardSize; colIndex += 1) {
+      const topIndex = rowIndex * boardSize + colIndex;
+      const bottomRow = (rowIndex + 1) % boardSize;
+      const bottomIndex = bottomRow * boardSize + colIndex;
+      const pair = shuffledPairs[pairCursor];
+      pairCursor += 1;
+      if (!pair) continue;
+      assignPairToEdge(topIndex, "south", bottomIndex, "north", pair);
+    }
+  }
+
+  const usedPairIds = new Set(shuffledPairs.map((pair) => pair.id));
+  const unusedDistractors = shuffleArray(
+    pairs
+      .filter((pair) => !usedPairIds.has(pair.id))
+      .flatMap((pair) => [pair.term.trim(), pair.definition.trim()])
+      .filter(Boolean),
+  );
+  const fallbackDistractors = shuffleArray(
+    pairs.flatMap((pair) => [pair.term.trim(), pair.definition.trim()]).filter(Boolean),
+  );
+  let distractorCursor = 0;
+  const getNextDistractor = () => {
+    const source = unusedDistractors.length > 0 ? unusedDistractors : fallbackDistractors;
+    if (source.length === 0) return "מסיח";
+    const value = source[distractorCursor % source.length];
+    distractorCursor += 1;
+    return value;
+  };
+
+  const cubes: HudominoCube[] = draftCubes.map((cube) => ({
+    id: cube.id,
+    rotation: Math.floor(Math.random() * 4),
+    sides: {
+      north: cube.sides.north ?? createDefaultHudominoSide(getNextDistractor()),
+      east: cube.sides.east ?? createDefaultHudominoSide(getNextDistractor()),
+      south: cube.sides.south ?? createDefaultHudominoSide(getNextDistractor()),
+      west: cube.sides.west ?? createDefaultHudominoSide(getNextDistractor()),
+    },
+  }));
+
+  const buildRandomizedCubes = (): HudominoCube[] =>
+    cubes.map((cube) => ({
+      ...cube,
+      rotation: Math.floor(Math.random() * 4),
+    }));
+
+  const internalMatchTarget = getHudominoInternalMatchTarget(boardSize);
+  let randomizedCubes = buildRandomizedCubes();
+  let randomizedSlots = shuffleArray(randomizedCubes.map((cube) => cube.id));
+  let attempts = 0;
+  while (attempts < 40) {
+    const matchCount = collectHudominoMatchEdgeKeys({
+      size: boardSize,
+      boardSlots: randomizedSlots,
+      bankOrder: [],
+      cubes: randomizedCubes,
+      isChallengeReveal: playMode === "learning",
+    }).size;
+    if (matchCount < internalMatchTarget) break;
+    randomizedCubes = buildRandomizedCubes();
+    randomizedSlots = shuffleArray(randomizedCubes.map((cube) => cube.id));
+    attempts += 1;
+  }
+
+  return {
+    size: boardSize,
+    boardSlots: randomizedSlots,
+    bankOrder: [],
+    cubes: randomizedCubes,
+    isChallengeReveal: playMode === "learning",
+  };
+}
+
+function normalizeHudominoPuzzleState(
+  source: HudominoPuzzleState | null | undefined,
+  fallbackPairs: HudominoPair[],
+  boardSize: number,
+  playMode: HudominoPlayMode,
+): HudominoPuzzleState {
+  if (!source) {
+    return createHudominoPuzzle(fallbackPairs, boardSize, playMode);
+  }
+
+  const expectedCount = boardSize * boardSize;
+  const validCubes = Array.isArray(source.cubes)
+    ? source.cubes.filter(
+        (cube) =>
+          cube &&
+          typeof cube.id === "string" &&
+          cube.sides &&
+          HUDOMINO_SIDE_DIRECTIONS.every(
+            (direction) => typeof cube.sides[direction]?.text === "string",
+          ),
+      )
+    : [];
+
+  if (validCubes.length !== expectedCount) {
+    return createHudominoPuzzle(fallbackPairs, boardSize, playMode);
+  }
+
+  const cubeIds = new Set(validCubes.map((cube) => cube.id));
+  const usedOnBoard = new Set<string>();
+  const normalizedBoard = Array.isArray(source.boardSlots)
+    ? source.boardSlots.slice(0, expectedCount).map((cubeId) => {
+        if (typeof cubeId !== "string") return null;
+        if (!cubeIds.has(cubeId)) return null;
+        if (usedOnBoard.has(cubeId)) return null;
+        usedOnBoard.add(cubeId);
+        return cubeId;
+      })
+    : Array.from({ length: expectedCount }, () => null);
+  while (normalizedBoard.length < expectedCount) {
+    normalizedBoard.push(null);
+  }
+
+  const normalizedBank: string[] = [];
+  if (Array.isArray(source.bankOrder)) {
+    source.bankOrder.forEach((cubeId) => {
+      if (typeof cubeId !== "string") return;
+      if (!cubeIds.has(cubeId)) return;
+      if (usedOnBoard.has(cubeId)) return;
+      if (normalizedBank.includes(cubeId)) return;
+      normalizedBank.push(cubeId);
+    });
+  }
+
+  const remainingIds = validCubes
+    .map((cube) => cube.id)
+    .filter((cubeId) => !usedOnBoard.has(cubeId) && !normalizedBank.includes(cubeId));
+  const fillQueue = [...normalizedBank, ...remainingIds];
+  for (let slotIndex = 0; slotIndex < normalizedBoard.length; slotIndex += 1) {
+    if (normalizedBoard[slotIndex]) continue;
+    const nextId = fillQueue.shift() ?? null;
+    normalizedBoard[slotIndex] = nextId;
+    if (nextId) usedOnBoard.add(nextId);
+  }
+
+  const missingAfterFill = validCubes
+    .map((cube) => cube.id)
+    .filter((cubeId) => !usedOnBoard.has(cubeId));
+  for (let slotIndex = 0; slotIndex < normalizedBoard.length; slotIndex += 1) {
+    if (normalizedBoard[slotIndex]) continue;
+    normalizedBoard[slotIndex] = missingAfterFill.shift() ?? null;
+  }
+
+  validCubes.forEach((cube) => {
+    if (!usedOnBoard.has(cube.id) && !normalizedBank.includes(cube.id)) {
+      normalizedBank.push(cube.id);
+    }
+  });
+
+  return {
+    size: boardSize,
+    boardSlots: normalizedBoard,
+    bankOrder: [],
+    cubes: validCubes.map((cube) => ({
+      ...cube,
+      rotation: clamp(Math.round(Number(cube.rotation) || 0), 0, 3),
+      sides: {
+        north: cube.sides.north ?? createDefaultHudominoSide(),
+        east: cube.sides.east ?? createDefaultHudominoSide(),
+        south: cube.sides.south ?? createDefaultHudominoSide(),
+        west: cube.sides.west ?? createDefaultHudominoSide(),
+      },
+    })),
+    isChallengeReveal: playMode === "learning" ? true : Boolean(source.isChallengeReveal),
+  };
+}
+
+function buildHudominoEdgeKey(firstSlot: number, secondSlot: number): string {
+  return firstSlot < secondSlot ? `${firstSlot}-${secondSlot}` : `${secondSlot}-${firstSlot}`;
+}
+
+function collectHudominoMatchEdgeKeys(state: HudominoPuzzleState): Set<string> {
+  const cubeById = new Map(state.cubes.map((cube) => [cube.id, cube]));
+  const matches = new Set<string>();
+
+  for (let slotIndex = 0; slotIndex < state.boardSlots.length; slotIndex += 1) {
+    const cubeId = state.boardSlots[slotIndex];
+    if (!cubeId) continue;
+    const cube = cubeById.get(cubeId);
+    if (!cube) continue;
+    const row = Math.floor(slotIndex / state.size);
+    const col = slotIndex % state.size;
+
+    if (col < state.size - 1) {
+      const neighborIndex = slotIndex + 1;
+      const neighborId = state.boardSlots[neighborIndex];
+      const neighbor = neighborId ? cubeById.get(neighborId) : null;
+      if (neighbor) {
+        const rightSide = getHudominoDisplaySide(cube, "east");
+        const leftSide = getHudominoDisplaySide(neighbor, "west");
+        if (isHudominoSideMatch(rightSide, leftSide)) {
+          matches.add(buildHudominoEdgeKey(slotIndex, neighborIndex));
+        }
+      }
+    }
+
+    if (row < state.size - 1) {
+      const neighborIndex = slotIndex + state.size;
+      const neighborId = state.boardSlots[neighborIndex];
+      const neighbor = neighborId ? cubeById.get(neighborId) : null;
+      if (neighbor) {
+        const bottomSide = getHudominoDisplaySide(cube, "south");
+        const topSide = getHudominoDisplaySide(neighbor, "north");
+        if (isHudominoSideMatch(bottomSide, topSide)) {
+          matches.add(buildHudominoEdgeKey(slotIndex, neighborIndex));
+        }
+      }
+    }
+  }
+
+  return matches;
+}
+
 function normalizeHexColor(value: string): string | null {
   const normalized = value.trim();
   if (/^#[0-9a-f]{6}$/i.test(normalized)) {
@@ -878,6 +1301,11 @@ function App() {
   const [quickTriviaQuestions, setQuickTriviaQuestions] = useState<QuickTriviaQuestion[]>(() =>
     createQuickTriviaQuestions(),
   );
+  const [hudominoDifficulty, setHudominoDifficulty] = useState<HudominoDifficulty>("medium");
+  const [hudominoPlayMode, setHudominoPlayMode] = useState<HudominoPlayMode>("learning");
+  const [hudominoPairs, setHudominoPairs] = useState<HudominoPair[]>(() => createHudominoPairs());
+  const [hudominoPuzzle, setHudominoPuzzle] = useState<HudominoPuzzleState | null>(null);
+  const [hudominoDraggedCubeId, setHudominoDraggedCubeId] = useState<string | null>(null);
   const [teams, setTeams] = useState<TeamData[]>(() => createTeams(2));
   const [currentTurnIndex, setCurrentTurnIndex] = useState(0);
   const [activeCell, setActiveCell] = useState<ActiveCell | null>(null);
@@ -898,6 +1326,7 @@ function App() {
   const [isBackgroundPickerOpen, setIsBackgroundPickerOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const csvImportInputRef = useRef<HTMLInputElement | null>(null);
+  const hudominoCsvImportInputRef = useRef<HTMLInputElement | null>(null);
   const boardBackgroundInputRef = useRef<HTMLInputElement | null>(null);
   const pageBackgroundInputRef = useRef<HTMLInputElement | null>(null);
   const overlayTimeoutRef = useRef<number | null>(null);
@@ -907,9 +1336,34 @@ function App() {
     return quickTriviaQuestions.find((question) => question.id === activeQuickQuestionId) ?? null;
   }, [activeQuickQuestionId, quickTriviaQuestions]);
 
+  const hudominoBoardSize = useMemo(
+    () => getHudominoBoardSize(hudominoDifficulty),
+    [hudominoDifficulty],
+  );
+  const hudominoRequiredPairs = useMemo(
+    () => getHudominoRequiredPairs(hudominoBoardSize),
+    [hudominoBoardSize],
+  );
+  const hudominoInternalMatchTarget = useMemo(
+    () => getHudominoInternalMatchTarget(hudominoBoardSize),
+    [hudominoBoardSize],
+  );
+  const hudominoValidPairs = useMemo(
+    () => hudominoPairs.filter((pair) => pair.term.trim() && pair.definition.trim()),
+    [hudominoPairs],
+  );
+  const hudominoMissingPairsCount = Math.max(0, hudominoRequiredPairs - hudominoValidPairs.length);
+  const hudominoMatchEdgeKeys = useMemo(
+    () => (hudominoPuzzle ? collectHudominoMatchEdgeKeys(hudominoPuzzle) : new Set<string>()),
+    [hudominoPuzzle],
+  );
+  const hudominoMatchedConnectionsCount = hudominoMatchEdgeKeys.size;
+
   const activeQuestion =
     gameType === "quick-trivia"
       ? activeQuickQuestion
+      : gameType === "hudomino"
+        ? null
       : activeCell
         ? board[activeCell.categoryIndex]?.cells[activeCell.rowIndex] ?? null
         : null;
@@ -927,8 +1381,11 @@ function App() {
     return quickTriviaQuestions.filter((question) => !question.question.trim() || !question.answer.trim()).length;
   }, [quickTriviaQuestions]);
 
-  const missingFieldsCount =
-    gameType === "quick-trivia" ? quickTriviaMissingFieldsCount : jeopardyMissingFieldsCount;
+  const missingFieldsCount = (() => {
+    if (gameType === "quick-trivia") return quickTriviaMissingFieldsCount;
+    if (gameType === "hudomino") return hudominoMissingPairsCount;
+    return jeopardyMissingFieldsCount;
+  })();
 
   const jeopardyUsedCount = useMemo(() => {
     return board.reduce((total, category) => total + category.cells.filter((cell) => cell.used).length, 0);
@@ -938,11 +1395,28 @@ function App() {
     return quickTriviaQuestions.filter((question) => question.used).length;
   }, [quickTriviaQuestions]);
 
-  const usedCount = gameType === "quick-trivia" ? quickTriviaUsedCount : jeopardyUsedCount;
-  const totalQuestions = gameType === "quick-trivia" ? quickTriviaQuestions.length : categoryCount * rowCount;
-  const canStartGame = missingFieldsCount === 0 && totalQuestions > 0;
+  const usedCount = (() => {
+    if (gameType === "quick-trivia") return quickTriviaUsedCount;
+    if (gameType === "hudomino") return hudominoMatchedConnectionsCount;
+    return jeopardyUsedCount;
+  })();
+  const totalQuestions = (() => {
+    if (gameType === "quick-trivia") return quickTriviaQuestions.length;
+    if (gameType === "hudomino") return hudominoInternalMatchTarget;
+    return categoryCount * rowCount;
+  })();
+  const canStartGame =
+    gameType === "hudomino"
+      ? hudominoValidPairs.length >= hudominoRequiredPairs
+      : missingFieldsCount === 0 && totalQuestions > 0;
   const currentTeam = teams[currentTurnIndex] ?? teams[0];
-  const resolvedGameTopic = gameTopic.trim() || (gameType === "quick-trivia" ? "טריוויה מהירה" : "משחק ג'פרדי");
+  const resolvedGameTopic =
+    gameTopic.trim() ||
+    (gameType === "quick-trivia"
+      ? "טריוויה מהירה"
+      : gameType === "hudomino"
+        ? "חודומינו"
+        : "משחק ג'פרדי");
   const boardTypography = useMemo(() => {
     const categoryScale = clamp(6 / categoryCount, 0.72, 1.28);
     const rowScale = clamp(5 / rowCount, 0.82, 1.18);
@@ -1055,6 +1529,44 @@ function App() {
   const activeAnswerText = activeQuestion?.answer?.trim() || "לא הוזן טקסט לתשובה זו.";
   const isActiveQuestionTextMissing = !activeQuestion?.question?.trim();
   const isActiveAnswerTextMissing = !activeQuestion?.answer?.trim();
+  const hudominoCubeById = useMemo(
+    () => new Map((hudominoPuzzle?.cubes ?? []).map((cube) => [cube.id, cube])),
+    [hudominoPuzzle],
+  );
+  const shouldShowHudominoMatches = mode === "game";
+  const getHudominoSideMatchesForSlot = useCallback(
+    (slotIndex: number): Record<HudominoSideDirection, boolean> => {
+      const result: Record<HudominoSideDirection, boolean> = {
+        north: false,
+        east: false,
+        south: false,
+        west: false,
+      };
+      if (!hudominoPuzzle) return result;
+      if (!hudominoPuzzle.boardSlots[slotIndex]) return result;
+
+      const size = hudominoPuzzle.size;
+      const row = Math.floor(slotIndex / size);
+      const col = slotIndex % size;
+      const neighbors: Array<{ direction: HudominoSideDirection; slot: number | null }> = [
+        { direction: "north", slot: row > 0 ? slotIndex - size : null },
+        { direction: "east", slot: col < size - 1 ? slotIndex + 1 : null },
+        { direction: "south", slot: row < size - 1 ? slotIndex + size : null },
+        { direction: "west", slot: col > 0 ? slotIndex - 1 : null },
+      ];
+
+      neighbors.forEach(({ direction, slot }) => {
+        if (slot === null) return;
+        if (!hudominoPuzzle.boardSlots[slot]) return;
+        const key = buildHudominoEdgeKey(slotIndex, slot);
+        if (hudominoMatchEdgeKeys.has(key)) {
+          result[direction] = true;
+        }
+      });
+      return result;
+    },
+    [hudominoMatchEdgeKeys, hudominoPuzzle],
+  );
 
   const buildCurrentGameSnapshot = (options?: { stripInlineImages?: boolean }): SharePayload["game"] => {
     const sanitizeImage = (image: string | null): string | null => {
@@ -1088,6 +1600,13 @@ function App() {
         answer: question.answer,
         used: question.used,
       })),
+      hudominoPairs: hudominoPairs.map((pair) => ({
+        term: pair.term,
+        definition: pair.definition,
+      })),
+      hudominoDifficulty,
+      hudominoPlayMode,
+      hudominoPuzzle: hudominoPuzzle ?? undefined,
       teams: teams.map((team) => ({
         name: team.name,
         score: team.score,
@@ -1108,7 +1627,12 @@ function App() {
       throw new Error("Invalid game payload");
     }
 
-    const sharedGameType: GameType = sharedGame.gameType === "quick-trivia" ? "quick-trivia" : "jeopardy";
+    const sharedGameType: GameType =
+      sharedGame.gameType === "quick-trivia"
+        ? "quick-trivia"
+        : sharedGame.gameType === "hudomino"
+          ? "hudomino"
+          : "jeopardy";
     const sharedBoard = Array.isArray(sharedGame.board) ? sharedGame.board : [];
     const hasSharedBoard = sharedBoard.length > 0;
     if (sharedGameType === "jeopardy" && !hasSharedBoard) {
@@ -1166,10 +1690,39 @@ function App() {
       ? clamp(Math.round(Number(sharedGame.currentTurnIndex)), 0, importedTeamCount - 1)
       : 0;
 
+    const sharedHudominoDifficulty: HudominoDifficulty =
+      sharedGame.hudominoDifficulty === "easy" ||
+      sharedGame.hudominoDifficulty === "medium" ||
+      sharedGame.hudominoDifficulty === "hard"
+        ? sharedGame.hudominoDifficulty
+        : "medium";
+    const sharedHudominoPlayMode: HudominoPlayMode =
+      sharedGame.hudominoPlayMode === "challenge" ? "challenge" : "learning";
+    const normalizedHudominoPairs = normalizeHudominoPairs(sharedGame.hudominoPairs);
+    const sharedHudominoBoardSize = getHudominoBoardSize(sharedHudominoDifficulty);
+
     setGameType(sharedGameType);
-    setGameTopic(sharedGame.gameTopic?.trim() || (sharedGameType === "quick-trivia" ? "טריוויה מהירה" : "משחק ג'פרדי"));
+    setGameTopic(
+      sharedGame.gameTopic?.trim() ||
+        (sharedGameType === "quick-trivia"
+          ? "טריוויה מהירה"
+          : sharedGameType === "hudomino"
+            ? "חודומינו"
+            : "משחק ג'פרדי"),
+    );
     setBoardTheme(resolveBoardTheme(sharedGame.boardTheme));
     setQuickTriviaQuestions(normalizeQuickTriviaQuestions(sharedGame.quickTriviaQuestions));
+    setHudominoDifficulty(sharedHudominoDifficulty);
+    setHudominoPlayMode(sharedHudominoPlayMode);
+    setHudominoPairs(normalizedHudominoPairs);
+    setHudominoPuzzle(
+      normalizeHudominoPuzzleState(
+        sharedGame.hudominoPuzzle,
+        normalizedHudominoPairs,
+        sharedHudominoBoardSize,
+        sharedHudominoPlayMode,
+      ),
+    );
     setTeams(
       Array.from({ length: importedTeamCount }, (_, index) => {
         const sourceTeam = sharedTeams[index];
@@ -1187,6 +1740,7 @@ function App() {
     setCurrentTurnIndex(normalizedTurnIndex);
     setActiveCell(null);
     setActiveQuickQuestionId(null);
+    setHudominoDraggedCubeId(null);
     setShowAnswer(false);
     setDidScoreCurrentQuestion(false);
     setIsSharedViewOnly(options.access === "view");
@@ -1223,6 +1777,19 @@ function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (gameType !== "hudomino") return;
+    if (!hudominoPuzzle) return;
+    const needsMigration =
+      hudominoPuzzle.bankOrder.length > 0 || hudominoPuzzle.boardSlots.some((slot) => slot === null);
+    if (!needsMigration) return;
+    setHudominoPuzzle((previous) =>
+      previous
+        ? normalizeHudominoPuzzleState(previous, hudominoValidPairs, hudominoBoardSize, hudominoPlayMode)
+        : previous,
+    );
+  }, [gameType, hudominoBoardSize, hudominoPlayMode, hudominoPuzzle, hudominoValidPairs]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1371,6 +1938,30 @@ function App() {
     );
   };
 
+  const updateHudominoPairCount = (nextValue: number) => {
+    const clamped = clamp(nextValue, HUDOMINO_MIN_PAIRS, HUDOMINO_MAX_PAIRS);
+    setHudominoPairs((previous) => {
+      if (clamped === previous.length) return previous;
+      if (clamped < previous.length) return previous.slice(0, clamped);
+      const additions = Array.from({ length: clamped - previous.length }, (_, offset) => ({
+        id: `hudomino-pair-${previous.length + offset + 1}`,
+        term: "",
+        definition: "",
+      }));
+      return [...previous, ...additions];
+    });
+  };
+
+  const updateHudominoPair = (
+    pairId: string,
+    field: "term" | "definition",
+    nextValue: string,
+  ) => {
+    setHudominoPairs((previous) =>
+      previous.map((pair) => (pair.id === pairId ? { ...pair, [field]: nextValue } : pair)),
+    );
+  };
+
   const updateTeamCount = (nextCount: number) => {
     const clamped = clamp(nextCount, MIN_TEAMS, MAX_TEAMS);
     setTeams((previous) =>
@@ -1389,6 +1980,97 @@ function App() {
 
   const updateTeamName = (teamId: string, name: string) => {
     setTeams((previous) => previous.map((team) => (team.id === teamId ? { ...team, name } : team)));
+  };
+
+  const applyHudominoPuzzleUpdate = (
+    producer: (state: HudominoPuzzleState) => HudominoPuzzleState,
+  ) => {
+    if (!hudominoPuzzle) return;
+    const beforeState = hudominoPuzzle;
+    const nextState = producer(beforeState);
+    if (nextState === beforeState) return;
+
+    setHudominoPuzzle(nextState);
+
+    if (mode !== "game" || gameType !== "hudomino") return;
+
+    const beforeMatches = collectHudominoMatchEdgeKeys(beforeState);
+    const afterMatches = collectHudominoMatchEdgeKeys(nextState);
+    const newConnections = Array.from(afterMatches).filter((key) => !beforeMatches.has(key)).length;
+    const points = newConnections * HUDOMINO_POINT_PER_MATCH;
+
+    if (points > 0) {
+      const actingTeamName = teams[currentTurnIndex]?.name ?? "הקבוצה בתור";
+      setTeams((previous) =>
+        previous.map((team, index) =>
+          index === currentTurnIndex ? { ...team, score: team.score + points } : team,
+        ),
+      );
+      setStatusMessage(`חיבור מוצלח: ${points}+ נקודות ל-${actingTeamName}.`);
+    }
+
+    const teamCount = teams.length;
+    setCurrentTurnIndex((previous) => (teamCount > 0 ? (previous + 1) % teamCount : 0));
+  };
+
+  const moveHudominoCube = (cubeId: string, targetSlot: number) => {
+    applyHudominoPuzzleUpdate((state) => {
+      const sourceSlot = state.boardSlots.findIndex((slotCubeId) => slotCubeId === cubeId);
+      if (sourceSlot === -1) return state;
+      if (targetSlot < 0 || targetSlot >= state.boardSlots.length) return state;
+      if (targetSlot === sourceSlot) return state;
+
+      const nextBoard = [...state.boardSlots];
+      const occupiedCubeId = nextBoard[targetSlot];
+      nextBoard[targetSlot] = cubeId;
+      if (occupiedCubeId) {
+        nextBoard[sourceSlot] = occupiedCubeId;
+      } else {
+        nextBoard[sourceSlot] = null;
+      }
+
+      return {
+        ...state,
+        boardSlots: nextBoard,
+      };
+    });
+  };
+
+  const rotateHudominoCube = (cubeId: string) => {
+    applyHudominoPuzzleUpdate((state) => {
+      const cubeIndex = state.cubes.findIndex((cube) => cube.id === cubeId);
+      if (cubeIndex === -1) return state;
+      const nextCubes = [...state.cubes];
+      nextCubes[cubeIndex] = {
+        ...nextCubes[cubeIndex],
+        rotation: (nextCubes[cubeIndex].rotation + 1) % 4,
+      };
+      return {
+        ...state,
+        cubes: nextCubes,
+      };
+    });
+  };
+
+  const onHudominoDragStart = (event: DragEvent<HTMLElement>, cubeId: string) => {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", cubeId);
+    setHudominoDraggedCubeId(cubeId);
+  };
+
+  const onHudominoDragEnd = () => {
+    setHudominoDraggedCubeId(null);
+  };
+
+  const dropHudominoToSlot = (slotIndex: number, cubeIdFromDrop?: string) => {
+    const draggedCubeId = cubeIdFromDrop || hudominoDraggedCubeId;
+    if (!draggedCubeId) return;
+    moveHudominoCube(draggedCubeId, slotIndex);
+    setHudominoDraggedCubeId(null);
+  };
+
+  const revealHudominoChallenge = () => {
+    setHudominoPuzzle((previous) => (previous ? { ...previous, isChallengeReveal: true } : previous));
   };
 
   const loadArchiveGames = useCallback(async () => {
@@ -1745,16 +2427,26 @@ function App() {
 
   const startGame = () => {
     if (!canStartGame) {
-      setStatusMessage("אי אפשר להתחיל משחק לפני שממלאים את כל השאלות והתשובות.");
+      if (gameType === "hudomino") {
+        setStatusMessage(`לחודומינו נדרשים לפחות ${hudominoRequiredPairs} זוגות מושג-הגדרה מלאים.`);
+      } else {
+        setStatusMessage("אי אפשר להתחיל משחק לפני שממלאים את כל השאלות והתשובות.");
+      }
       return;
     }
 
     if (!gameTopic.trim()) {
-      setGameTopic(gameType === "quick-trivia" ? "טריוויה מהירה" : "משחק ג'פרדי");
+      setGameTopic(
+        gameType === "quick-trivia" ? "טריוויה מהירה" : gameType === "hudomino" ? "חודומינו" : "משחק ג'פרדי",
+      );
     }
 
     if (gameType === "quick-trivia") {
       setQuickTriviaQuestions((previous) => previous.map((question) => ({ ...question, used: false })));
+    } else if (gameType === "hudomino") {
+      const nextPuzzle = createHudominoPuzzle(hudominoValidPairs, hudominoBoardSize, hudominoPlayMode);
+      setHudominoPuzzle(nextPuzzle);
+      setHudominoDraggedCubeId(null);
     } else {
       setBoard((previous) =>
         previous.map((category) => ({
@@ -1767,6 +2459,7 @@ function App() {
     setCurrentTurnIndex(0);
     setActiveCell(null);
     setActiveQuickQuestionId(null);
+    setHudominoDraggedCubeId(null);
     setShowAnswer(false);
     setDidScoreCurrentQuestion(false);
     setIsSharedViewOnly(false);
@@ -1782,6 +2475,7 @@ function App() {
     }
     setActiveCell(null);
     setActiveQuickQuestionId(null);
+    setHudominoDraggedCubeId(null);
     setShowAnswer(false);
     setDidScoreCurrentQuestion(false);
     setMode("editor");
@@ -1860,6 +2554,9 @@ function App() {
   const resetGameBoard = () => {
     if (gameType === "quick-trivia") {
       setQuickTriviaQuestions((previous) => previous.map((question) => ({ ...question, used: false })));
+    } else if (gameType === "hudomino") {
+      setHudominoPuzzle(createHudominoPuzzle(hudominoValidPairs, hudominoBoardSize, hudominoPlayMode));
+      setHudominoDraggedCubeId(null);
     } else {
       setBoard((previous) =>
         previous.map((category) => ({
@@ -1885,6 +2582,8 @@ function App() {
         teamCount: teams.length,
         teamNames: teams.map((team) => team.name),
         boardTheme,
+        hudominoDifficulty,
+        hudominoPlayMode,
       },
       categories: board.map((category) => ({
         title: category.title,
@@ -1899,13 +2598,23 @@ function App() {
         question: question.question,
         answer: question.answer,
       })),
+      hudominoPairs: hudominoPairs.map((pair) => ({
+        term: pair.term,
+        definition: pair.definition,
+      })),
+      hudominoPuzzle: hudominoPuzzle ?? undefined,
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = gameType === "quick-trivia" ? "quick-trivia-board.json" : "dna-jeopardy-board.json";
+    anchor.download =
+      gameType === "quick-trivia"
+        ? "quick-trivia-board.json"
+        : gameType === "hudomino"
+          ? "hudomino-board.json"
+          : "dna-jeopardy-board.json";
     anchor.click();
     URL.revokeObjectURL(url);
   };
@@ -2047,6 +2756,73 @@ function App() {
     }
   };
 
+  const importHudominoPairsFromCsvFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = (await file.text()).replace(/^\uFEFF/, "");
+      const firstLine = text.split(/\r?\n/, 1)[0] ?? "";
+      const delimiter = detectDelimiter(firstLine);
+      const rows = parseCsvRows(text, delimiter);
+      if (rows.length === 0) {
+        throw new Error("CSV is empty.");
+      }
+
+      const headers = rows[0].map(normalizeHeader);
+      const findHeaderIndex = (aliases: string[]) => headers.findIndex((header) => aliases.includes(header));
+
+      const detectedTermIndex = findHeaderIndex(["term", "concept", "keyword", "מושג", "מונח"]);
+      const detectedDefinitionIndex = findHeaderIndex([
+        "definition",
+        "meaning",
+        "description",
+        "הגדרה",
+        "פירוש",
+      ]);
+
+      const hasHeader = detectedTermIndex !== -1 && detectedDefinitionIndex !== -1;
+      const termIndex = hasHeader ? detectedTermIndex : 0;
+      const definitionIndex = hasHeader ? detectedDefinitionIndex : 1;
+
+      if (!hasHeader && (rows[0]?.length ?? 0) < 2) {
+        throw new Error("CSV must include term and definition columns.");
+      }
+
+      const sourceRows = hasHeader ? rows.slice(1) : rows;
+      const parsedPairs: Array<{ term: string; definition: string }> = [];
+
+      sourceRows.forEach((row, rowIndex) => {
+        const term = (row[termIndex] ?? "").trim();
+        const definition = (row[definitionIndex] ?? "").trim();
+        const isBlankRow = !term && !definition;
+        if (isBlankRow) return;
+        if (!term || !definition) {
+          throw new Error(`Row ${rowIndex + (hasHeader ? 2 : 1)} is missing term/definition.`);
+        }
+        parsedPairs.push({ term, definition });
+      });
+
+      if (parsedPairs.length === 0) {
+        throw new Error("No valid term/definition pairs found.");
+      }
+
+      const limitedPairs = parsedPairs.slice(0, HUDOMINO_MAX_PAIRS);
+      setHudominoPairs(normalizeHudominoPairs(limitedPairs));
+      setHudominoPuzzle(null);
+      setHudominoDraggedCubeId(null);
+      setMode("editor");
+
+      const cutNotice =
+        parsedPairs.length > limitedPairs.length ? ` עודפים קוצרו למקסימום ${HUDOMINO_MAX_PAIRS} זוגות.` : "";
+      setStatusMessage(`ייבוא CSV לזוגות הושלם בהצלחה.${cutNotice}`);
+    } catch {
+      setStatusMessage("שגיאה בייבוא CSV לזוגות. ודאי שיש שתי עמודות: term ו-definition.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
   const importBoardFromFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -2055,11 +2831,16 @@ function App() {
       const text = await file.text();
       const parsed = JSON.parse(text) as Partial<ExportPayload>;
       const importedGameType: GameType =
-        parsed.settings?.gameType === "quick-trivia" ? "quick-trivia" : "jeopardy";
+        parsed.settings?.gameType === "quick-trivia"
+          ? "quick-trivia"
+          : parsed.settings?.gameType === "hudomino"
+            ? "hudomino"
+            : "jeopardy";
       const hasCategories = Array.isArray(parsed.categories) && parsed.categories.length > 0;
       const hasQuickTrivia =
         Array.isArray(parsed.quickTriviaQuestions) && parsed.quickTriviaQuestions.length > 0;
-      if (!hasCategories && !hasQuickTrivia) {
+      const hasHudomino = Array.isArray(parsed.hudominoPairs) && parsed.hudominoPairs.length > 0;
+      if (!hasCategories && !hasQuickTrivia && !hasHudomino) {
         throw new Error("קובץ לא תקין.");
       }
 
@@ -2106,9 +2887,34 @@ function App() {
 
       setGameType(importedGameType);
       setQuickTriviaQuestions(normalizeQuickTriviaQuestions(parsed.quickTriviaQuestions));
+      const importedHudominoDifficulty: HudominoDifficulty =
+        parsed.settings?.hudominoDifficulty === "easy" ||
+        parsed.settings?.hudominoDifficulty === "medium" ||
+        parsed.settings?.hudominoDifficulty === "hard"
+          ? parsed.settings.hudominoDifficulty
+          : "medium";
+      const importedHudominoPlayMode: HudominoPlayMode =
+        parsed.settings?.hudominoPlayMode === "challenge" ? "challenge" : "learning";
+      const normalizedHudominoPairs = normalizeHudominoPairs(parsed.hudominoPairs);
+      const importedHudominoBoardSize = getHudominoBoardSize(importedHudominoDifficulty);
+      setHudominoDifficulty(importedHudominoDifficulty);
+      setHudominoPlayMode(importedHudominoPlayMode);
+      setHudominoPairs(normalizedHudominoPairs);
+      setHudominoPuzzle(
+        normalizeHudominoPuzzleState(
+          parsed.hudominoPuzzle,
+          normalizedHudominoPairs,
+          importedHudominoBoardSize,
+          importedHudominoPlayMode,
+        ),
+      );
       setGameTopic(
         parsed.settings?.gameTopic?.trim() ||
-          (importedGameType === "quick-trivia" ? "טריוויה מהירה" : "משחק ג'פרדי"),
+          (importedGameType === "quick-trivia"
+            ? "טריוויה מהירה"
+            : importedGameType === "hudomino"
+              ? "חודומינו"
+              : "משחק ג'פרדי"),
       );
       setBoardTheme(resolveBoardTheme(parsed.settings?.boardTheme));
       setTeams(
@@ -2121,11 +2927,16 @@ function App() {
       setCurrentTurnIndex(0);
       setActiveCell(null);
       setActiveQuickQuestionId(null);
+      setHudominoDraggedCubeId(null);
       setShowAnswer(false);
       setDidScoreCurrentQuestion(false);
       setMode("editor");
       setStatusMessage(
-        importedGameType === "quick-trivia" ? "משחק טריוויה מהירה נטען בהצלחה." : "הלוח נטען בהצלחה.",
+        importedGameType === "quick-trivia"
+          ? "משחק טריוויה מהירה נטען בהצלחה."
+          : importedGameType === "hudomino"
+            ? "משחק חודומינו נטען בהצלחה."
+            : "הלוח נטען בהצלחה.",
       );
     } catch {
       setStatusMessage("שגיאה בייבוא הקובץ. ודאי שזה JSON בפורמט הנתמך.");
@@ -2134,16 +2945,70 @@ function App() {
     }
   };
 
+  const renderHudominoCube = (
+    cubeId: string,
+    context: { zone: "bank" | "board"; slotIndex?: number },
+  ) => {
+    const cube = hudominoCubeById.get(cubeId);
+    if (!cube) return null;
+    const sideMatches =
+      context.zone === "board" && typeof context.slotIndex === "number"
+        ? getHudominoSideMatchesForSlot(context.slotIndex)
+        : {
+            north: false,
+            east: false,
+            south: false,
+            west: false,
+          };
+
+    return (
+      <button
+        key={`${context.zone}-${cubeId}`}
+        type="button"
+        className="hudomino-cube"
+        draggable
+        onDragStart={(event) => onHudominoDragStart(event, cubeId)}
+        onDragEnd={onHudominoDragEnd}
+        onClick={() => rotateHudominoCube(cubeId)}
+      >
+        {HUDOMINO_SIDE_DIRECTIONS.map((direction) => {
+          const side = getHudominoDisplaySide(cube, direction);
+          const isMatch = shouldShowHudominoMatches && sideMatches[direction];
+          return (
+            <span
+              key={`${cube.id}-${direction}`}
+              className={`hudomino-side hudomino-side-${direction} hudomino-side-kind-${side.kind} ${
+                isMatch ? "is-match" : ""
+              }`}
+              title={side.text}
+            >
+              <span className="hudomino-side-text">{side.text}</span>
+            </span>
+          );
+        })}
+        <span className="hudomino-center">↻</span>
+      </button>
+    );
+  };
+
   return (
     <div className="page-shell" dir="rtl" style={pageShellStyle}>
       {!(mode === "game" && isSharedViewOnly) && (
         <header className="top-header">
           {mode === "editor" ? (
             <>
-              <h1>{gameType === "quick-trivia" ? "מחולל טריוויה מהירה" : "מחולל ג'פרדי"}</h1>
+              <h1>
+                {gameType === "quick-trivia"
+                  ? "מחולל טריוויה מהירה"
+                  : gameType === "hudomino"
+                    ? "מחולל חודומינו"
+                    : "מחולל ג'פרדי"}
+              </h1>
               <p>
                 {gameType === "quick-trivia"
                   ? "מצב עריכה: מגדירים נושא, קבוצות ורשימת שאלות מהירות."
+                  : gameType === "hudomino"
+                    ? "מצב עריכה: מזינים זוגות מושג-הגדרה, בוחרים קושי ומצב משחק, ומייצרים פאזל."
                   : "מצב עריכה: בונים את הלוח, מגדירים נושא, קבוצות ושאלות."}
               </p>
             </>
@@ -2474,16 +3339,28 @@ function App() {
                 <select
                   value={gameType}
                   onChange={(event) => {
-                    const nextType = event.target.value === "quick-trivia" ? "quick-trivia" : "jeopardy";
+                    const nextType: GameType =
+                      event.target.value === "quick-trivia"
+                        ? "quick-trivia"
+                        : event.target.value === "hudomino"
+                          ? "hudomino"
+                          : "jeopardy";
                     setGameType(nextType);
                     setMode("editor");
                     setStatusMessage("");
                     setActiveCell(null);
                     setActiveQuickQuestionId(null);
+                    setHudominoDraggedCubeId(null);
                     setShowAnswer(false);
                     setDidScoreCurrentQuestion(false);
                     if (!gameTopic.trim()) {
-                      setGameTopic(nextType === "quick-trivia" ? "טריוויה מהירה" : "משחק ג'פרדי");
+                      setGameTopic(
+                        nextType === "quick-trivia"
+                          ? "טריוויה מהירה"
+                          : nextType === "hudomino"
+                            ? "חודומינו"
+                            : "משחק ג'פרדי",
+                      );
                     }
                   }}
                 >
@@ -2537,7 +3414,7 @@ function App() {
                     />
                   </label>
                 </>
-              ) : (
+              ) : gameType === "quick-trivia" ? (
                 <label>
                   מספר שאלות
                   <input
@@ -2548,6 +3425,55 @@ function App() {
                     onChange={(event) => updateQuickTriviaCount(Number(event.target.value))}
                   />
                 </label>
+              ) : (
+                <>
+                  <label>
+                    רמת קושי
+                    <select
+                      value={hudominoDifficulty}
+                      onChange={(event) =>
+                        setHudominoDifficulty(
+                          event.target.value === "easy" ||
+                            event.target.value === "medium" ||
+                            event.target.value === "hard"
+                            ? event.target.value
+                            : "medium",
+                        )
+                      }
+                    >
+                      {HUDOMINO_DIFFICULTY_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    מצב משחק
+                    <select
+                      value={hudominoPlayMode}
+                      onChange={(event) =>
+                        setHudominoPlayMode(event.target.value === "challenge" ? "challenge" : "learning")
+                      }
+                    >
+                      {HUDOMINO_PLAY_MODE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    מספר זוגות
+                    <input
+                      type="number"
+                      min={HUDOMINO_MIN_PAIRS}
+                      max={HUDOMINO_MAX_PAIRS}
+                      value={hudominoPairs.length}
+                      onChange={(event) => updateHudominoPairCount(Number(event.target.value))}
+                    />
+                  </label>
+                </>
               )}
               <label>
                 מספר קבוצות
@@ -2563,7 +3489,9 @@ function App() {
             <p className="hint-text">
               {gameType === "quick-trivia"
                 ? `יש למלא את כל שאלות הטריוויה לפני הפעלה. חסרות כרגע: ${missingFieldsCount}.`
-                : `חייבים למלא את כל השאלות והתשובות לפני הפעלת המשחק. חסרים כרגע: ${missingFieldsCount}.`}
+                : gameType === "hudomino"
+                  ? `לחודומינו (גודל ${hudominoBoardSize}×${hudominoBoardSize}) נדרשים ${hudominoRequiredPairs} זוגות מלאים. חסרים כרגע: ${missingFieldsCount}.`
+                  : `חייבים למלא את כל השאלות והתשובות לפני הפעלת המשחק. חסרים כרגע: ${missingFieldsCount}.`}
             </p>
           </section>
 
@@ -2771,7 +3699,7 @@ function App() {
                 ))}
               </section>
             </>
-          ) : (
+          ) : gameType === "quick-trivia" ? (
             <section className="card">
               <h2>שאלות טריוויה מהירה</h2>
               <p className="hint-text">כל שאלה נפתחת ככרטיס עצמאי במהלך המשחק.</p>
@@ -2812,6 +3740,60 @@ function App() {
                         onChange={(event) =>
                           updateQuickTriviaQuestion(question.id, "answer", event.target.value)
                         }
+                      />
+                    </label>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : (
+            <section className="card">
+              <h2>זוגות מושג-הגדרה לחודומינו</h2>
+              <p className="hint-text">
+                ללוח {hudominoBoardSize}×{hudominoBoardSize} נדרשים לפחות {hudominoRequiredPairs} זוגות מלאים.
+              </p>
+              <div className="hudomino-editor-actions">
+                <button type="button" onClick={() => hudominoCsvImportInputRef.current?.click()}>
+                  ייבוא זוגות מ-CSV
+                </button>
+                <input
+                  ref={hudominoCsvImportInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={importHudominoPairsFromCsvFile}
+                  hidden
+                />
+                <button type="button" onClick={() => updateHudominoPairCount(hudominoPairs.length + 1)}>
+                  הוספת זוג
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateHudominoPairCount(hudominoPairs.length - 1)}
+                  disabled={hudominoPairs.length <= HUDOMINO_MIN_PAIRS}
+                >
+                  הסרת זוג
+                </button>
+              </div>
+              <div className="hudomino-pairs-list">
+                {hudominoPairs.map((pair, index) => (
+                  <article key={pair.id} className="hudomino-pair-item">
+                    <strong>זוג {index + 1}</strong>
+                    <label>
+                      מושג
+                      <input
+                        type="text"
+                        value={pair.term}
+                        onChange={(event) => updateHudominoPair(pair.id, "term", event.target.value)}
+                        placeholder="לדוגמה: פלסמיד"
+                      />
+                    </label>
+                    <label>
+                      הגדרה
+                      <input
+                        type="text"
+                        value={pair.definition}
+                        onChange={(event) => updateHudominoPair(pair.id, "definition", event.target.value)}
+                        placeholder="לדוגמה: מקטע DNA מעגלי המשמש כווקטור"
                       />
                     </label>
                   </article>
@@ -2915,7 +3897,7 @@ function App() {
                 )}
               </div>
             </section>
-          ) : (
+          ) : gameType === "quick-trivia" ? (
             <section
               className="game-board"
               style={{
@@ -2960,11 +3942,85 @@ function App() {
                 })}
               </div>
             </section>
+          ) : (
+            <section
+              className="game-board hudomino-board-shell"
+              style={{
+                borderColor: boardTheme.boardBorderColor,
+                backgroundColor: boardTheme.boardBackgroundColor,
+                backgroundImage: boardBackgroundImage,
+                backgroundSize: boardTheme.boardBackgroundImage ? "cover" : undefined,
+                backgroundPosition: boardTheme.boardBackgroundImage ? "center" : undefined,
+                ["--hudomino-term-bg" as string]: boardTheme.categoryBgStart,
+                ["--hudomino-term-text" as string]: getTextColorForBackground(boardTheme.categoryBgStart),
+                ["--hudomino-definition-bg" as string]: boardTheme.cellBgColor,
+                ["--hudomino-definition-text" as string]: getTextColorForBackground(boardTheme.cellBgColor),
+                ["--hudomino-distractor-bg" as string]: boardTheme.usedCellBgColor,
+                ["--hudomino-distractor-text" as string]: getTextColorForBackground(boardTheme.usedCellBgColor),
+                ["--hudomino-border" as string]: boardTheme.cellBorderColor,
+                ["--hudomino-shell-bg" as string]: boardTheme.boardBackgroundColor,
+              }}
+            >
+              {hudominoPlayMode === "challenge" &&
+                hudominoPuzzle &&
+                !hudominoPuzzle.isChallengeReveal &&
+                !shouldShowHudominoMatches && (
+                <div className="hudomino-challenge-actions">
+                  <button type="button" className="primary-button" onClick={revealHudominoChallenge}>
+                    הפעל זרם
+                  </button>
+                </div>
+              )}
+              <div className="hudomino-layout">
+                <section
+                  className="hudomino-board-grid"
+                  style={{
+                    gridTemplateColumns: `repeat(${hudominoPuzzle?.size ?? hudominoBoardSize}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {(hudominoPuzzle?.boardSlots ?? []).map((cubeId, slotIndex) => {
+                    const slotMatches =
+                      cubeId && shouldShowHudominoMatches ? getHudominoSideMatchesForSlot(slotIndex) : null;
+                    const hasNorthMatch = Boolean(slotMatches?.north);
+                    const hasEastMatch = Boolean(slotMatches?.east);
+                    const hasSouthMatch = Boolean(slotMatches?.south);
+                    const hasWestMatch = Boolean(slotMatches?.west);
+                    return (
+                      <div
+                        key={`hudomino-slot-${slotIndex}`}
+                        className={`hudomino-slot ${cubeId ? "has-cube" : "is-empty"} ${
+                          hasNorthMatch ? "has-match-north" : ""
+                        } ${
+                          hasEastMatch ? "has-match-east" : ""
+                        } ${hasSouthMatch ? "has-match-south" : ""} ${hasWestMatch ? "has-match-west" : ""}`}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          dropHudominoToSlot(slotIndex, event.dataTransfer.getData("text/plain"));
+                        }}
+                      >
+                        {cubeId ? (
+                          renderHudominoCube(cubeId, { zone: "board", slotIndex })
+                        ) : (
+                          <span className="hudomino-slot-index">{slotIndex + 1}</span>
+                        )}
+                        {hasNorthMatch && <span className="hudomino-edge-glow hudomino-edge-glow-north" />}
+                        {hasEastMatch && <span className="hudomino-edge-glow hudomino-edge-glow-east" />}
+                        {hasSouthMatch && <span className="hudomino-edge-glow hudomino-edge-glow-south" />}
+                        {hasWestMatch && <span className="hudomino-edge-glow hudomino-edge-glow-west" />}
+                      </div>
+                    );
+                  })}
+                </section>
+              </div>
+            </section>
           )}
 
           {!isSharedViewOnly && (
             <p className="hint-text">
-              התקדמות משחק: {usedCount} מתוך {totalQuestions} שאלות סומנו כמשומשות.
+              {gameType === "hudomino"
+                ? `התקדמות חיבורים: ${usedCount} מתוך ${totalQuestions} ממשקים נדלקו.`
+                : `התקדמות משחק: ${usedCount} מתוך ${totalQuestions} שאלות סומנו כמשומשות.`}
             </p>
           )}
         </>
