@@ -7,6 +7,7 @@ type AppMode = "editor" | "game";
 type GameType = "jeopardy" | "quick-trivia" | "hudomino";
 type HudominoDifficulty = "easy" | "medium" | "hard";
 type HudominoPlayMode = "learning" | "challenge";
+type HudominoScoringMode = "cooperative" | "competitive";
 type HudominoSideDirection = "north" | "east" | "south" | "west";
 
 interface CellData {
@@ -123,6 +124,7 @@ interface ExportPayload {
     boardTheme?: Partial<BoardTheme>;
     hudominoDifficulty?: HudominoDifficulty;
     hudominoPlayMode?: HudominoPlayMode;
+    hudominoScoringMode?: HudominoScoringMode;
   };
   categories: Array<{
     title: string;
@@ -175,6 +177,7 @@ interface SharePayload {
     }>;
     hudominoDifficulty?: HudominoDifficulty;
     hudominoPlayMode?: HudominoPlayMode;
+    hudominoScoringMode?: HudominoScoringMode;
     hudominoPuzzle?: HudominoPuzzleState;
     teams: Array<{
       name: string;
@@ -240,6 +243,11 @@ const HUDOMINO_DIFFICULTY_OPTIONS: Array<{
 const HUDOMINO_PLAY_MODE_OPTIONS: Array<{ value: HudominoPlayMode; label: string }> = [
   { value: "learning", label: "מצב למידה" },
   { value: "challenge", label: "מצב אתגר" },
+];
+
+const HUDOMINO_SCORING_MODE_OPTIONS: Array<{ value: HudominoScoringMode; label: string }> = [
+  { value: "cooperative", label: "שיתופי" },
+  { value: "competitive", label: "תחרותי" },
 ];
 
 const TEAM_COLORS = [
@@ -1303,6 +1311,7 @@ function App() {
   );
   const [hudominoDifficulty, setHudominoDifficulty] = useState<HudominoDifficulty>("medium");
   const [hudominoPlayMode, setHudominoPlayMode] = useState<HudominoPlayMode>("learning");
+  const [hudominoScoringMode, setHudominoScoringMode] = useState<HudominoScoringMode>("cooperative");
   const [hudominoPairs, setHudominoPairs] = useState<HudominoPair[]>(() => createHudominoPairs());
   const [hudominoPuzzle, setHudominoPuzzle] = useState<HudominoPuzzleState | null>(null);
   const [hudominoDraggedCubeId, setHudominoDraggedCubeId] = useState<string | null>(null);
@@ -1409,6 +1418,7 @@ function App() {
     gameType === "hudomino"
       ? hudominoValidPairs.length >= hudominoRequiredPairs
       : missingFieldsCount === 0 && totalQuestions > 0;
+  const isHudominoCompetitive = gameType === "hudomino" && hudominoScoringMode === "competitive";
   const currentTeam = teams[currentTurnIndex] ?? teams[0];
   const resolvedGameTopic =
     gameTopic.trim() ||
@@ -1533,6 +1543,8 @@ function App() {
     () => new Map((hudominoPuzzle?.cubes ?? []).map((cube) => [cube.id, cube])),
     [hudominoPuzzle],
   );
+  const isHudominoMatchToast =
+    mode === "game" && gameType === "hudomino" && statusMessage.trim().startsWith("חיבור מוצלח");
   const shouldShowHudominoMatches = mode === "game";
   const getHudominoSideMatchesForSlot = useCallback(
     (slotIndex: number): Record<HudominoSideDirection, boolean> => {
@@ -1606,6 +1618,7 @@ function App() {
       })),
       hudominoDifficulty,
       hudominoPlayMode,
+      hudominoScoringMode,
       hudominoPuzzle: hudominoPuzzle ?? undefined,
       teams: teams.map((team) => ({
         name: team.name,
@@ -1698,6 +1711,10 @@ function App() {
         : "medium";
     const sharedHudominoPlayMode: HudominoPlayMode =
       sharedGame.hudominoPlayMode === "challenge" ? "challenge" : "learning";
+    const sharedHudominoScoringMode: HudominoScoringMode =
+      sharedGame.hudominoScoringMode === "cooperative" || sharedGame.hudominoScoringMode === "competitive"
+        ? sharedGame.hudominoScoringMode
+        : "competitive";
     const normalizedHudominoPairs = normalizeHudominoPairs(sharedGame.hudominoPairs);
     const sharedHudominoBoardSize = getHudominoBoardSize(sharedHudominoDifficulty);
 
@@ -1714,6 +1731,7 @@ function App() {
     setQuickTriviaQuestions(normalizeQuickTriviaQuestions(sharedGame.quickTriviaQuestions));
     setHudominoDifficulty(sharedHudominoDifficulty);
     setHudominoPlayMode(sharedHudominoPlayMode);
+    setHudominoScoringMode(sharedHudominoScoringMode);
     setHudominoPairs(normalizedHudominoPairs);
     setHudominoPuzzle(
       normalizeHudominoPuzzleState(
@@ -2000,17 +2018,23 @@ function App() {
     const points = newConnections * HUDOMINO_POINT_PER_MATCH;
 
     if (points > 0) {
-      const actingTeamName = teams[currentTurnIndex]?.name ?? "הקבוצה בתור";
-      setTeams((previous) =>
-        previous.map((team, index) =>
-          index === currentTurnIndex ? { ...team, score: team.score + points } : team,
-        ),
-      );
-      setStatusMessage(`חיבור מוצלח: ${points}+ נקודות ל-${actingTeamName}.`);
+      if (hudominoScoringMode === "competitive") {
+        const actingTeamName = teams[currentTurnIndex]?.name ?? "הקבוצה בתור";
+        setTeams((previous) =>
+          previous.map((team, index) =>
+            index === currentTurnIndex ? { ...team, score: team.score + points } : team,
+          ),
+        );
+        setStatusMessage(`חיבור מוצלח: ${points}+ נקודות ל-${actingTeamName}.`);
+      } else {
+        setStatusMessage(`חיבור מוצלח: נדלקו ${newConnections} ממשקים.`);
+      }
     }
 
-    const teamCount = teams.length;
-    setCurrentTurnIndex((previous) => (teamCount > 0 ? (previous + 1) % teamCount : 0));
+    if (hudominoScoringMode === "competitive") {
+      const teamCount = teams.length;
+      setCurrentTurnIndex((previous) => (teamCount > 0 ? (previous + 1) % teamCount : 0));
+    }
   };
 
   const moveHudominoCube = (cubeId: string, targetSlot: number) => {
@@ -2584,6 +2608,7 @@ function App() {
         boardTheme,
         hudominoDifficulty,
         hudominoPlayMode,
+        hudominoScoringMode,
       },
       categories: board.map((category) => ({
         title: category.title,
@@ -2895,10 +2920,16 @@ function App() {
           : "medium";
       const importedHudominoPlayMode: HudominoPlayMode =
         parsed.settings?.hudominoPlayMode === "challenge" ? "challenge" : "learning";
+      const importedHudominoScoringMode: HudominoScoringMode =
+        parsed.settings?.hudominoScoringMode === "cooperative" ||
+        parsed.settings?.hudominoScoringMode === "competitive"
+          ? parsed.settings.hudominoScoringMode
+          : "competitive";
       const normalizedHudominoPairs = normalizeHudominoPairs(parsed.hudominoPairs);
       const importedHudominoBoardSize = getHudominoBoardSize(importedHudominoDifficulty);
       setHudominoDifficulty(importedHudominoDifficulty);
       setHudominoPlayMode(importedHudominoPlayMode);
+      setHudominoScoringMode(importedHudominoScoringMode);
       setHudominoPairs(normalizedHudominoPairs);
       setHudominoPuzzle(
         normalizeHudominoPuzzleState(
@@ -3097,7 +3128,7 @@ function App() {
                 )}
               </div>
             )}
-            {isSharedViewOnly && (
+            {isSharedViewOnly && (gameType !== "hudomino" || isHudominoCompetitive) && (
               <label className="viewer-team-count">
                 מספר קבוצות
                 <select
@@ -3129,7 +3160,7 @@ function App() {
         </section>
       )}
 
-      {statusMessage && <div className="status-message">{statusMessage}</div>}
+      {statusMessage && !isHudominoMatchToast && <div className="status-message">{statusMessage}</div>}
 
       {mode === "editor" && isSupabaseConfigured && isArchiveOpen && (
         <div className="archive-drawer-backdrop" onClick={() => setIsArchiveOpen(false)}>
@@ -3464,6 +3495,23 @@ function App() {
                     </select>
                   </label>
                   <label>
+                    אופי משחק
+                    <select
+                      value={hudominoScoringMode}
+                      onChange={(event) =>
+                        setHudominoScoringMode(
+                          event.target.value === "competitive" ? "competitive" : "cooperative",
+                        )
+                      }
+                    >
+                      {HUDOMINO_SCORING_MODE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
                     מספר זוגות
                     <input
                       type="number"
@@ -3475,16 +3523,18 @@ function App() {
                   </label>
                 </>
               )}
-              <label>
-                מספר קבוצות
-                <input
-                  type="number"
-                  min={MIN_TEAMS}
-                  max={MAX_TEAMS}
-                  value={teams.length}
-                  onChange={(event) => updateTeamCount(Number(event.target.value))}
-                />
-              </label>
+              {(gameType !== "hudomino" || isHudominoCompetitive) && (
+                <label>
+                  מספר קבוצות
+                  <input
+                    type="number"
+                    min={MIN_TEAMS}
+                    max={MAX_TEAMS}
+                    value={teams.length}
+                    onChange={(event) => updateTeamCount(Number(event.target.value))}
+                  />
+                </label>
+              )}
             </div>
             <p className="hint-text">
               {gameType === "quick-trivia"
@@ -3808,42 +3858,44 @@ function App() {
             <h2>{resolvedGameTopic}</h2>
           </section>
 
-          <section
-            className="teams-scoreboard"
-            style={{
-              ["--team-name-font-size" as string]: boardTypography.teamNameFontSize,
-              ["--team-score-font-size" as string]: boardTypography.teamScoreFontSize,
-            }}
-          >
-            {teams.map((team, index) => {
-              const isCurrent = index === currentTurnIndex;
-              const teamColor = TEAM_COLORS[index % TEAM_COLORS.length];
-              return (
-                <div
-                  key={`score-${team.id}`}
-                  className={`team-score-card ${isCurrent ? "is-current-turn" : ""}`}
-                  style={{
-                    ["--team-accent" as string]: teamColor,
-                    ["--team-accent-soft" as string]: `${teamColor}20`,
-                    ["--team-accent-strong" as string]: `${teamColor}55`,
-                  }}
-                >
-                  {isSharedViewOnly ? (
-                    <input
-                      className="team-score-name-input"
-                      value={team.name}
-                      onChange={(event) => updateTeamName(team.id, event.target.value)}
-                      aria-label={`שם קבוצה ${index + 1}`}
-                    />
-                  ) : (
-                    <strong>{team.name}</strong>
-                  )}
-                  <span>{team.score}</span>
-                  {isCurrent && <small>תור נוכחי</small>}
-                </div>
-              );
-            })}
-          </section>
+          {(gameType !== "hudomino" || isHudominoCompetitive) && (
+            <section
+              className="teams-scoreboard"
+              style={{
+                ["--team-name-font-size" as string]: boardTypography.teamNameFontSize,
+                ["--team-score-font-size" as string]: boardTypography.teamScoreFontSize,
+              }}
+            >
+              {teams.map((team, index) => {
+                const isCurrent = index === currentTurnIndex;
+                const teamColor = TEAM_COLORS[index % TEAM_COLORS.length];
+                return (
+                  <div
+                    key={`score-${team.id}`}
+                    className={`team-score-card ${isCurrent ? "is-current-turn" : ""}`}
+                    style={{
+                      ["--team-accent" as string]: teamColor,
+                      ["--team-accent-soft" as string]: `${teamColor}20`,
+                      ["--team-accent-strong" as string]: `${teamColor}55`,
+                    }}
+                  >
+                    {isSharedViewOnly ? (
+                      <input
+                        className="team-score-name-input"
+                        value={team.name}
+                        onChange={(event) => updateTeamName(team.id, event.target.value)}
+                        aria-label={`שם קבוצה ${index + 1}`}
+                      />
+                    ) : (
+                      <strong>{team.name}</strong>
+                    )}
+                    <span>{team.score}</span>
+                    {isCurrent && <small>תור נוכחי</small>}
+                  </div>
+                );
+              })}
+            </section>
+          )}
 
           {gameType === "jeopardy" ? (
             <section
@@ -3961,6 +4013,11 @@ function App() {
                 ["--hudomino-shell-bg" as string]: boardTheme.boardBackgroundColor,
               }}
             >
+              {isHudominoMatchToast && (
+                <div className="hudomino-match-toast" role="status" aria-live="polite">
+                  {statusMessage}
+                </div>
+              )}
               {hudominoPlayMode === "challenge" &&
                 hudominoPuzzle &&
                 !hudominoPuzzle.isChallengeReveal &&

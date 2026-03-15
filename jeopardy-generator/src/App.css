@@ -6,6 +6,7 @@
   --text-muted: #94a3b8;
   --accent: #22d3ee;
   --layout-max-width: 1400px;
+  --game-layout-max-width: 1720px;
   --scroll-track: rgba(8, 24, 55, 0.95);
   --scroll-thumb: rgba(58, 129, 178, 0.9);
   --scroll-thumb-hover: rgba(82, 170, 223, 0.95);
@@ -91,6 +92,7 @@ html {
 }
 
 .game-toolbar {
+  max-width: var(--game-layout-max-width);
   border-color: var(--game-shell-accent-border, rgba(16, 185, 129, 0.35));
   background: var(--game-shell-accent-bg, rgba(6, 45, 34, 0.45));
   color: var(--game-shell-text-color, #e2e8f0);
@@ -849,7 +851,7 @@ textarea {
 }
 
 .teams-scoreboard {
-  max-width: var(--layout-max-width);
+  max-width: var(--game-layout-max-width);
   margin: 0 auto 1rem;
   display: grid;
   gap: 0.65rem;
@@ -857,7 +859,7 @@ textarea {
 }
 
 .game-topic-card {
-  max-width: var(--layout-max-width);
+  max-width: var(--game-layout-max-width);
   margin: 0 auto 1rem;
   border: 1px solid var(--game-shell-accent-border, rgba(16, 185, 129, 0.35));
   border-radius: 1rem;
@@ -935,6 +937,7 @@ textarea {
 }
 
 .game-board {
+  max-width: var(--game-layout-max-width);
   padding: 0.85rem;
 }
 
@@ -1038,8 +1041,24 @@ textarea {
   --hudomino-axis-a-text: #0f172a;
   --hudomino-axis-b-bg: #5f75c7;
   --hudomino-axis-b-text: #f8fafc;
-  width: min(100%, calc(100vw - 2.5rem));
-  max-width: min(96vw, 1700px);
+  position: relative;
+  width: 100%;
+  max-width: var(--game-layout-max-width);
+}
+
+.hudomino-match-toast {
+  position: absolute;
+  top: 0.8rem;
+  inset-inline-end: 0.9rem;
+  z-index: 35;
+  max-width: min(42ch, 62%);
+  padding: 0.5rem 0.72rem;
+  border-radius: 0.72rem;
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  background: rgba(8, 47, 73, 0.92);
+  color: #e2e8f0;
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.35);
+  pointer-events: none;
 }
 
 .hudomino-challenge-actions {
@@ -1084,6 +1103,7 @@ textarea {
   display: grid;
   gap: 0.6rem;
   width: 100%;
+  direction: ltr;
 }
 
 .hudomino-slot {
@@ -1098,6 +1118,7 @@ textarea {
   align-items: center;
   justify-content: center;
   overflow: visible;
+  direction: rtl;
 }
 
 .hudomino-slot.has-cube {
@@ -1135,8 +1156,8 @@ textarea {
 .hudomino-edge-glow-east {
   top: 8px;
   bottom: 8px;
-  right: -5px;
-  width: 8px;
+  right: -6px;
+  width: 10px;
 }
 
 .hudomino-edge-glow-south {
@@ -1149,8 +1170,8 @@ textarea {
 .hudomino-edge-glow-west {
   top: 8px;
   bottom: 8px;
-  left: -5px;
-  width: 8px;
+  left: -6px;
+  width: 10px;
 }
 
 @keyframes hudomino-neon-pulse {
@@ -1202,7 +1223,8 @@ textarea {
   inset: 0;
   --side-text-x: 50%;
   --side-text-y: 50%;
-  --side-text-width: 60%;
+  --side-text-width: 58%;
+  --side-text-safe-gap: clamp(8px, 0.8vw, 16px);
   --side-text-align: center;
   --side-text-translate-x: -50%;
   --side-text-translate-y: -50%;
@@ -1214,8 +1236,8 @@ textarea {
 .hudomino-side-north {
   clip-path: polygon(0 0, 100% 0, 50% 50%);
   --side-text-x: 50%;
-  --side-text-y: 22%;
-  --side-text-width: 72%;
+  --side-text-y: 20%;
+  --side-text-width: 66%;
   --side-text-align: center;
   background: var(--hudomino-axis-a-bg);
   color: var(--hudomino-axis-a-text);
@@ -1223,9 +1245,9 @@ textarea {
 
 .hudomino-side-east {
   clip-path: polygon(100% 0, 100% 100%, 50% 50%);
-  --side-text-x: 82%;
+  --side-text-x: 79%;
   --side-text-y: 50%;
-  --side-text-width: 40%;
+  --side-text-width: 34%;
   --side-text-align: center;
   background: var(--hudomino-axis-b-bg);
   color: var(--hudomino-axis-b-text);
@@ -1234,8 +1256,8 @@ textarea {
 .hudomino-side-south {
   clip-path: polygon(50% 50%, 100% 100%, 0 100%);
   --side-text-x: 50%;
-  --side-text-y: 78%;
-  --side-text-width: 72%;
+  --side-text-y: 80%;
+  --side-text-width: 66%;
   --side-text-align: center;
   background: var(--hudomino-axis-a-bg);
   color: var(--hudomino-axis-a-text);
@@ -1243,9 +1265,9 @@ textarea {
 
 .hudomino-side-west {
   clip-path: polygon(0 0, 50% 50%, 0 100%);
-  --side-text-x: 18%;
+  --side-text-x: 21%;
   --side-text-y: 50%;
-  --side-text-width: 40%;
+  --side-text-width: 34%;
   --side-text-align: center;
   background: var(--hudomino-axis-b-bg);
   color: var(--hudomino-axis-b-text);
@@ -1253,19 +1275,25 @@ textarea {
 
 .hudomino-side-text {
   position: absolute;
+  display: block;
   left: var(--side-text-x);
   top: var(--side-text-y);
   transform: translate(var(--side-text-translate-x), var(--side-text-translate-y));
-  width: min(var(--side-text-width), 90%);
+  box-sizing: border-box;
+  width: min(calc(var(--side-text-width) - (var(--side-text-safe-gap) * 2)), 86%);
+  max-width: min(calc(var(--side-text-width) - (var(--side-text-safe-gap) * 2)), 86%);
+  padding-inline: clamp(1px, 0.2vw, 5px);
   text-align: var(--side-text-align);
-  font-size: clamp(0.84rem, 0.38vw + 0.76rem, 1.16rem);
+  font-size: clamp(0.9rem, 0.4vw + 0.78rem, 1.16rem);
   font-weight: 400;
-  line-height: 1.24;
+  line-height: 1.2;
   letter-spacing: 0;
   white-space: normal;
-  text-wrap: pretty;
+  text-wrap: balance;
   overflow-wrap: anywhere;
   word-break: break-word;
+  direction: rtl;
+  unicode-bidi: isolate;
   text-shadow: none;
   z-index: 4;
 }
@@ -1517,31 +1545,39 @@ textarea {
   }
 
   .hudomino-side {
-    --side-text-width: 58%;
+    --side-text-width: 56%;
+    --side-text-safe-gap: 7px;
   }
 
   .hudomino-side-north {
-    --side-text-y: 22%;
-    --side-text-width: 72%;
+    --side-text-y: 20%;
+    --side-text-width: 64%;
   }
 
   .hudomino-side-east {
-    --side-text-x: 82%;
-    --side-text-width: 40%;
+    --side-text-x: 79%;
+    --side-text-width: 34%;
   }
 
   .hudomino-side-south {
-    --side-text-y: 78%;
-    --side-text-width: 72%;
+    --side-text-y: 80%;
+    --side-text-width: 64%;
   }
 
   .hudomino-side-west {
-    --side-text-x: 18%;
-    --side-text-width: 40%;
+    --side-text-x: 21%;
+    --side-text-width: 34%;
   }
 
   .hudomino-side-text {
-    font-size: clamp(0.7rem, 0.46vw + 0.62rem, 0.98rem);
+    font-size: clamp(0.75rem, 0.46vw + 0.64rem, 1rem);
+    line-height: 1.18;
+  }
+
+  .hudomino-match-toast {
+    inset-inline: 0.65rem;
+    top: 0.65rem;
+    max-width: none;
   }
 
   .score-actions {
