@@ -2153,22 +2153,20 @@ function App() {
       shareUrl.searchParams.set(SERVER_GAME_QUERY_PARAM, options.serverGameId);
       shareUrl.searchParams.set(SERVER_ACCESS_QUERY_PARAM, options.access);
     }
-    if (!options.serverGameId) {
-      if (options.gameTitle) {
-        shareUrl.searchParams.set("title", options.gameTitle);
-      }
-      if (options.gameType) {
-        shareUrl.searchParams.set("type", options.gameType);
-      }
-      if (typeof options.categories === "number") {
-        shareUrl.searchParams.set("cats", String(options.categories));
-      }
-      if (typeof options.rows === "number") {
-        shareUrl.searchParams.set("rows", String(options.rows));
-      }
-      if (typeof options.questionCount === "number") {
-        shareUrl.searchParams.set("q", String(options.questionCount));
-      }
+    if (options.gameTitle) {
+      shareUrl.searchParams.set("title", options.gameTitle);
+    }
+    if (options.gameType) {
+      shareUrl.searchParams.set("type", options.gameType);
+    }
+    if (typeof options.categories === "number") {
+      shareUrl.searchParams.set("cats", String(options.categories));
+    }
+    if (typeof options.rows === "number") {
+      shareUrl.searchParams.set("rows", String(options.rows));
+    }
+    if (typeof options.questionCount === "number") {
+      shareUrl.searchParams.set("q", String(options.questionCount));
     }
     return shareUrl.toString();
   };
@@ -2699,9 +2697,39 @@ function App() {
 
   const copyArchiveViewLink = async (record: ArchiveGameRecord) => {
     try {
+      const archiveGameType = resolveArchiveGameType(record.payload);
+      let categories: number | undefined;
+      let rows: number | undefined;
+      let questionCount: number | undefined;
+
+      if (record.payload && typeof record.payload === "object") {
+        const payloadRecord = record.payload as {
+          board?: Array<{ cells?: unknown[] }>;
+          quickTriviaQuestions?: unknown[];
+          hudominoPuzzle?: { size?: unknown };
+        };
+        if (archiveGameType === "jeopardy") {
+          categories = Array.isArray(payloadRecord.board) ? payloadRecord.board.length : undefined;
+          rows = Array.isArray(payloadRecord.board?.[0]?.cells) ? payloadRecord.board[0].cells.length : undefined;
+        } else if (archiveGameType === "quick-trivia") {
+          questionCount = Array.isArray(payloadRecord.quickTriviaQuestions)
+            ? payloadRecord.quickTriviaQuestions.length
+            : undefined;
+        } else if (archiveGameType === "hudomino") {
+          const puzzleSize = Number(payloadRecord.hudominoPuzzle?.size);
+          rows = Number.isFinite(puzzleSize) ? Math.round(puzzleSize) : undefined;
+          categories = rows;
+        }
+      }
+
       const previewLink = buildSharePreviewLink({
         access: "view",
         serverGameId: record.id,
+        gameTitle: record.title?.trim() || DEFAULT_GAME_TOPIC,
+        gameType: archiveGameType,
+        categories,
+        rows,
+        questionCount,
       });
       await navigator.clipboard.writeText(previewLink);
       setStatusMessage("קישור לצפייה הועתק מהארכיון.");
