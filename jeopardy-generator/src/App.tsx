@@ -445,11 +445,11 @@ const GAME_PAGE_BACKGROUND_PRESETS: GamePageBackgroundPreset[] = GAME_PAGE_BACKG
   }),
 );
 
-const GAME_PAGE_BACKGROUND_MIN_WIDTH = 1920;
-const GAME_PAGE_BACKGROUND_MIN_HEIGHT = 1080;
-const GAME_PAGE_BACKGROUND_MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const GAME_PAGE_BACKGROUND_MIN_WIDTH = 1280;
+const GAME_PAGE_BACKGROUND_MIN_HEIGHT = 720;
+const GAME_PAGE_BACKGROUND_MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
 const GAME_PAGE_BACKGROUND_TARGET_RATIO = 16 / 9;
-const GAME_PAGE_BACKGROUND_RATIO_TOLERANCE = 0.22;
+const GAME_PAGE_BACKGROUND_RATIO_TOLERANCE = 0.35;
 
 const DEFAULT_BOARD_THEME: BoardTheme = {
   boardBorderColor: "#38bdf8",
@@ -2718,7 +2718,7 @@ function App() {
     }
 
     if (file.size > GAME_PAGE_BACKGROUND_MAX_UPLOAD_BYTES) {
-      setStatusMessage("תמונת רקע כללית גדולה מדי. המקסימום הוא 5MB.");
+      setStatusMessage("תמונת רקע כללית גדולה מדי. המקסימום הוא 12MB.");
       event.target.value = "";
       return;
     }
@@ -2727,22 +2727,21 @@ function App() {
       const { width, height } = await readImageDimensions(file);
       const ratio = width / height;
       const ratioDelta = Math.abs(ratio - GAME_PAGE_BACKGROUND_TARGET_RATIO);
-
-      if (width < GAME_PAGE_BACKGROUND_MIN_WIDTH || height < GAME_PAGE_BACKGROUND_MIN_HEIGHT) {
-        setStatusMessage("רזולוציית הרקע נמוכה מדי. נדרש לפחות 1920x1080.");
-        event.target.value = "";
-        return;
-      }
-
-      if (ratioDelta > GAME_PAGE_BACKGROUND_RATIO_TOLERANCE) {
-        setStatusMessage("יחס התמונה אינו מתאים. מומלץ יחס 16:9 לרקע כללי.");
-        event.target.value = "";
-        return;
-      }
+      const isLowResolution =
+        width < GAME_PAGE_BACKGROUND_MIN_WIDTH || height < GAME_PAGE_BACKGROUND_MIN_HEIGHT;
+      const isFarFromTargetRatio = ratioDelta > GAME_PAGE_BACKGROUND_RATIO_TOLERANCE;
 
       const dataUrl = await fileToDataUrl(file);
       setBoardTheme((previous) => ({ ...previous, pageBackgroundImage: dataUrl }));
-      setStatusMessage("תמונת הרקע הכללית נטענה בהצלחה.");
+      if (isLowResolution && isFarFromTargetRatio) {
+        setStatusMessage("התמונה נטענה. מומלץ להשתמש בתמונה חדה יותר וביחס קרוב ל-16:9.");
+      } else if (isLowResolution) {
+        setStatusMessage("התמונה נטענה. מומלץ להשתמש בתמונה חדה יותר (לפחות 1280x720).");
+      } else if (isFarFromTargetRatio) {
+        setStatusMessage("התמונה נטענה. מומלץ יחס קרוב ל-16:9 לתצוגה מיטבית.");
+      } else {
+        setStatusMessage("תמונת הרקע הכללית נטענה בהצלחה.");
+      }
     } catch {
       setStatusMessage("שגיאה בטעינת תמונת הרקע הכללית.");
     } finally {
@@ -3988,11 +3987,11 @@ function App() {
             className="background-picker-modal"
             role="dialog"
             aria-modal="true"
-            aria-label="רקעים לדף המשחק"
+            aria-label="רקע חיצוני כללי"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="background-picker-header">
-              <h3>רקע כללי של דף המשחק</h3>
+              <h3>רקע חיצוני כללי</h3>
               <button type="button" onClick={() => setIsBackgroundPickerOpen(false)}>
                 סגירה
               </button>
@@ -4019,7 +4018,7 @@ function App() {
               </div>
               <p className="page-background-note">
                 אפשר לבחור רקע מתוך התיקייה הלוקאלית `public/backgrounds` או להעלות תמונה אישית
-                (מינימום 1920x1080, יחס קרוב ל-16:9, עד 5MB).
+                (מומלץ יחס קרוב ל-16:9, מומלץ לפחות 1280x720, עד 12MB).
               </p>
 
               <div className="page-background-gallery">
@@ -4256,10 +4255,17 @@ function App() {
               <div className="board-theme-actions">
                 <button
                   type="button"
+                  onClick={() => setStatusMessage("הרקע הפנימי נקבע לפי פלטת העיצוב הנבחרת.")}
+                  className="theme-action-btn theme-action-upload"
+                >
+                  רקע פנימי
+                </button>
+                <button
+                  type="button"
                   onClick={() => setIsBackgroundPickerOpen(true)}
                   className="theme-action-btn theme-action-library"
                 >
-                  רקעים לדף המשחק
+                  רקע חיצוני כללי
                 </button>
                 <button type="button" onClick={resetBoardTheme} className="theme-action-btn theme-action-reset">
                   איפוס עיצוב
