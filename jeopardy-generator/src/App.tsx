@@ -425,6 +425,8 @@ const GAME_PAGE_BACKGROUND_FILES = [
   "/backgrounds/ant7119_Watercolor_illustration_pastel_blue_green_and_brown_c_356a5bb1-589b-49d1-bf10-38935608746e_2.png",
   "/backgrounds/ant7119_west_wall_Jerusalem_gold_--ar_169_--v_5.1_4daa2642-74b4-422a-9d43-e5824cd8149f_3.png",
   "/backgrounds/ant7119_Wet-on-wet_technique_Soft_feathers_floating_in_the_ai_8871cbea-dc05-454b-83b2-0c5dcd463263_2.png",
+  "/backgrounds/c0001-1.png",
+  "/backgrounds/lion.png",
   "/backgrounds/mist-teal.svg",
   "/backgrounds/pastel-bloom.svg",
   "/backgrounds/sunset-haze.svg",
