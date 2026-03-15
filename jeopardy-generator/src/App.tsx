@@ -218,6 +218,7 @@ const HUDOMINO_MIN_PAIRS = 8;
 const HUDOMINO_MAX_PAIRS = 80;
 const HUDOMINO_DEFAULT_PAIR_COUNT = 18;
 const HUDOMINO_POINT_PER_MATCH = 1;
+const DEFAULT_GAME_TOPIC = "הכנס את שם המשחק כאן";
 const HUDOMINO_SIDE_DIRECTIONS: HudominoSideDirection[] = ["north", "east", "south", "west"];
 const SHARE_QUERY_PARAM = "game";
 const SERVER_GAME_QUERY_PARAM = "sgame";
@@ -1308,7 +1309,7 @@ function ValueMark({ value }: { value: number }) {
 function App() {
   const [mode, setMode] = useState<AppMode>("editor");
   const [gameType, setGameType] = useState<GameType>("jeopardy");
-  const [gameTopic, setGameTopic] = useState("משחק ג'פרדי");
+  const [gameTopic, setGameTopic] = useState(DEFAULT_GAME_TOPIC);
   const [aiPromptText, setAiPromptText] = useState(AI_CSV_PROMPT_TEMPLATE);
   const [boardTheme, setBoardTheme] = useState<BoardTheme>(DEFAULT_BOARD_THEME);
   const [categoryCount, setCategoryCount] = useState(6);
@@ -1430,13 +1431,7 @@ function App() {
       : missingFieldsCount === 0 && totalQuestions > 0;
   const isHudominoCompetitive = gameType === "hudomino" && hudominoScoringMode === "competitive";
   const currentTeam = teams[currentTurnIndex] ?? teams[0];
-  const resolvedGameTopic =
-    gameTopic.trim() ||
-    (gameType === "quick-trivia"
-      ? "טריוויה מהירה"
-      : gameType === "hudomino"
-        ? "חודומינו"
-        : "משחק ג'פרדי");
+  const resolvedGameTopic = gameTopic.trim() || DEFAULT_GAME_TOPIC;
   const boardTypography = useMemo(() => {
     const categoryScale = clamp(6 / categoryCount, 0.72, 1.28);
     const rowScale = clamp(5 / rowCount, 0.82, 1.18);
@@ -1731,14 +1726,7 @@ function App() {
     );
 
     setGameType(sharedGameType);
-    setGameTopic(
-      sharedGame.gameTopic?.trim() ||
-        (sharedGameType === "quick-trivia"
-          ? "טריוויה מהירה"
-          : sharedGameType === "hudomino"
-            ? "חודומינו"
-            : "משחק ג'פרדי"),
-    );
+    setGameTopic(sharedGame.gameTopic?.trim() || DEFAULT_GAME_TOPIC);
     setBoardTheme(resolveBoardTheme(sharedGame.boardTheme));
     setQuickTriviaQuestions(normalizeQuickTriviaQuestions(sharedGame.quickTriviaQuestions));
     setHudominoDifficulty(sharedHudominoDifficulty);
@@ -2022,15 +2010,11 @@ function App() {
 
     if (points > 0) {
       if (hudominoScoringMode === "competitive") {
-        const actingTeamName = teams[currentTurnIndex]?.name ?? "הקבוצה בתור";
         setTeams((previous) =>
           previous.map((team, index) =>
             index === currentTurnIndex ? { ...team, score: team.score + points } : team,
           ),
         );
-        setStatusMessage(`חיבור מוצלח: ${points}+ נקודות ל-${actingTeamName}.`);
-      } else {
-        setStatusMessage(`חיבור מוצלח: נדלקו ${newConnections} ממשקים.`);
       }
     }
 
@@ -2463,9 +2447,7 @@ function App() {
     }
 
     if (!gameTopic.trim()) {
-      setGameTopic(
-        gameType === "quick-trivia" ? "טריוויה מהירה" : gameType === "hudomino" ? "חודומינו" : "משחק ג'פרדי",
-      );
+      setGameTopic(DEFAULT_GAME_TOPIC);
     }
 
     if (gameType === "quick-trivia") {
@@ -3061,14 +3043,7 @@ function App() {
           importedHudominoPlayMode,
         ),
       );
-      setGameTopic(
-        parsed.settings?.gameTopic?.trim() ||
-          (importedGameType === "quick-trivia"
-            ? "טריוויה מהירה"
-            : importedGameType === "hudomino"
-              ? "חודומינו"
-              : "משחק ג'פרדי"),
-      );
+      setGameTopic(parsed.settings?.gameTopic?.trim() || DEFAULT_GAME_TOPIC);
       setBoardTheme(resolveBoardTheme(parsed.settings?.boardTheme));
       setTeams(
         Array.from({ length: importedTeamCount }, (_, index) => ({
@@ -3541,13 +3516,7 @@ function App() {
                     setShowAnswer(false);
                     setDidScoreCurrentQuestion(false);
                     if (!gameTopic.trim()) {
-                      setGameTopic(
-                        nextType === "quick-trivia"
-                          ? "טריוויה מהירה"
-                          : nextType === "hudomino"
-                            ? "חודומינו"
-                            : "משחק ג'פרדי",
-                      );
+                      setGameTopic(DEFAULT_GAME_TOPIC);
                     }
                   }}
                 >
@@ -3558,7 +3527,7 @@ function App() {
                   ))}
                 </select>
               </label>
-              <label className="topic-field">
+              <label className="topic-field topic-field-highlight">
                 נושא המשחק
                 <input
                   type="text"
@@ -4136,12 +4105,16 @@ function App() {
                 backgroundImage: boardBackgroundImage,
                 backgroundSize: boardTheme.boardBackgroundImage ? "cover" : undefined,
                 backgroundPosition: boardTheme.boardBackgroundImage ? "center" : undefined,
-                ["--hudomino-term-bg" as string]: boardTheme.categoryBgStart,
-                ["--hudomino-term-text" as string]: getTextColorForBackground(boardTheme.categoryBgStart),
-                ["--hudomino-definition-bg" as string]: boardTheme.cellBgColor,
-                ["--hudomino-definition-text" as string]: getTextColorForBackground(boardTheme.cellBgColor),
-                ["--hudomino-distractor-bg" as string]: boardTheme.usedCellBgColor,
-                ["--hudomino-distractor-text" as string]: getTextColorForBackground(boardTheme.usedCellBgColor),
+                ["--hudomino-axis-a-bg" as string]: boardTheme.categoryBgStart,
+                ["--hudomino-axis-a-text" as string]: getReadableTextColor(
+                  boardTheme.categoryTextColor,
+                  boardTheme.categoryBgStart,
+                ),
+                ["--hudomino-axis-b-bg" as string]: boardTheme.categoryBgEnd,
+                ["--hudomino-axis-b-text" as string]: getReadableTextColor(
+                  boardTheme.categoryTextColor,
+                  boardTheme.categoryBgEnd,
+                ),
                 ["--hudomino-border" as string]: boardTheme.cellBorderColor,
                 ["--hudomino-shell-bg" as string]: boardTheme.boardBackgroundColor,
               }}
