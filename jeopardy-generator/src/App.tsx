@@ -284,6 +284,11 @@ const GAME_TYPE_OPTIONS: Array<{ value: GameType; label: string }> = [
   { value: "quick-trivia", label: "מי רוצה להיות מליונר" },
   { value: "hudomino", label: "חודומינו" },
 ];
+const ARCHIVE_GAME_TYPE_LABELS: Record<GameType, string> = {
+  jeopardy: "ג׳פרדי",
+  "quick-trivia": "מליונר",
+  hudomino: "חודומינו",
+};
 
 const HUDOMINO_DIFFICULTY_OPTIONS: Array<{
   value: HudominoDifficulty;
@@ -598,19 +603,19 @@ const BOARD_THEME_PALETTES: BoardThemePalette[] = [
   },
   {
     id: "peach-garden",
-    name: "לגונת לילך",
-    description: "פריחת לילך על רקע תכול, עם ערכים בסגול אפרפר וניגודיות נקייה.",
+    name: "שיש וניל מלכותי",
+    description: "גווני שיש שמפניה רכים עם ניגודיות אלגנטית ונקייה ללוח המשחק.",
     colors: {
-      boardBorderColor: "#a79bb8",
-      boardBackgroundColor: "#dbf7f4",
-      categoryBgStart: "#7cd8e8",
-      categoryBgEnd: "#9fb2de",
-      categoryTextColor: "#203040",
-      cellBgColor: "#70627f",
-      cellTextColor: "#fce7f3",
-      cellBorderColor: "#b8adc6",
-      usedCellBgColor: "#d8e0e6",
-      usedCellTextColor: "#566372",
+      boardBorderColor: "#b8acac",
+      boardBackgroundColor: "#f4f4ea",
+      categoryBgStart: "#ecd2b8",
+      categoryBgEnd: "#fcecc3",
+      categoryTextColor: "#4d4242",
+      cellBgColor: "#fcfcec",
+      cellTextColor: "#4d4242",
+      cellBorderColor: "#b8acac",
+      usedCellBgColor: "#f4f4ea",
+      usedCellTextColor: "#8e7f7f",
     },
   },
   {
@@ -728,6 +733,15 @@ function shuffleArray<T>(items: T[]): T[] {
     [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
   }
   return next;
+}
+
+function resolveArchiveGameType(payload: unknown): GameType {
+  if (!payload || typeof payload !== "object") return "jeopardy";
+  const candidate = (payload as { gameType?: unknown }).gameType;
+  if (candidate === "quick-trivia" || candidate === "hudomino" || candidate === "jeopardy") {
+    return candidate;
+  }
+  return "jeopardy";
 }
 
 function getHudominoBoardSize(difficulty: HudominoDifficulty): number {
@@ -1160,6 +1174,27 @@ function withAlpha(color: string, alpha: number): string {
   return `rgba(${red}, ${green}, ${blue}, ${clamp(alpha, 0, 1)})`;
 }
 
+function mixHexColors(colorA: string, colorB: string, weightToB: number): string {
+  const normalizedA = normalizeHexColor(colorA);
+  const normalizedB = normalizeHexColor(colorB);
+  if (!normalizedA || !normalizedB) {
+    return normalizedA ?? normalizedB ?? colorA;
+  }
+
+  const weight = clamp(weightToB, 0, 1);
+  const readChannel = (color: string, start: number) => Number.parseInt(color.slice(start, start + 2), 16);
+  const blendChannel = (channelA: number, channelB: number) =>
+    Math.round(channelA * (1 - weight) + channelB * weight)
+      .toString(16)
+      .padStart(2, "0");
+
+  const red = blendChannel(readChannel(normalizedA, 1), readChannel(normalizedB, 1));
+  const green = blendChannel(readChannel(normalizedA, 3), readChannel(normalizedB, 3));
+  const blue = blendChannel(readChannel(normalizedA, 5), readChannel(normalizedB, 5));
+
+  return `#${red}${green}${blue}`;
+}
+
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1511,6 +1546,7 @@ function App() {
     buttonLabel: "סגור",
     resetAfterClose: false,
   });
+  const [isGameIntroModalOpen, setIsGameIntroModalOpen] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   const [didScoreCurrentQuestion, setDidScoreCurrentQuestion] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>("");
@@ -1529,7 +1565,6 @@ function App() {
   const csvImportInputRef = useRef<HTMLInputElement | null>(null);
   const quickTriviaCsvImportInputRef = useRef<HTMLInputElement | null>(null);
   const hudominoCsvImportInputRef = useRef<HTMLInputElement | null>(null);
-  const boardBackgroundInputRef = useRef<HTMLInputElement | null>(null);
   const pageBackgroundInputRef = useRef<HTMLInputElement | null>(null);
   const overlayTimeoutRef = useRef<number | null>(null);
 
@@ -1636,6 +1671,40 @@ function App() {
   const currentTeam = teams[currentTurnIndex] ?? teams[0];
   const resolvedGameTopic = gameTopic.trim() || DEFAULT_GAME_TOPIC;
   const millionaireHeaderTitle = gameTopic.trim() || DEFAULT_GAME_TOPIC;
+  const gameIntroContent = useMemo(() => {
+    if (gameType === "quick-trivia") {
+      return {
+        title: "ברוכים הבאים למליונר",
+        lines: [
+          "בכל סבב תופיע שאלה אחת עם 4 תשובות אפשריות.",
+          "יש לבחור תשובה אחת. תשובה נכונה מקדמת בסולם הזכייה.",
+          "אפשר להשתמש בגלגלי ההצלה פעם אחת לכל סוג.",
+        ],
+      };
+    }
+    if (gameType === "hudomino") {
+      return {
+        title: "ברוכים הבאים לחודומינו",
+        lines: [
+          `מטרת המשחק: לחבר זוגות מושג-הגדרה על לוח ${hudominoBoardSize}x${hudominoBoardSize}.`,
+          isHudominoCompetitive
+            ? "במצב תחרותי כל חיבור נכון מזכה נקודות ומעביר תור לקבוצה הבאה."
+            : "במצב שיתופי כל הקבוצות פותרות יחד עד השלמת כל החיבורים.",
+          hudominoPlayMode === "challenge"
+            ? "מצב אתגר: קודם ממקמים, ורק אחר כך חושפים התאמות."
+            : "מצב למידה: ההתאמות נראות תוך כדי משחק.",
+        ],
+      };
+    }
+    return {
+      title: "ברוכים הבאים לג׳פרדי קלאסי",
+      lines: [
+        "בחרו תא מהלוח, קראו את השאלה וחשפו את התשובה.",
+        "לאחר כל שאלה אפשר לעדכן ניקוד לקבוצה הפעילה.",
+        "משחקים עד שכל התאים בלוח סומנו כמשומשים.",
+      ],
+    };
+  }, [gameType, hudominoBoardSize, hudominoPlayMode, isHudominoCompetitive]);
   const boardTypography = useMemo(() => {
     const categoryScale = clamp(6 / categoryCount, 0.72, 1.28);
     const rowScale = clamp(5 / rowCount, 0.82, 1.18);
@@ -1648,10 +1717,6 @@ function App() {
       teamScoreFontSize: `${clamp(1.34 * scale, 1.2, 1.9).toFixed(3)}rem`,
     };
   }, [categoryCount, rowCount]);
-  const boardOverlayAlpha = boardTheme.boardBackgroundOverlay / 100;
-  const boardBackgroundImage = boardTheme.boardBackgroundImage
-    ? `linear-gradient(rgba(2, 6, 23, ${boardOverlayAlpha}), rgba(2, 6, 23, ${boardOverlayAlpha})), url("${boardTheme.boardBackgroundImage}")`
-    : undefined;
   const pageOverlayAlpha = boardTheme.pageBackgroundOverlay / 100;
   const pageImageOverlayStrong = clamp(0.08 + pageOverlayAlpha * 0.72, 0, 0.9);
   const pageImageOverlaySoft = clamp(0.06 + pageOverlayAlpha * 0.58, 0, 0.84);
@@ -1721,6 +1786,63 @@ function App() {
     boardTheme.usedCellBgColor,
     4.5,
   );
+  const hudominoAxisTheme = useMemo(() => {
+    const candidates = [boardTheme.categoryBgStart, boardTheme.categoryBgEnd]
+      .map((color) => normalizeHexColor(color))
+      .filter((color): color is string => Boolean(color));
+
+    const fallbackBase = "#3f3f9f";
+    const baseTone =
+      candidates.length > 0
+        ? candidates.reduce((darkest, candidate) =>
+            getRelativeLuminance(candidate) < getRelativeLuminance(darkest) ? candidate : darkest,
+          )
+        : fallbackBase;
+    let darkShade = mixHexColors(baseTone, "#000000", 0.24);
+    let darkShadeLuminance = getRelativeLuminance(darkShade);
+    for (let step = 0; step < 8 && darkShadeLuminance < 0.13; step += 1) {
+      darkShade = mixHexColors(darkShade, "#ffffff", 0.12);
+      darkShadeLuminance = getRelativeLuminance(darkShade);
+    }
+
+    let lightShade = mixHexColors(baseTone, "#ffffff", 0.83);
+    let lightShadeLuminance = getRelativeLuminance(lightShade);
+    for (let step = 0; step < 4 && lightShadeLuminance > 0.94; step += 1) {
+      lightShade = mixHexColors(lightShade, baseTone, 0.08);
+      lightShadeLuminance = getRelativeLuminance(lightShade);
+    }
+
+    return {
+      darkShade,
+      darkText: "#f8fafc",
+      lightShade,
+      lightText: "#0f172a",
+    };
+  }, [
+    boardTheme.boardBackgroundColor,
+    boardTheme.categoryBgEnd,
+    boardTheme.categoryBgStart,
+  ]);
+  const hudominoGlowTheme = useMemo(() => {
+    const glowBase = mixHexColors(boardTheme.categoryBgStart, boardTheme.categoryBgEnd, 0.5);
+    const glowSoft = mixHexColors(hudominoAxisTheme.lightShade, "#ffffff", 0.24);
+    const glowCore = mixHexColors(glowBase, "#ffffff", 0.3);
+    const glowEdge = mixHexColors(glowBase, hudominoAxisTheme.darkShade, 0.26);
+
+    return {
+      glowSoft,
+      glowCore,
+      glowShadowNear: withAlpha(glowCore, 0.94),
+      glowShadowMid: withAlpha(glowCore, 0.8),
+      glowShadowFar: withAlpha(glowEdge, 0.68),
+      borderTone: mixHexColors(hudominoAxisTheme.lightShade, hudominoAxisTheme.darkShade, 0.2),
+    };
+  }, [
+    boardTheme.categoryBgEnd,
+    boardTheme.categoryBgStart,
+    hudominoAxisTheme.darkShade,
+    hudominoAxisTheme.lightShade,
+  ]);
   const modalPrimaryTextColor = getTextColorForBackground(boardTheme.categoryBgStart);
   const modalCloseTextColor = getTextColorForBackground(boardTheme.usedCellBgColor);
   const modalThemeStyle = {
@@ -2006,6 +2128,7 @@ function App() {
     setDidScoreCurrentQuestion(false);
     setIsSharedViewOnly(options.access === "view");
     setCanCreateEditShare(options.canShareEdit);
+    setIsGameIntroModalOpen(options.mode === "game");
     setMode(options.mode);
     setStatusMessage("");
   };
@@ -2038,6 +2161,25 @@ function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (mode !== "game" && isGameIntroModalOpen) {
+      setIsGameIntroModalOpen(false);
+    }
+  }, [isGameIntroModalOpen, mode]);
+
+  useEffect(() => {
+    if (!isGameIntroModalOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsGameIntroModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isGameIntroModalOpen]);
 
   useEffect(() => {
     if (gameType !== "hudomino") return;
@@ -2556,37 +2698,8 @@ function App() {
     setStatusMessage(`הוחלה פלטת צבעים: ${palette.name}.`);
   };
 
-  const updateBoardThemeOverlay = (value: number) => {
-    setBoardTheme((previous) => ({ ...previous, boardBackgroundOverlay: clamp(value, 0, 100) }));
-  };
-
   const updatePageBackgroundOverlay = (value: number) => {
     setBoardTheme((previous) => ({ ...previous, pageBackgroundOverlay: clamp(value, 0, 100) }));
-  };
-
-  const importBoardBackgroundImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setStatusMessage("ניתן להעלות רק קובצי תמונה לרקע.");
-      event.target.value = "";
-      return;
-    }
-
-    try {
-      const dataUrl = await fileToDataUrl(file);
-      setBoardTheme((previous) => ({ ...previous, boardBackgroundImage: dataUrl }));
-      setStatusMessage("תמונת הרקע נטענה בהצלחה.");
-    } catch {
-      setStatusMessage("שגיאה בטעינת תמונת הרקע.");
-    } finally {
-      event.target.value = "";
-    }
-  };
-
-  const removeBoardBackgroundImage = () => {
-    setBoardTheme((previous) => ({ ...previous, boardBackgroundImage: null }));
-    setStatusMessage("תמונת הרקע הוסרה.");
   };
 
   const applyPageBackgroundPreset = (image: string | null) => {
@@ -2737,6 +2850,7 @@ function App() {
     setQuickTriviaModal((previous) => ({ ...previous, open: false, resetAfterClose: false }));
     setIsSharedViewOnly(false);
     setCanCreateEditShare(true);
+    setIsGameIntroModalOpen(true);
     setStatusMessage("");
     setMode("game");
   };
@@ -2752,6 +2866,7 @@ function App() {
     setShowAnswer(false);
     setDidScoreCurrentQuestion(false);
     setQuickTriviaModal((previous) => ({ ...previous, open: false, resetAfterClose: false }));
+    setIsGameIntroModalOpen(false);
     setMode("editor");
   };
 
@@ -3796,13 +3911,18 @@ function App() {
                   {archiveGames.map((record) => {
                     const isActiveRecord = activeArchiveGameId === record.id;
                     const isBusy = archiveActionKey !== null;
+                    const archiveGameType = resolveArchiveGameType(record.payload);
+                    const archiveGameTypeLabel = ARCHIVE_GAME_TYPE_LABELS[archiveGameType];
                     return (
                       <article
                         key={record.id}
                         className={`archive-row ${isActiveRecord ? "is-active" : ""}`}
                       >
                         <div className="archive-row-main">
-                          <strong>{record.title?.trim() || "ללא כותרת"}</strong>
+                          <div className="archive-row-title">
+                            <strong>{record.title?.trim() || "ללא כותרת"}</strong>
+                            <span className="archive-game-type">{archiveGameTypeLabel}</span>
+                          </div>
                           <small>עודכן: {formatDateTime(record.updated_at)}</small>
                         </div>
                         <div className="archive-row-actions">
@@ -4136,32 +4256,10 @@ function App() {
               <div className="board-theme-actions">
                 <button
                   type="button"
-                  onClick={() => boardBackgroundInputRef.current?.click()}
-                  className="theme-action-btn theme-action-upload"
-                >
-                  העלאת תמונת רקע
-                </button>
-                <input
-                  ref={boardBackgroundInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={importBoardBackgroundImage}
-                  hidden
-                />
-                <button
-                  type="button"
                   onClick={() => setIsBackgroundPickerOpen(true)}
                   className="theme-action-btn theme-action-library"
                 >
                   רקעים לדף המשחק
-                </button>
-                <button
-                  type="button"
-                  onClick={removeBoardBackgroundImage}
-                  disabled={!boardTheme.boardBackgroundImage}
-                  className="theme-action-btn theme-action-remove"
-                >
-                  הסרת תמונה
                 </button>
                 <button type="button" onClick={resetBoardTheme} className="theme-action-btn theme-action-reset">
                   איפוס עיצוב
@@ -4197,25 +4295,11 @@ function App() {
               })}
             </div>
 
-            <label className="overlay-control">
-              כהות שכבת רקע מעל התמונה: {boardTheme.boardBackgroundOverlay}%
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={boardTheme.boardBackgroundOverlay}
-                onChange={(event) => updateBoardThemeOverlay(Number(event.target.value))}
-              />
-            </label>
-
             <div className="board-theme-preview" style={{ borderColor: boardTheme.boardBorderColor }}>
               <div
                 className="board-theme-preview-surface"
                 style={{
                   backgroundColor: boardTheme.boardBackgroundColor,
-                  backgroundImage: boardBackgroundImage,
-                  backgroundSize: boardTheme.boardBackgroundImage ? "cover" : undefined,
-                  backgroundPosition: boardTheme.boardBackgroundImage ? "center" : undefined,
                 }}
               >
                 <div
@@ -4549,9 +4633,6 @@ function App() {
               style={{
                 borderColor: boardTheme.boardBorderColor,
                 backgroundColor: boardTheme.boardBackgroundColor,
-                backgroundImage: boardBackgroundImage,
-                backgroundSize: boardTheme.boardBackgroundImage ? "cover" : undefined,
-                backgroundPosition: boardTheme.boardBackgroundImage ? "center" : undefined,
               }}
             >
               <div
@@ -4601,9 +4682,6 @@ function App() {
               style={{
                 borderColor: boardTheme.boardBorderColor,
                 backgroundColor: boardTheme.boardBackgroundColor,
-                backgroundImage: boardBackgroundImage,
-                backgroundSize: boardTheme.boardBackgroundImage ? "cover" : undefined,
-                backgroundPosition: boardTheme.boardBackgroundImage ? "center" : undefined,
                 ["--millionaire-stage-bg" as string]: withAlpha(boardTheme.cellBgColor, 0.82),
                 ["--millionaire-ladder-bg" as string]: withAlpha(boardTheme.usedCellBgColor, 0.88),
                 ["--millionaire-surface-border" as string]: boardTheme.cellBorderColor,
@@ -4620,9 +4698,6 @@ function App() {
                   getReadableTextColor(boardTheme.usedCellTextColor, boardTheme.usedCellBgColor),
                   0.9,
                 ),
-                ["--millionaire-scene-image" as string]: `url("${
-                  boardTheme.boardBackgroundImage ?? "/backgrounds/c0001-1.png"
-                }")`,
               }}
             >
               <div className="millionaire-game-grid">
@@ -4763,22 +4838,18 @@ function App() {
             <section
               className="game-board hudomino-board-shell"
               style={{
-                borderColor: boardTheme.boardBorderColor,
+                borderColor: hudominoAxisTheme.lightShade,
                 backgroundColor: boardTheme.boardBackgroundColor,
-                backgroundImage: boardBackgroundImage,
-                backgroundSize: boardTheme.boardBackgroundImage ? "cover" : undefined,
-                backgroundPosition: boardTheme.boardBackgroundImage ? "center" : undefined,
-                ["--hudomino-axis-a-bg" as string]: boardTheme.categoryBgStart,
-                ["--hudomino-axis-a-text" as string]: getReadableTextColor(
-                  boardTheme.categoryTextColor,
-                  boardTheme.categoryBgStart,
-                ),
-                ["--hudomino-axis-b-bg" as string]: boardTheme.categoryBgEnd,
-                ["--hudomino-axis-b-text" as string]: getReadableTextColor(
-                  boardTheme.categoryTextColor,
-                  boardTheme.categoryBgEnd,
-                ),
-                ["--hudomino-border" as string]: boardTheme.cellBorderColor,
+                ["--hudomino-axis-a-bg" as string]: hudominoAxisTheme.darkShade,
+                ["--hudomino-axis-a-text" as string]: hudominoAxisTheme.darkText,
+                ["--hudomino-axis-b-bg" as string]: hudominoAxisTheme.lightShade,
+                ["--hudomino-axis-b-text" as string]: hudominoAxisTheme.lightText,
+                ["--hudomino-border" as string]: hudominoGlowTheme.borderTone,
+                ["--hudomino-glow-soft" as string]: hudominoGlowTheme.glowSoft,
+                ["--hudomino-glow-core" as string]: hudominoGlowTheme.glowCore,
+                ["--hudomino-glow-shadow-near" as string]: hudominoGlowTheme.glowShadowNear,
+                ["--hudomino-glow-shadow-mid" as string]: hudominoGlowTheme.glowShadowMid,
+                ["--hudomino-glow-shadow-far" as string]: hudominoGlowTheme.glowShadowFar,
                 ["--hudomino-shell-bg" as string]: boardTheme.boardBackgroundColor,
               }}
             >
@@ -4854,6 +4925,27 @@ function App() {
             <p>{quickTriviaModal.content}</p>
             <button type="button" onClick={closeQuickTriviaModal}>
               {quickTriviaModal.buttonLabel}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isGameIntroModalOpen && mode === "game" && (
+        <div className="modal-overlay game-intro-overlay" role="dialog" aria-modal="true">
+          <div className="modal game-intro-modal" style={modalThemeStyle}>
+            <h2 className="game-intro-title">{gameIntroContent.title}</h2>
+            <p className="game-intro-topic">{resolvedGameTopic}</p>
+            <ul className="game-intro-list">
+              {gameIntroContent.lines.map((line, index) => (
+                <li key={`game-intro-line-${index}`}>{line}</li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => setIsGameIntroModalOpen(false)}
+              className="primary-button full-width"
+            >
+              התחל משחק
             </button>
           </div>
         </div>
