@@ -237,10 +237,27 @@ const MIN_TEAMS = 2;
 const MAX_TEAMS = 5;
 const MIN_BASE_VALUE = 100;
 const MAX_BASE_VALUE = 500;
-const QUICK_TRIVIA_MIN_QUESTIONS = 5;
-const QUICK_TRIVIA_MAX_QUESTIONS = 30;
-const QUICK_TRIVIA_DEFAULT_QUESTIONS = 10;
-const QUICK_TRIVIA_DEFAULT_VALUE = 100;
+const QUICK_TRIVIA_PRIZE_VALUES = [
+  100,
+  200,
+  300,
+  500,
+  1_000,
+  2_000,
+  4_000,
+  8_000,
+  16_000,
+  32_000,
+  64_000,
+  125_000,
+  250_000,
+  500_000,
+  1_000_000,
+] as const;
+const QUICK_TRIVIA_MIN_QUESTIONS = QUICK_TRIVIA_PRIZE_VALUES.length;
+const QUICK_TRIVIA_MAX_QUESTIONS = QUICK_TRIVIA_PRIZE_VALUES.length;
+const QUICK_TRIVIA_DEFAULT_QUESTIONS = QUICK_TRIVIA_PRIZE_VALUES.length;
+const QUICK_TRIVIA_MAX_VALUE = QUICK_TRIVIA_PRIZE_VALUES[QUICK_TRIVIA_PRIZE_VALUES.length - 1];
 const QUICK_TRIVIA_DIFFICULTY_RANK: Record<QuickTriviaDifficulty, number> = {
   easy: 0,
   medium: 1,
@@ -1367,15 +1384,18 @@ function normalizeQuickTriviaDifficulty(value: string): QuickTriviaDifficulty | 
   return null;
 }
 
+function getQuickTriviaValueForIndex(index: number): number {
+  const clampedIndex = clamp(index, 0, QUICK_TRIVIA_PRIZE_VALUES.length - 1);
+  return QUICK_TRIVIA_PRIZE_VALUES[clampedIndex];
+}
+
 function createQuickTriviaQuestions(
   count = QUICK_TRIVIA_DEFAULT_QUESTIONS,
-  baseValue = QUICK_TRIVIA_DEFAULT_VALUE,
 ): QuickTriviaQuestion[] {
   const normalizedCount = clamp(count, QUICK_TRIVIA_MIN_QUESTIONS, QUICK_TRIVIA_MAX_QUESTIONS);
-  const normalizedBaseValue = clamp(baseValue, MIN_BASE_VALUE, MAX_BASE_VALUE);
   return Array.from({ length: normalizedCount }, (_, index) => ({
     id: `quick-q-${index + 1}`,
-    value: normalizedBaseValue * (index + 1),
+    value: getQuickTriviaValueForIndex(index),
     question: "",
     answer: "",
     wrongAnswer1: "",
@@ -1404,10 +1424,12 @@ function normalizeQuickTriviaQuestions(
   }
 
   const limited = source.slice(0, QUICK_TRIVIA_MAX_QUESTIONS);
-  const normalizedCount = limited.length;
-  return limited.map((item, index) => ({
+  const normalizedCount = Math.max(limited.length, QUICK_TRIVIA_MIN_QUESTIONS);
+  return Array.from({ length: normalizedCount }, (_, index) => {
+    const item = limited[index];
+    return {
     id: `quick-q-${index + 1}`,
-    value: clamp(Number(item?.value) || QUICK_TRIVIA_DEFAULT_VALUE * (index + 1), MIN_BASE_VALUE, 5000),
+    value: getQuickTriviaValueForIndex(index),
     question: typeof item?.question === "string" ? item.question : "",
     answer: typeof item?.answer === "string" ? item.answer : "",
     wrongAnswer1:
@@ -1432,13 +1454,14 @@ function normalizeQuickTriviaQuestions(
       normalizeQuickTriviaDifficulty(typeof item?.difficulty === "string" ? item.difficulty : "") ??
       getQuickTriviaDifficultyForIndex(index, normalizedCount),
     used: Boolean(item?.used),
-  }));
+    };
+  });
 }
 
 function ValueMark({ value }: { value: number }) {
   return (
     <span className="value-mark" dir="ltr">
-      {value}
+      {value.toLocaleString("en-US")}
     </span>
   );
 }
@@ -2148,10 +2171,9 @@ function App() {
       if (clamped < previous.length) {
         return previous.slice(0, clamped);
       }
-      const lastValue = previous[previous.length - 1]?.value ?? QUICK_TRIVIA_DEFAULT_VALUE;
       const additions = Array.from({ length: clamped - previous.length }, (_, offset) => ({
         id: `quick-q-${previous.length + offset + 1}`,
-        value: lastValue + QUICK_TRIVIA_DEFAULT_VALUE * (offset + 1),
+        value: getQuickTriviaValueForIndex(previous.length + offset),
         question: "",
         answer: "",
         wrongAnswer1: "",
@@ -2177,12 +2199,12 @@ function App() {
     nextValue: string | number,
   ) => {
     setQuickTriviaQuestions((previous) =>
-      previous.map((question) => {
+      previous.map((question, index) => {
         if (question.id !== questionId) return question;
         if (field === "value") {
           return {
             ...question,
-            value: clamp(Number(nextValue) || QUICK_TRIVIA_DEFAULT_VALUE, MIN_BASE_VALUE, 5000),
+            value: getQuickTriviaValueForIndex(index),
           };
         }
         if (field === "difficulty") {
@@ -3281,7 +3303,7 @@ function App() {
       });
 
       const normalizedQuestions = sortedQuestions.map((question, index) => ({
-        value: clamp((index + 1) * QUICK_TRIVIA_DEFAULT_VALUE, MIN_BASE_VALUE, 5000),
+        value: getQuickTriviaValueForIndex(index),
         question: question.question,
         answer: question.answer,
         wrongAnswer1: question.wrongAnswer1,
@@ -4345,12 +4367,10 @@ function App() {
                           <input
                             type="number"
                             min={MIN_BASE_VALUE}
-                            max={5000}
+                            max={QUICK_TRIVIA_MAX_VALUE}
                             step={100}
                             value={question.value}
-                            onChange={(event) =>
-                              updateQuickTriviaQuestion(question.id, "value", Number(event.target.value))
-                            }
+                            readOnly
                           />
                         </label>
                       </div>
@@ -4598,41 +4618,20 @@ function App() {
                   getReadableTextColor(boardTheme.usedCellTextColor, boardTheme.usedCellBgColor),
                   0.9,
                 ),
+                ["--millionaire-scene-image" as string]: `url("${
+                  boardTheme.boardBackgroundImage ?? "/backgrounds/c0001-1.png"
+                }")`,
               }}
             >
-              <div className="millionaire-header">
-                <div className="millionaire-lifelines">
-                  <button
-                    type="button"
-                    className={`millionaire-lifeline ${!quickTriviaLifelines.fifty ? "is-used" : ""}`}
-                    onClick={useQuickTriviaFiftyFifty}
-                    disabled={!quickTriviaLifelines.fifty || !quickTriviaCanAnswer || !nextQuickTriviaQuestion}
-                  >
-                    50:50
-                  </button>
-                  <button
-                    type="button"
-                    className={`millionaire-lifeline ${!quickTriviaLifelines.phone ? "is-used" : ""}`}
-                    onClick={useQuickTriviaPhoneFriend}
-                    disabled={!quickTriviaLifelines.phone || !quickTriviaCanAnswer || !nextQuickTriviaQuestion}
-                  >
-                    📞
-                  </button>
-                  <button
-                    type="button"
-                    className={`millionaire-lifeline ${!quickTriviaLifelines.audience ? "is-used" : ""}`}
-                    onClick={useQuickTriviaAskAudience}
-                    disabled={!quickTriviaLifelines.audience || !quickTriviaCanAnswer || !nextQuickTriviaQuestion}
-                  >
-                    👥
-                  </button>
-                </div>
-                <h3 className="millionaire-brand">{millionaireHeaderTitle}</h3>
-                <div className="millionaire-score">₪ {quickTriviaScore.toLocaleString()}</div>
-              </div>
-
               <div className="millionaire-game-grid">
                 <section className="millionaire-main">
+                  <div className="millionaire-progress-panel" aria-live="polite">
+                    <div className="millionaire-logo" role="img" aria-label="לוגו מי רוצה להיות מיליונר">
+                      <span className="millionaire-logo-word">מיליונר</span>
+                    </div>
+                    <h3 className="millionaire-brand">{millionaireHeaderTitle}</h3>
+                  </div>
+
                   <div className="millionaire-question-box">
                     {nextQuickTriviaQuestion
                       ? nextQuickTriviaQuestion.question
@@ -4667,6 +4666,69 @@ function App() {
                       })}
                     </div>
                   )}
+
+                  <div className="millionaire-footer">
+                    <div className="millionaire-lifelines">
+                      <button
+                        type="button"
+                        className={`millionaire-lifeline millionaire-lifeline--audience ${
+                          !quickTriviaLifelines.audience ? "is-used" : ""
+                        }`}
+                        onClick={useQuickTriviaAskAudience}
+                        disabled={!quickTriviaLifelines.audience || !quickTriviaCanAnswer || !nextQuickTriviaQuestion}
+                        aria-label="שאלת קהל"
+                      >
+                        <svg viewBox="0 0 24 24" className="millionaire-lifeline-icon" aria-hidden="true">
+                          <circle cx="9.2" cy="8" r="2.6" fill="currentColor" />
+                          <circle cx="15.4" cy="8.9" r="2.2" fill="currentColor" />
+                          <path
+                            d="M4.8 16.5c0-2.35 1.95-4.26 4.35-4.26 2.41 0 4.36 1.91 4.36 4.26"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.7"
+                            strokeLinecap="round"
+                          />
+                          <path
+                            d="M12.7 16.4c.2-1.7 1.73-3.02 3.58-3.02 2 0 3.62 1.43 3.62 3.2"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className={`millionaire-lifeline millionaire-lifeline--fifty ${
+                          !quickTriviaLifelines.fifty ? "is-used" : ""
+                        }`}
+                        onClick={useQuickTriviaFiftyFifty}
+                        disabled={!quickTriviaLifelines.fifty || !quickTriviaCanAnswer || !nextQuickTriviaQuestion}
+                      >
+                        <span className="millionaire-lifeline-label">50:50</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`millionaire-lifeline millionaire-lifeline--phone ${
+                          !quickTriviaLifelines.phone ? "is-used" : ""
+                        }`}
+                        onClick={useQuickTriviaPhoneFriend}
+                        disabled={!quickTriviaLifelines.phone || !quickTriviaCanAnswer || !nextQuickTriviaQuestion}
+                        aria-label="טלפון לחבר"
+                      >
+                        <svg viewBox="0 0 24 24" className="millionaire-lifeline-icon" aria-hidden="true">
+                          <path
+                            d="M7.12 4.7c.33-.34.86-.37 1.22-.07l1.9 1.62c.4.34.5.91.22 1.36L9.6 9.2c-.14.3-.1.66.12.92a13.6 13.6 0 0 0 4.16 4.16c.27.22.62.27.92.12l1.6-.86c.44-.28 1.02-.18 1.36.23l1.62 1.9c.3.35.27.88-.07 1.21l-1.27 1.27c-.52.52-1.28.74-2 .56-2.78-.7-5.38-2.2-7.54-4.37-2.16-2.16-3.66-4.75-4.36-7.53-.19-.73.03-1.48.56-2Z"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.75"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 </section>
 
                 <aside className="millionaire-ladder-panel" aria-label="סולם זכייה">
