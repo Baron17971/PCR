@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import "./App.css";
 import { isSupabaseConfigured, supabase } from "./supabaseClient";
 
 type AppMode = "editor" | "game";
 type GameType = "jeopardy" | "quick-trivia" | "hudomino";
+type QuickTriviaDifficulty = "easy" | "medium" | "hard";
 type HudominoDifficulty = "easy" | "medium" | "hard";
 type HudominoPlayMode = "learning" | "challenge";
 type HudominoScoringMode = "cooperative" | "competitive";
@@ -33,6 +34,10 @@ interface QuickTriviaQuestion {
   value: number;
   question: string;
   answer: string;
+  wrongAnswer1: string;
+  wrongAnswer2: string;
+  wrongAnswer3: string;
+  difficulty: QuickTriviaDifficulty;
   used: boolean;
 }
 
@@ -138,6 +143,10 @@ interface ExportPayload {
     value: number;
     question: string;
     answer: string;
+    wrongAnswer1?: string;
+    wrongAnswer2?: string;
+    wrongAnswer3?: string;
+    difficulty?: QuickTriviaDifficulty;
   }>;
   hudominoPairs?: Array<{
     term: string;
@@ -169,6 +178,10 @@ interface SharePayload {
       value: number;
       question: string;
       answer: string;
+      wrongAnswer1?: string;
+      wrongAnswer2?: string;
+      wrongAnswer3?: string;
+      difficulty?: QuickTriviaDifficulty;
       used?: boolean;
     }>;
     hudominoPairs?: Array<{
@@ -202,6 +215,20 @@ interface CsvQuestionRow {
   answer: string;
 }
 
+interface QuickTriviaLifelinesState {
+  fifty: boolean;
+  phone: boolean;
+  audience: boolean;
+}
+
+interface QuickTriviaModalState {
+  open: boolean;
+  title: string;
+  content: string;
+  buttonLabel: string;
+  resetAfterClose: boolean;
+}
+
 const MIN_CATEGORIES = 2;
 const MAX_CATEGORIES = 8;
 const MIN_ROWS = 3;
@@ -214,6 +241,16 @@ const QUICK_TRIVIA_MIN_QUESTIONS = 5;
 const QUICK_TRIVIA_MAX_QUESTIONS = 30;
 const QUICK_TRIVIA_DEFAULT_QUESTIONS = 10;
 const QUICK_TRIVIA_DEFAULT_VALUE = 100;
+const QUICK_TRIVIA_DIFFICULTY_RANK: Record<QuickTriviaDifficulty, number> = {
+  easy: 0,
+  medium: 1,
+  hard: 2,
+};
+const QUICK_TRIVIA_DEFAULT_LIFELINES: QuickTriviaLifelinesState = {
+  fifty: true,
+  phone: true,
+  audience: true,
+};
 const HUDOMINO_MIN_PAIRS = 8;
 const HUDOMINO_MAX_PAIRS = 80;
 const HUDOMINO_DEFAULT_PAIR_COUNT = 18;
@@ -227,7 +264,7 @@ const SUPABASE_GAMES_TABLE = "jeopardy_games";
 
 const GAME_TYPE_OPTIONS: Array<{ value: GameType; label: string }> = [
   { value: "jeopardy", label: "ג׳פרדי קלאסי" },
-  { value: "quick-trivia", label: "טריוויה מהירה" },
+  { value: "quick-trivia", label: "מי רוצה להיות מליונר" },
   { value: "hudomino", label: "חודומינו" },
 ];
 
@@ -266,6 +303,55 @@ const AI_CSV_PROMPT_TEMPLATE =
   "נסח את השאלות בסגנון ג׳פרדי, בעברית מלאה ותקינה, והקפד שלא יהיו כפילויות מושגיות בין השאלות. " +
   "לכל שאלה הוסף תשובה קצרה, מדויקת וברורה. " +
   "אם מצורף קובץ, יש להתבסס רק על התוכן שבו בלבד, ללא הוספת מידע חיצוני, ותוך שמירה על המינוחים המקוריים של הקובץ ככל האפשר.";
+const AI_HUDOMINO_CSV_PROMPT_TEMPLATE =
+  "צור קובץ CSV UTF-8 עם העמודות: term, definition. " +
+  "מלא אותו ב-18 זוגות מושגים בנושא [נושא], כך שבכל שורה יש קשר לוגי ברור וחד-משמעי בין המושג לבין ההגדרה, המאפיין, התפקיד או התוצאה הקשורים אליו. " +
+  "הקפד על עברית מלאה ותקינה, התאמה לרמת תלמידי [כיתה], וללא כפילויות מושגיות בין הזוגות.\n\n" +
+  "מגבלת אורך חובה:\n" +
+  "term יכיל עד 3 מילים\n" +
+  "definition תכיל עד 8 מילים\n\n" +
+  "יש להעדיף ניסוחים קצרים, פשוטים וחדים.\n" +
+  "אין להשתמש במשפטים ארוכים, פסיקים מרובים או הסברים מפורטים.\n" +
+  "כל זוג צריך להיות ברור גם במבט מהיר על הלוח.\n\n" +
+  "אם מצורף קובץ, יש להתבסס רק על התוכן שבו בלבד, ללא הוספת מידע חיצוני, ותוך שמירה על המינוחים המקוריים של הקובץ ככל האפשר. " +
+  "שמור כ-CSV UTF-8.";
+const AI_MILLIONAIRE_CSV_PROMPT_TEMPLATE = `צור קובץ CSV UTF-8 מוכן להעלאה למשחק "מי רוצה להיות מיליונר".
+הקובץ צריך לכלול [הוסף מספר] שאלות בנושא [נושא], בהתאמה לרמת תלמידי [כיתה/שכבת גיל].
+מבנה הקובץ יהיה בדיוק עם העמודות הבאות:
+question, correct_answer, wrong_answer_1, wrong_answer_2, wrong_answer_3, difficulty
+פירוט העמודות:
+question = השאלה
+correct_answer = התשובה הנכונה
+wrong_answer_1 = מסיח ראשון
+wrong_answer_2 = מסיח שני
+wrong_answer_3 = מסיח שלישי
+difficulty = רמת הקושי של השאלה
+הנחיות:
+צור [מספר שאלות רצוי] שאלות בנושא [נושא]
+סדר את השאלות לפי רמת קושי עולה
+השתמש ברמות קושי ברורות, למשל: קל, בינוני, קשה
+לכל שאלה צריכות להיות 4 תשובות אפשריות בלבד: תשובה נכונה אחת ו־3 מסיחים
+הקפד שהתשובה הנכונה תהיה חד-משמעית וברורה
+הקפד שהמסיחים יהיו סבירים, אמינים ומבלבלים במידה, אך לא נכונים
+הקפד שלא יהיו כפילויות מושגיות בין השאלות
+השאלות צריכות להיות ברורות, קצרות יחסית ומנוסחות בעברית מלאה ותקינה
+התאם את רמת הדיוק, השפה והמורכבות ל־[כיתה/שכבת גיל]
+הקפד על דיוק לימודי/מדעי
+הימנע משאלות טריוויה שוליות מדי, אלא אם כן התבקש אחרת
+העדף שאלות שבודקות הבנה, זיהוי, השוואה ויישום, ולא רק שינון
+מגבלת אורך מומלצת:
+question עד 16 מילים
+כל תשובה עד 6 מילים
+יש להעדיף ניסוחים קצרים, פשוטים וחדים, שייראו טוב על המסך
+אם מצורף קובץ:
+יש להתבסס רק על התוכן שבו בלבד
+אין להוסיף מידע חיצוני
+יש לשמור ככל האפשר על המינוחים המקוריים של הקובץ
+אם חסר מידע, אין להשלים ממקורות אחרים
+דרישות נוספות:
+שמור את הקובץ בפורמט CSV UTF-8
+אל תוסיף הסברים מחוץ לקובץ
+הפלט הסופי צריך להיות קובץ CSV מוכן להעלאה בלבד`;
 
 const GAME_PAGE_BACKGROUND_FILES = [
   "/backgrounds/ant7119__teenager_boy_watching_the_moon_bright_watercolors_a__31e023b8-01bb-44cf-8772-9afc48f25a89_1.png",
@@ -1261,6 +1347,26 @@ function createTeams(teamCount: number): TeamData[] {
   }));
 }
 
+function getQuickTriviaDifficultyForIndex(
+  index: number,
+  total: number,
+): QuickTriviaDifficulty {
+  if (total <= 0) return "medium";
+  const progress = (index + 1) / total;
+  if (progress <= 0.4) return "easy";
+  if (progress <= 0.8) return "medium";
+  return "hard";
+}
+
+function normalizeQuickTriviaDifficulty(value: string): QuickTriviaDifficulty | null {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (["easy", "e", "קל", "קלה", "beginner"].includes(normalized)) return "easy";
+  if (["medium", "med", "m", "בינוני", "בינונית", "intermediate"].includes(normalized)) return "medium";
+  if (["hard", "h", "קשה", "challenging", "advanced"].includes(normalized)) return "hard";
+  return null;
+}
+
 function createQuickTriviaQuestions(
   count = QUICK_TRIVIA_DEFAULT_QUESTIONS,
   baseValue = QUICK_TRIVIA_DEFAULT_VALUE,
@@ -1272,6 +1378,10 @@ function createQuickTriviaQuestions(
     value: normalizedBaseValue * (index + 1),
     question: "",
     answer: "",
+    wrongAnswer1: "",
+    wrongAnswer2: "",
+    wrongAnswer3: "",
+    difficulty: getQuickTriviaDifficultyForIndex(index, normalizedCount),
     used: false,
   }));
 }
@@ -1281,6 +1391,11 @@ function normalizeQuickTriviaQuestions(
     value: number;
     question: string;
     answer: string;
+    wrongAnswer1?: string;
+    wrongAnswer2?: string;
+    wrongAnswer3?: string;
+    difficulty?: QuickTriviaDifficulty;
+    wrongAnswers?: string[];
     used?: boolean;
   }> | null | undefined,
 ): QuickTriviaQuestion[] {
@@ -1289,11 +1404,33 @@ function normalizeQuickTriviaQuestions(
   }
 
   const limited = source.slice(0, QUICK_TRIVIA_MAX_QUESTIONS);
+  const normalizedCount = limited.length;
   return limited.map((item, index) => ({
     id: `quick-q-${index + 1}`,
     value: clamp(Number(item?.value) || QUICK_TRIVIA_DEFAULT_VALUE * (index + 1), MIN_BASE_VALUE, 5000),
     question: typeof item?.question === "string" ? item.question : "",
     answer: typeof item?.answer === "string" ? item.answer : "",
+    wrongAnswer1:
+      typeof item?.wrongAnswer1 === "string"
+        ? item.wrongAnswer1
+        : typeof item?.wrongAnswers?.[0] === "string"
+          ? item.wrongAnswers[0]
+          : "",
+    wrongAnswer2:
+      typeof item?.wrongAnswer2 === "string"
+        ? item.wrongAnswer2
+        : typeof item?.wrongAnswers?.[1] === "string"
+          ? item.wrongAnswers[1]
+          : "",
+    wrongAnswer3:
+      typeof item?.wrongAnswer3 === "string"
+        ? item.wrongAnswer3
+        : typeof item?.wrongAnswers?.[2] === "string"
+          ? item.wrongAnswers[2]
+          : "",
+    difficulty:
+      normalizeQuickTriviaDifficulty(typeof item?.difficulty === "string" ? item.difficulty : "") ??
+      getQuickTriviaDifficultyForIndex(index, normalizedCount),
     used: Boolean(item?.used),
   }));
 }
@@ -1311,6 +1448,10 @@ function App() {
   const [gameType, setGameType] = useState<GameType>("jeopardy");
   const [gameTopic, setGameTopic] = useState(DEFAULT_GAME_TOPIC);
   const [aiPromptText, setAiPromptText] = useState(AI_CSV_PROMPT_TEMPLATE);
+  const [hudominoAiPromptText, setHudominoAiPromptText] = useState(AI_HUDOMINO_CSV_PROMPT_TEMPLATE);
+  const [millionaireAiPromptText, setMillionaireAiPromptText] = useState(
+    AI_MILLIONAIRE_CSV_PROMPT_TEMPLATE,
+  );
   const [boardTheme, setBoardTheme] = useState<BoardTheme>(DEFAULT_BOARD_THEME);
   const [categoryCount, setCategoryCount] = useState(6);
   const [rowCount, setRowCount] = useState(5);
@@ -1329,6 +1470,22 @@ function App() {
   const [currentTurnIndex, setCurrentTurnIndex] = useState(0);
   const [activeCell, setActiveCell] = useState<ActiveCell | null>(null);
   const [activeQuickQuestionId, setActiveQuickQuestionId] = useState<string | null>(null);
+  const [quickTriviaCurrentOptions, setQuickTriviaCurrentOptions] = useState<string[]>([]);
+  const [quickTriviaCorrectOptionIndex, setQuickTriviaCorrectOptionIndex] = useState<number | null>(null);
+  const [quickTriviaHiddenOptionIndexes, setQuickTriviaHiddenOptionIndexes] = useState<number[]>([]);
+  const [quickTriviaSelectedOptionIndex, setQuickTriviaSelectedOptionIndex] = useState<number | null>(null);
+  const [quickTriviaCanAnswer, setQuickTriviaCanAnswer] = useState(true);
+  const [quickTriviaScore, setQuickTriviaScore] = useState(0);
+  const [quickTriviaLifelines, setQuickTriviaLifelines] = useState<QuickTriviaLifelinesState>(
+    QUICK_TRIVIA_DEFAULT_LIFELINES,
+  );
+  const [quickTriviaModal, setQuickTriviaModal] = useState<QuickTriviaModalState>({
+    open: false,
+    title: "",
+    content: "",
+    buttonLabel: "סגור",
+    resetAfterClose: false,
+  });
   const [showAnswer, setShowAnswer] = useState(false);
   const [didScoreCurrentQuestion, setDidScoreCurrentQuestion] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>("");
@@ -1350,11 +1507,6 @@ function App() {
   const boardBackgroundInputRef = useRef<HTMLInputElement | null>(null);
   const pageBackgroundInputRef = useRef<HTMLInputElement | null>(null);
   const overlayTimeoutRef = useRef<number | null>(null);
-
-  const activeQuickQuestion = useMemo(() => {
-    if (!activeQuickQuestionId) return null;
-    return quickTriviaQuestions.find((question) => question.id === activeQuickQuestionId) ?? null;
-  }, [activeQuickQuestionId, quickTriviaQuestions]);
 
   const hudominoBoardSize = useMemo(
     () => getHudominoBoardSize(hudominoDifficulty),
@@ -1380,10 +1532,8 @@ function App() {
   const hudominoMatchedConnectionsCount = hudominoMatchEdgeKeys.size;
 
   const activeQuestion =
-    gameType === "quick-trivia"
-      ? activeQuickQuestion
-      : gameType === "hudomino"
-        ? null
+    gameType === "hudomino"
+      ? null
       : activeCell
         ? board[activeCell.categoryIndex]?.cells[activeCell.rowIndex] ?? null
         : null;
@@ -1398,7 +1548,14 @@ function App() {
   }, [board]);
 
   const quickTriviaMissingFieldsCount = useMemo(() => {
-    return quickTriviaQuestions.filter((question) => !question.question.trim() || !question.answer.trim()).length;
+    return quickTriviaQuestions.filter(
+      (question) =>
+        !question.question.trim() ||
+        !question.answer.trim() ||
+        !question.wrongAnswer1.trim() ||
+        !question.wrongAnswer2.trim() ||
+        !question.wrongAnswer3.trim(),
+    ).length;
   }, [quickTriviaQuestions]);
 
   const missingFieldsCount = (() => {
@@ -1414,6 +1571,26 @@ function App() {
   const quickTriviaUsedCount = useMemo(() => {
     return quickTriviaQuestions.filter((question) => question.used).length;
   }, [quickTriviaQuestions]);
+  const quickTriviaMillionaireOrder = useMemo(
+    () =>
+      [...quickTriviaQuestions].sort((left, right) => {
+        const difficultyGap =
+          QUICK_TRIVIA_DIFFICULTY_RANK[left.difficulty] - QUICK_TRIVIA_DIFFICULTY_RANK[right.difficulty];
+        if (difficultyGap !== 0) return difficultyGap;
+        return left.value - right.value;
+      }),
+    [quickTriviaQuestions],
+  );
+  const quickTriviaStepById = useMemo(
+    () => new Map(quickTriviaMillionaireOrder.map((question, index) => [question.id, index + 1])),
+    [quickTriviaMillionaireOrder],
+  );
+  const quickTriviaLadder = useMemo(() => [...quickTriviaMillionaireOrder], [quickTriviaMillionaireOrder]);
+  const nextQuickTriviaQuestion = useMemo(
+    () => quickTriviaMillionaireOrder.find((question) => !question.used) ?? null,
+    [quickTriviaMillionaireOrder],
+  );
+  const quickTriviaOptionLetters = ["א", "ב", "ג", "ד"];
 
   const usedCount = (() => {
     if (gameType === "quick-trivia") return quickTriviaUsedCount;
@@ -1430,8 +1607,10 @@ function App() {
       ? hudominoValidPairs.length >= hudominoRequiredPairs
       : missingFieldsCount === 0 && totalQuestions > 0;
   const isHudominoCompetitive = gameType === "hudomino" && hudominoScoringMode === "competitive";
+  const usesTeamPlay = gameType === "jeopardy" || (gameType === "hudomino" && isHudominoCompetitive);
   const currentTeam = teams[currentTurnIndex] ?? teams[0];
   const resolvedGameTopic = gameTopic.trim() || DEFAULT_GAME_TOPIC;
+  const millionaireHeaderTitle = gameTopic.trim() || DEFAULT_GAME_TOPIC;
   const boardTypography = useMemo(() => {
     const categoryScale = clamp(6 / categoryCount, 0.72, 1.28);
     const rowScale = clamp(5 / rowCount, 0.82, 1.18);
@@ -1549,6 +1728,41 @@ function App() {
     [hudominoPuzzle],
   );
   const shouldShowHudominoMatches = mode === "game";
+
+  useEffect(() => {
+    if (mode !== "game" || gameType !== "quick-trivia") {
+      setQuickTriviaCurrentOptions([]);
+      setQuickTriviaCorrectOptionIndex(null);
+      setQuickTriviaHiddenOptionIndexes([]);
+      setQuickTriviaSelectedOptionIndex(null);
+      setQuickTriviaCanAnswer(true);
+      return;
+    }
+
+    if (!nextQuickTriviaQuestion) {
+      setActiveQuickQuestionId(null);
+      setQuickTriviaCurrentOptions([]);
+      setQuickTriviaCorrectOptionIndex(null);
+      setQuickTriviaHiddenOptionIndexes([]);
+      setQuickTriviaSelectedOptionIndex(null);
+      setQuickTriviaCanAnswer(false);
+      return;
+    }
+
+    const optionPool = [
+      { text: nextQuickTriviaQuestion.answer.trim(), isCorrect: true },
+      { text: nextQuickTriviaQuestion.wrongAnswer1.trim(), isCorrect: false },
+      { text: nextQuickTriviaQuestion.wrongAnswer2.trim(), isCorrect: false },
+      { text: nextQuickTriviaQuestion.wrongAnswer3.trim(), isCorrect: false },
+    ];
+    const shuffled = shuffleArray(optionPool);
+    setActiveQuickQuestionId(nextQuickTriviaQuestion.id);
+    setQuickTriviaCurrentOptions(shuffled.map((option) => option.text));
+    setQuickTriviaCorrectOptionIndex(shuffled.findIndex((option) => option.isCorrect));
+    setQuickTriviaHiddenOptionIndexes([]);
+    setQuickTriviaSelectedOptionIndex(null);
+    setQuickTriviaCanAnswer(true);
+  }, [gameType, mode, nextQuickTriviaQuestion]);
   const getHudominoSideMatchesForSlot = useCallback(
     (slotIndex: number): Record<HudominoSideDirection, boolean> => {
       const result: Record<HudominoSideDirection, boolean> = {
@@ -1613,6 +1827,10 @@ function App() {
         value: question.value,
         question: question.question,
         answer: question.answer,
+        wrongAnswer1: question.wrongAnswer1,
+        wrongAnswer2: question.wrongAnswer2,
+        wrongAnswer3: question.wrongAnswer3,
+        difficulty: question.difficulty,
         used: question.used,
       })),
       hudominoPairs: hudominoPairs.map((pair) => ({
@@ -1936,6 +2154,10 @@ function App() {
         value: lastValue + QUICK_TRIVIA_DEFAULT_VALUE * (offset + 1),
         question: "",
         answer: "",
+        wrongAnswer1: "",
+        wrongAnswer2: "",
+        wrongAnswer3: "",
+        difficulty: getQuickTriviaDifficultyForIndex(previous.length + offset, clamped),
         used: false,
       }));
       return [...previous, ...additions];
@@ -1944,7 +2166,14 @@ function App() {
 
   const updateQuickTriviaQuestion = (
     questionId: string,
-    field: "value" | "question" | "answer",
+    field:
+      | "value"
+      | "question"
+      | "answer"
+      | "wrongAnswer1"
+      | "wrongAnswer2"
+      | "wrongAnswer3"
+      | "difficulty",
     nextValue: string | number,
   ) => {
     setQuickTriviaQuestions((previous) =>
@@ -1955,6 +2184,10 @@ function App() {
             ...question,
             value: clamp(Number(nextValue) || QUICK_TRIVIA_DEFAULT_VALUE, MIN_BASE_VALUE, 5000),
           };
+        }
+        if (field === "difficulty") {
+          const normalizedDifficulty = normalizeQuickTriviaDifficulty(String(nextValue)) ?? question.difficulty;
+          return { ...question, difficulty: normalizedDifficulty };
         }
         return { ...question, [field]: String(nextValue) };
       }),
@@ -2390,9 +2623,9 @@ function App() {
     setStatusMessage("עיצוב הלוח אופס לברירת המחדל.");
   };
 
-  const copyAiPromptToClipboard = async () => {
+  const copyPromptToClipboard = async (promptText: string) => {
     try {
-      await navigator.clipboard.writeText(aiPromptText);
+      await navigator.clipboard.writeText(promptText);
       setStatusMessage("הפרומפט הועתק ללוח.");
     } catch {
       setStatusMessage("לא ניתן להעתיק אוטומטית. סמני את הטקסט והעתיקי ידנית.");
@@ -2452,6 +2685,12 @@ function App() {
 
     if (gameType === "quick-trivia") {
       setQuickTriviaQuestions((previous) => previous.map((question) => ({ ...question, used: false })));
+      setQuickTriviaScore(0);
+      setQuickTriviaLifelines(QUICK_TRIVIA_DEFAULT_LIFELINES);
+      setQuickTriviaModal((previous) => ({ ...previous, open: false, resetAfterClose: false }));
+      setQuickTriviaHiddenOptionIndexes([]);
+      setQuickTriviaSelectedOptionIndex(null);
+      setQuickTriviaCanAnswer(true);
     } else if (gameType === "hudomino") {
       const nextPuzzle = createHudominoPuzzle(hudominoValidPairs, hudominoBoardSize, hudominoPlayMode);
       setHudominoPuzzle(nextPuzzle);
@@ -2471,6 +2710,7 @@ function App() {
     setHudominoDraggedCubeId(null);
     setShowAnswer(false);
     setDidScoreCurrentQuestion(false);
+    setQuickTriviaModal((previous) => ({ ...previous, open: false, resetAfterClose: false }));
     setIsSharedViewOnly(false);
     setCanCreateEditShare(true);
     setStatusMessage("");
@@ -2487,6 +2727,7 @@ function App() {
     setHudominoDraggedCubeId(null);
     setShowAnswer(false);
     setDidScoreCurrentQuestion(false);
+    setQuickTriviaModal((previous) => ({ ...previous, open: false, resetAfterClose: false }));
     setMode("editor");
   };
 
@@ -2501,22 +2742,160 @@ function App() {
     setDidScoreCurrentQuestion(false);
   };
 
-  const openQuickTriviaQuestion = (questionId: string) => {
-    if (gameType !== "quick-trivia") return;
-    const question = quickTriviaQuestions.find((item) => item.id === questionId);
-    if (!question || question.used) return;
-
-    setActiveQuickQuestionId(questionId);
-    setActiveCell(null);
-    setShowAnswer(false);
-    setDidScoreCurrentQuestion(false);
-  };
-
   const closeQuestion = () => {
     setActiveCell(null);
     setActiveQuickQuestionId(null);
     setShowAnswer(false);
     setDidScoreCurrentQuestion(false);
+  };
+
+  const openQuickTriviaModal = (
+    title: string,
+    content: string,
+    buttonLabel = "סגור",
+    resetAfterClose = false,
+  ) => {
+    setQuickTriviaModal({
+      open: true,
+      title,
+      content,
+      buttonLabel,
+      resetAfterClose,
+    });
+  };
+
+  const closeQuickTriviaModal = () => {
+    const shouldReset = quickTriviaModal.resetAfterClose;
+    setQuickTriviaModal((previous) => ({ ...previous, open: false, resetAfterClose: false }));
+    if (shouldReset) {
+      resetGameBoard();
+    }
+  };
+
+  const checkQuickTriviaAnswer = (optionIndex: number) => {
+    if (mode !== "game" || gameType !== "quick-trivia") return;
+    if (!nextQuickTriviaQuestion) return;
+    if (quickTriviaCorrectOptionIndex === null) return;
+    if (!quickTriviaCanAnswer) return;
+    if (quickTriviaHiddenOptionIndexes.includes(optionIndex)) return;
+
+    const isCorrect = optionIndex === quickTriviaCorrectOptionIndex;
+    const isLastQuestion = quickTriviaUsedCount + 1 >= quickTriviaMillionaireOrder.length;
+    const currentQuestionValue = nextQuickTriviaQuestion.value;
+    const previousScore = quickTriviaScore;
+
+    setQuickTriviaCanAnswer(false);
+    setQuickTriviaSelectedOptionIndex(optionIndex);
+
+    if (isCorrect) {
+      setQuickTriviaScore(currentQuestionValue);
+      window.setTimeout(() => {
+        setQuickTriviaQuestions((previous) =>
+          previous.map((question) =>
+            question.id === nextQuickTriviaQuestion.id ? { ...question, used: true } : question,
+          ),
+        );
+        if (isLastQuestion) {
+          openQuickTriviaModal(
+            "ניצחתם!",
+            `מזל טוב! הגעתם לסכום ${currentQuestionValue.toLocaleString()} ₪.`,
+            "התחל מחדש",
+            true,
+          );
+        }
+      }, 1300);
+      return;
+    }
+
+    window.setTimeout(() => {
+      const correctAnswer = quickTriviaCurrentOptions[quickTriviaCorrectOptionIndex] ?? nextQuickTriviaQuestion.answer;
+      setQuickTriviaSelectedOptionIndex(quickTriviaCorrectOptionIndex);
+      openQuickTriviaModal(
+        "טעות!",
+        `התשובה הנכונה הייתה: ${correctAnswer}. סיימתם עם ₪ ${previousScore.toLocaleString()}.`,
+        "נסה שוב",
+        true,
+      );
+    }, 1300);
+  };
+
+  const useQuickTriviaFiftyFifty = () => {
+    if (mode !== "game" || gameType !== "quick-trivia") return;
+    if (!quickTriviaLifelines.fifty || !quickTriviaCanAnswer) return;
+    if (quickTriviaCorrectOptionIndex === null) return;
+
+    const candidates = quickTriviaCurrentOptions
+      .map((_, index) => index)
+      .filter(
+        (index) => index !== quickTriviaCorrectOptionIndex && !quickTriviaHiddenOptionIndexes.includes(index),
+      );
+    const toHide = shuffleArray(candidates).slice(0, 2);
+    setQuickTriviaHiddenOptionIndexes((previous) => Array.from(new Set([...previous, ...toHide])));
+    setQuickTriviaLifelines((previous) => ({ ...previous, fifty: false }));
+  };
+
+  const useQuickTriviaPhoneFriend = () => {
+    if (mode !== "game" || gameType !== "quick-trivia") return;
+    if (!quickTriviaLifelines.phone || !quickTriviaCanAnswer) return;
+    if (quickTriviaCorrectOptionIndex === null) return;
+
+    const visibleOptionIndexes = quickTriviaCurrentOptions
+      .map((_, index) => index)
+      .filter((index) => !quickTriviaHiddenOptionIndexes.includes(index));
+
+    let suggestionIndex = quickTriviaCorrectOptionIndex;
+    if (Math.random() <= 0.2) {
+      const alternativeIndexes = visibleOptionIndexes.filter((index) => index !== quickTriviaCorrectOptionIndex);
+      if (alternativeIndexes.length > 0) {
+        suggestionIndex = shuffleArray(alternativeIndexes)[0];
+      }
+    }
+
+    const suggestionText = quickTriviaCurrentOptions[suggestionIndex] ?? "";
+    const optionLabel = quickTriviaOptionLetters[suggestionIndex] ?? "";
+
+    setQuickTriviaLifelines((previous) => ({ ...previous, phone: false }));
+    openQuickTriviaModal(
+      "החבר הטלפוני אומר:",
+      `אני די בטוח שהתשובה היא ${optionLabel}: ${suggestionText}`,
+    );
+  };
+
+  const useQuickTriviaAskAudience = () => {
+    if (mode !== "game" || gameType !== "quick-trivia") return;
+    if (!quickTriviaLifelines.audience || !quickTriviaCanAnswer) return;
+    if (quickTriviaCorrectOptionIndex === null) return;
+
+    const results = [0, 0, 0, 0];
+    const visibleOptionIndexes = quickTriviaCurrentOptions
+      .map((_, index) => index)
+      .filter((index) => !quickTriviaHiddenOptionIndexes.includes(index));
+    if (visibleOptionIndexes.length === 0) return;
+
+    let remaining = 100;
+    if (visibleOptionIndexes.includes(quickTriviaCorrectOptionIndex)) {
+      const correctShare = Math.floor(Math.random() * 26) + 50;
+      results[quickTriviaCorrectOptionIndex] = correctShare;
+      remaining -= correctShare;
+    }
+
+    const otherIndexes = visibleOptionIndexes.filter((index) => index !== quickTriviaCorrectOptionIndex);
+    otherIndexes.forEach((index, position) => {
+      if (position === otherIndexes.length - 1) {
+        results[index] += remaining;
+        return;
+      }
+      const maxAllowed = Math.max(0, remaining - (otherIndexes.length - position - 1));
+      const share = Math.floor(Math.random() * (maxAllowed + 1));
+      results[index] += share;
+      remaining -= share;
+    });
+
+    setQuickTriviaLifelines((previous) => ({ ...previous, audience: false }));
+    openQuickTriviaModal(
+      "תוצאות הקהל:",
+      quickTriviaOptionLetters.map((label, index) => `${label}: ${results[index]}%`).join(" | "),
+    );
   };
 
   const applyScore = (delta: number) => {
@@ -2563,6 +2942,14 @@ function App() {
   const resetGameBoard = () => {
     if (gameType === "quick-trivia") {
       setQuickTriviaQuestions((previous) => previous.map((question) => ({ ...question, used: false })));
+      setQuickTriviaScore(0);
+      setQuickTriviaLifelines(QUICK_TRIVIA_DEFAULT_LIFELINES);
+      setQuickTriviaCurrentOptions([]);
+      setQuickTriviaCorrectOptionIndex(null);
+      setQuickTriviaHiddenOptionIndexes([]);
+      setQuickTriviaSelectedOptionIndex(null);
+      setQuickTriviaCanAnswer(true);
+      setQuickTriviaModal((previous) => ({ ...previous, open: false, resetAfterClose: false }));
     } else if (gameType === "hudomino") {
       setHudominoPuzzle(createHudominoPuzzle(hudominoValidPairs, hudominoBoardSize, hudominoPlayMode));
       setHudominoDraggedCubeId(null);
@@ -2607,6 +2994,10 @@ function App() {
         value: question.value,
         question: question.question,
         answer: question.answer,
+        wrongAnswer1: question.wrongAnswer1,
+        wrongAnswer2: question.wrongAnswer2,
+        wrongAnswer3: question.wrongAnswer3,
+        difficulty: question.difficulty,
       })),
       hudominoPairs: hudominoPairs.map((pair) => ({
         term: pair.term,
@@ -2648,9 +3039,11 @@ function App() {
   };
 
   const downloadQuickTriviaCsvTemplate = () => {
-    const templateLines = ["value,question,answer"];
+    const templateLines = [
+      "question,correct_answer,wrong_answer_1,wrong_answer_2,wrong_answer_3,difficulty",
+    ];
     createQuickTriviaQuestions().forEach((question) => {
-      templateLines.push(`${question.value},,`);
+      templateLines.push(`,,,,,${question.difficulty}`);
     });
     const csvContent = `\uFEFF${templateLines.join("\n")}`;
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -2811,38 +3204,64 @@ function App() {
       }
 
       const headers = rows[0].map(normalizeHeader);
-      const findHeaderIndex = (aliases: string[]) => headers.findIndex((header) => aliases.includes(header));
+      const getRequiredHeaderIndex = (headerName: string) => headers.findIndex((header) => header === headerName);
 
-      const valueIndex = findHeaderIndex(["value", "points", "score", "ניקוד", "ערך"]);
-      const questionIndex = findHeaderIndex(["question", "q", "שאלה"]);
-      const answerIndex = findHeaderIndex(["answer", "a", "תשובה"]);
+      const questionIndex = getRequiredHeaderIndex("question");
+      const correctAnswerIndex = getRequiredHeaderIndex("correctanswer");
+      const wrongAnswer1Index = getRequiredHeaderIndex("wronganswer1");
+      const wrongAnswer2Index = getRequiredHeaderIndex("wronganswer2");
+      const wrongAnswer3Index = getRequiredHeaderIndex("wronganswer3");
+      const difficultyIndex = getRequiredHeaderIndex("difficulty");
 
-      if (questionIndex === -1 || answerIndex === -1) {
+      if (
+        questionIndex === -1 ||
+        correctAnswerIndex === -1 ||
+        wrongAnswer1Index === -1 ||
+        wrongAnswer2Index === -1 ||
+        wrongAnswer3Index === -1 ||
+        difficultyIndex === -1
+      ) {
         throw new Error("Missing required columns.");
       }
 
-      const parsedQuestions: Array<{ value: number; question: string; answer: string }> = [];
+      const parsedQuestions: Array<{
+        question: string;
+        answer: string;
+        wrongAnswer1: string;
+        wrongAnswer2: string;
+        wrongAnswer3: string;
+        difficulty: QuickTriviaDifficulty;
+        sourceIndex: number;
+      }> = [];
 
       rows.slice(1).forEach((row, rowNumber) => {
-        const rawValue = valueIndex !== -1 ? (row[valueIndex] ?? "").trim() : "";
         const question = (row[questionIndex] ?? "").trim();
-        const answer = (row[answerIndex] ?? "").trim();
-        const isBlankRow = !rawValue && !question && !answer;
+        const answer = (row[correctAnswerIndex] ?? "").trim();
+        const wrongAnswer1 = (row[wrongAnswer1Index] ?? "").trim();
+        const wrongAnswer2 = (row[wrongAnswer2Index] ?? "").trim();
+        const wrongAnswer3 = (row[wrongAnswer3Index] ?? "").trim();
+        const difficulty = (row[difficultyIndex] ?? "").trim();
+        const isBlankRow = !question && !answer && !wrongAnswer1 && !wrongAnswer2 && !wrongAnswer3 && !difficulty;
         if (isBlankRow) return;
 
-        if (!question || !answer) {
-          throw new Error(`Row ${rowNumber + 2} is missing question/answer.`);
+        if (!question || !answer || !wrongAnswer1 || !wrongAnswer2 || !wrongAnswer3 || !difficulty) {
+          throw new Error(`Row ${rowNumber + 2} is missing required values.`);
         }
 
-        let value = QUICK_TRIVIA_DEFAULT_VALUE * (parsedQuestions.length + 1);
-        if (rawValue) {
-          const parsedValue = Number(rawValue.replace(",", "."));
-          if (Number.isFinite(parsedValue) && parsedValue > 0) {
-            value = clamp(Math.round(parsedValue), MIN_BASE_VALUE, 5000);
-          }
+        const normalizedDifficulty = normalizeQuickTriviaDifficulty(difficulty);
+        if (!normalizedDifficulty) {
+          throw new Error(`Row ${rowNumber + 2} has invalid difficulty.`);
         }
 
-        parsedQuestions.push({ value, question, answer });
+        parsedQuestions.push({
+          question,
+          answer,
+          wrongAnswer1,
+          wrongAnswer2,
+          wrongAnswer3,
+          difficulty: normalizedDifficulty,
+          sourceIndex: rowNumber,
+        });
       });
 
       if (parsedQuestions.length === 0) {
@@ -2854,7 +3273,24 @@ function App() {
         throw new Error("Not enough rows.");
       }
 
-      setQuickTriviaQuestions(normalizeQuickTriviaQuestions(limitedQuestions));
+      const sortedQuestions = [...limitedQuestions].sort((left, right) => {
+        const difficultyGap =
+          QUICK_TRIVIA_DIFFICULTY_RANK[left.difficulty] - QUICK_TRIVIA_DIFFICULTY_RANK[right.difficulty];
+        if (difficultyGap !== 0) return difficultyGap;
+        return left.sourceIndex - right.sourceIndex;
+      });
+
+      const normalizedQuestions = sortedQuestions.map((question, index) => ({
+        value: clamp((index + 1) * QUICK_TRIVIA_DEFAULT_VALUE, MIN_BASE_VALUE, 5000),
+        question: question.question,
+        answer: question.answer,
+        wrongAnswer1: question.wrongAnswer1,
+        wrongAnswer2: question.wrongAnswer2,
+        wrongAnswer3: question.wrongAnswer3,
+        difficulty: question.difficulty,
+      }));
+
+      setQuickTriviaQuestions(normalizeQuickTriviaQuestions(normalizedQuestions));
       setCurrentTurnIndex(0);
       setActiveCell(null);
       setActiveQuickQuestionId(null);
@@ -2869,7 +3305,7 @@ function App() {
       setStatusMessage(`ייבוא CSV לטריוויה הושלם בהצלחה.${cutNotice}`);
     } catch {
       setStatusMessage(
-        `שגיאה בייבוא CSV לטריוויה. ודאי שיש עמודות question/answer ולפחות ${QUICK_TRIVIA_MIN_QUESTIONS} שורות.`,
+        "שגיאה בייבוא CSV לטריוויה. יש להשתמש בדיוק בעמודות: question, correct_answer, wrong_answer_1, wrong_answer_2, wrong_answer_3, difficulty.",
       );
     } finally {
       event.target.value = "";
@@ -3061,7 +3497,7 @@ function App() {
       setMode("editor");
       setStatusMessage(
         importedGameType === "quick-trivia"
-          ? "משחק טריוויה מהירה נטען בהצלחה."
+          ? "משחק מי רוצה להיות מליונר נטען בהצלחה."
           : importedGameType === "hudomino"
             ? "משחק חודומינו נטען בהצלחה."
             : "הלוח נטען בהצלחה.",
@@ -3127,18 +3563,18 @@ function App() {
             <>
               <h1>
                 {gameType === "quick-trivia"
-                  ? "מחולל טריוויה מהירה"
+                  ? "מחולל מי רוצה להיות מליונר"
                   : gameType === "hudomino"
                     ? "מחולל חודומינו"
-                    : "מחולל משחקים חכמים"}
+                    : "מחולל Jeperdy"}
               </h1>
-              <p>
-                {gameType === "quick-trivia"
-                  ? "מצב עריכה: מגדירים נושא, קבוצות ורשימת שאלות מהירות."
-                  : gameType === "hudomino"
-                    ? "מצב עריכה: מזינים זוגות מושג-הגדרה, בוחרים קושי ומצב משחק, ומייצרים פאזל."
-                  : "מצב עריכה: בונים את הלוח, מגדירים נושא, קבוצות ושאלות."}
-              </p>
+                <p>
+                  {gameType === "quick-trivia"
+                    ? "מצב עריכה: מגדירים נושא ורשימת שאלות למשחק מי רוצה להיות מליונר."
+                    : gameType === "hudomino"
+                      ? "מצב עריכה: מזינים זוגות מושג-הגדרה, בוחרים קושי ומצב משחק, ומייצרים פאזל."
+                      : "מצב עריכה: בונים את הלוח, מגדירים נושא, קבוצות ושאלות."}
+                </p>
             </>
           ) : (
             <>
@@ -3259,7 +3695,7 @@ function App() {
                 )}
               </div>
             )}
-            {isSharedViewOnly && (gameType !== "hudomino" || isHudominoCompetitive) && (
+            {isSharedViewOnly && usesTeamPlay && (
               <label className="viewer-team-count">
                 מספר קבוצות
                 <select
@@ -3496,9 +3932,10 @@ function App() {
           <section className="card">
             <h2>הגדרות לוח</h2>
             <div className="settings-grid">
-              <label>
+              <label className="game-type-field">
                 סוג משחק
                 <select
+                  className="game-type-select"
                   value={gameType}
                   onChange={(event) => {
                     const nextType: GameType =
@@ -3647,7 +4084,7 @@ function App() {
                   </label>
                 </>
               )}
-              {(gameType !== "hudomino" || isHudominoCompetitive) && (
+              {usesTeamPlay && (
                 <label>
                   מספר קבוצות
                   <input
@@ -3662,7 +4099,7 @@ function App() {
             </div>
             <p className="hint-text">
               {gameType === "quick-trivia"
-                ? `יש למלא את כל שאלות הטריוויה לפני הפעלה. חסרות כרגע: ${missingFieldsCount}.`
+                ? `יש למלא שאלה, תשובה נכונה ושלושה מסיחים לכל פריט. חסרות כרגע: ${missingFieldsCount}.`
                 : gameType === "hudomino"
                   ? `לחודומינו (גודל ${hudominoBoardSize}×${hudominoBoardSize}) נדרשים ${hudominoRequiredPairs} זוגות מלאים. חסרים כרגע: ${missingFieldsCount}.`
                   : `חייבים למלא את כל השאלות והתשובות לפני הפעלת המשחק. חסרים כרגע: ${missingFieldsCount}.`}
@@ -3782,38 +4219,40 @@ function App() {
 
           </section>
 
-          <section className="card">
-            <h2>שמות קבוצות</h2>
-            <div className="teams-edit-grid">
-              {teams.map((team, index) => {
-                const teamColor = TEAM_COLORS[index % TEAM_COLORS.length];
-                return (
-                <label
-                  key={team.id}
-                  className="team-name-field"
-                  style={{
-                    ["--team-accent" as string]: teamColor,
-                    ["--team-accent-soft" as string]: `${teamColor}22`,
-                  }}
-                >
-                  <input
-                    value={team.name}
-                    onChange={(event) => updateTeamName(team.id, event.target.value)}
-                    aria-label={`שם קבוצה ${index + 1}`}
-                    placeholder={`שם קבוצה ${index + 1}`}
-                  />
-                </label>
-              );
-            })}
-            </div>
-          </section>
+          {usesTeamPlay && (
+            <section className="card">
+              <h2>שמות קבוצות</h2>
+              <div className="teams-edit-grid">
+                {teams.map((team, index) => {
+                  const teamColor = TEAM_COLORS[index % TEAM_COLORS.length];
+                  return (
+                    <label
+                      key={team.id}
+                      className="team-name-field"
+                      style={{
+                        ["--team-accent" as string]: teamColor,
+                        ["--team-accent-soft" as string]: `${teamColor}22`,
+                      }}
+                    >
+                      <input
+                        value={team.name}
+                        onChange={(event) => updateTeamName(team.id, event.target.value)}
+                        aria-label={`שם קבוצה ${index + 1}`}
+                        placeholder={`שם קבוצה ${index + 1}`}
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {gameType === "jeopardy" ? (
             <>
               <section className="card ai-prompt-card">
                 <div className="ai-prompt-header">
                   <h2>פרומפט מוכן ליצירת CSV ב-AI</h2>
-                  <button type="button" onClick={copyAiPromptToClipboard}>
+                  <button type="button" onClick={() => void copyPromptToClipboard(aiPromptText)}>
                     העתקת הפרומפט
                   </button>
                 </div>
@@ -3874,84 +4313,167 @@ function App() {
               </section>
             </>
           ) : gameType === "quick-trivia" ? (
-            <section className="card">
-              <h2>שאלות טריוויה מהירה</h2>
-              <p className="hint-text">כל שאלה נפתחת ככרטיס עצמאי במהלך המשחק.</p>
-              <div className="quick-trivia-editor-list">
-                {quickTriviaQuestions.map((question, index) => (
-                  <article key={question.id} className="quick-trivia-editor-item">
-                    <div className="quick-trivia-editor-header">
-                      <strong>שאלה {index + 1}</strong>
+            <>
+              <section className="card ai-prompt-card">
+                <div className="ai-prompt-header">
+                  <h2>פרומפט מומלץ לשאלות מי רוצה להיות מליונר</h2>
+                  <button type="button" onClick={() => void copyPromptToClipboard(millionaireAiPromptText)}>
+                    העתקת הפרומפט
+                  </button>
+                </div>
+                <p className="ai-prompt-note">
+                  אפשר להדביק את הטקסט בכל מחולל שפה, להחליף את הערכים שבסוגריים מרובעים, ולבקש פלט CSV.
+                </p>
+                <textarea
+                  className="ai-prompt-textarea"
+                  rows={20}
+                  value={millionaireAiPromptText}
+                  onChange={(event) => setMillionaireAiPromptText(event.target.value)}
+                />
+              </section>
+
+              <section className="card">
+                <h2>שאלות מי רוצה להיות מליונר</h2>
+                <p className="hint-text">כל שאלה נפתחת ככרטיס עצמאי במהלך המשחק.</p>
+                <div className="quick-trivia-editor-list">
+                  {quickTriviaQuestions.map((question, index) => (
+                    <article key={question.id} className="quick-trivia-editor-item">
+                      <div className="quick-trivia-editor-header">
+                        <strong>שאלה {index + 1}</strong>
+                        <label>
+                          ניקוד
+                          <input
+                            type="number"
+                            min={MIN_BASE_VALUE}
+                            max={5000}
+                            step={100}
+                            value={question.value}
+                            onChange={(event) =>
+                              updateQuickTriviaQuestion(question.id, "value", Number(event.target.value))
+                            }
+                          />
+                        </label>
+                      </div>
                       <label>
-                        ניקוד
-                        <input
-                          type="number"
-                          min={MIN_BASE_VALUE}
-                          max={5000}
-                          step={100}
-                          value={question.value}
+                        שאלה
+                        <textarea
+                          rows={3}
+                          value={question.question}
                           onChange={(event) =>
-                            updateQuickTriviaQuestion(question.id, "value", Number(event.target.value))
+                            updateQuickTriviaQuestion(question.id, "question", event.target.value)
                           }
                         />
                       </label>
-                    </div>
-                    <label>
-                      שאלה
-                      <textarea
-                        rows={3}
-                        value={question.question}
-                        onChange={(event) =>
-                          updateQuickTriviaQuestion(question.id, "question", event.target.value)
-                        }
-                      />
-                    </label>
-                    <label>
-                      תשובה
-                      <textarea
-                        rows={3}
-                        value={question.answer}
-                        onChange={(event) =>
-                          updateQuickTriviaQuestion(question.id, "answer", event.target.value)
-                        }
-                      />
-                    </label>
-                  </article>
-                ))}
-              </div>
-            </section>
+                      <label>
+                        תשובה
+                        <textarea
+                          rows={3}
+                          value={question.answer}
+                          onChange={(event) =>
+                            updateQuickTriviaQuestion(question.id, "answer", event.target.value)
+                          }
+                        />
+                      </label>
+                      <label>
+                        תשובה שגויה 1
+                        <input
+                          type="text"
+                          value={question.wrongAnswer1}
+                          onChange={(event) =>
+                            updateQuickTriviaQuestion(question.id, "wrongAnswer1", event.target.value)
+                          }
+                        />
+                      </label>
+                      <label>
+                        תשובה שגויה 2
+                        <input
+                          type="text"
+                          value={question.wrongAnswer2}
+                          onChange={(event) =>
+                            updateQuickTriviaQuestion(question.id, "wrongAnswer2", event.target.value)
+                          }
+                        />
+                      </label>
+                      <label>
+                        תשובה שגויה 3
+                        <input
+                          type="text"
+                          value={question.wrongAnswer3}
+                          onChange={(event) =>
+                            updateQuickTriviaQuestion(question.id, "wrongAnswer3", event.target.value)
+                          }
+                        />
+                      </label>
+                      <label>
+                        רמת קושי
+                        <select
+                          value={question.difficulty}
+                          onChange={(event) =>
+                            updateQuickTriviaQuestion(question.id, "difficulty", event.target.value)
+                          }
+                        >
+                          <option value="easy">easy</option>
+                          <option value="medium">medium</option>
+                          <option value="hard">hard</option>
+                        </select>
+                      </label>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            </>
           ) : (
-            <section className="card">
-              <h2>זוגות מושג-הגדרה לחודומינו</h2>
-              <p className="hint-text">
-                ללוח {hudominoBoardSize}×{hudominoBoardSize} נדרשים בדיוק {hudominoRequiredPairs} זוגות מלאים.
-              </p>
-              <div className="hudomino-pairs-list">
-                {hudominoPairs.map((pair, index) => (
-                  <article key={pair.id} className="hudomino-pair-item">
-                    <strong>זוג {index + 1}</strong>
-                    <label>
-                      מושג
-                      <input
-                        type="text"
-                        value={pair.term}
-                        onChange={(event) => updateHudominoPair(pair.id, "term", event.target.value)}
-                        placeholder="לדוגמה: פלסמיד"
-                      />
-                    </label>
-                    <label>
-                      הגדרה
-                      <input
-                        type="text"
-                        value={pair.definition}
-                        onChange={(event) => updateHudominoPair(pair.id, "definition", event.target.value)}
-                        placeholder="לדוגמה: מקטע DNA מעגלי המשמש כווקטור"
-                      />
-                    </label>
-                  </article>
-                ))}
-              </div>
-            </section>
+            <>
+              <section className="card ai-prompt-card">
+                <div className="ai-prompt-header">
+                  <h2>פרומפט מומלץ לזוגות חודומינו</h2>
+                  <button type="button" onClick={() => void copyPromptToClipboard(hudominoAiPromptText)}>
+                    העתקת הפרומפט
+                  </button>
+                </div>
+                <p className="ai-prompt-note">
+                  אפשר להדביק את הטקסט בכל מחולל שפה, להחליף את הערכים שבסוגריים מרובעים, ולבקש פלט CSV.
+                </p>
+                <textarea
+                  className="ai-prompt-textarea"
+                  rows={10}
+                  value={hudominoAiPromptText}
+                  onChange={(event) => setHudominoAiPromptText(event.target.value)}
+                />
+              </section>
+
+              <section className="card">
+                <h2>זוגות מושג-הגדרה לחודומינו</h2>
+                <p className="hint-text">
+                  ללוח {hudominoBoardSize}×{hudominoBoardSize} נדרשים בדיוק {hudominoRequiredPairs} זוגות מלאים.
+                </p>
+                <div className="hudomino-pairs-list">
+                  {hudominoPairs.map((pair, index) => (
+                    <article key={pair.id} className="hudomino-pair-item">
+                      <strong>זוג {index + 1}</strong>
+                      <label>
+                        מושג
+                        <input
+                          type="text"
+                          value={pair.term}
+                          onChange={(event) => updateHudominoPair(pair.id, "term", event.target.value)}
+                          placeholder="לדוגמה: פלסמיד"
+                        />
+                      </label>
+                      <label>
+                        הגדרה
+                        <input
+                          type="text"
+                          value={pair.definition}
+                          onChange={(event) => updateHudominoPair(pair.id, "definition", event.target.value)}
+                          placeholder="לדוגמה: מקטע DNA מעגלי המשמש כווקטור"
+                        />
+                      </label>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            </>
           )}
         </>
       ) : (
@@ -3960,7 +4482,7 @@ function App() {
             <h2>{resolvedGameTopic}</h2>
           </section>
 
-          {(gameType !== "hudomino" || isHudominoCompetitive) && (
+          {usesTeamPlay && (
             <section
               className="teams-scoreboard"
               style={{
@@ -4053,47 +4575,124 @@ function App() {
             </section>
           ) : gameType === "quick-trivia" ? (
             <section
-              className="game-board"
+              className="game-board millionaire-board"
               style={{
                 borderColor: boardTheme.boardBorderColor,
                 backgroundColor: boardTheme.boardBackgroundColor,
                 backgroundImage: boardBackgroundImage,
                 backgroundSize: boardTheme.boardBackgroundImage ? "cover" : undefined,
                 backgroundPosition: boardTheme.boardBackgroundImage ? "center" : undefined,
+                ["--millionaire-stage-bg" as string]: withAlpha(boardTheme.cellBgColor, 0.82),
+                ["--millionaire-ladder-bg" as string]: withAlpha(boardTheme.usedCellBgColor, 0.88),
+                ["--millionaire-surface-border" as string]: boardTheme.cellBorderColor,
+                ["--millionaire-accent-bg" as string]: boardTheme.categoryBgStart,
+                ["--millionaire-accent-text" as string]: getReadableTextColor(
+                  boardTheme.categoryTextColor,
+                  boardTheme.categoryBgStart,
+                ),
+                ["--millionaire-text-main" as string]: getReadableTextColor(
+                  boardTheme.cellTextColor,
+                  boardTheme.cellBgColor,
+                ),
+                ["--millionaire-text-muted" as string]: withAlpha(
+                  getReadableTextColor(boardTheme.usedCellTextColor, boardTheme.usedCellBgColor),
+                  0.9,
+                ),
               }}
             >
-              <div
-                className="quick-trivia-grid"
-                style={{
-                  ["--cell-font-size" as string]: boardTypography.cellFontSize,
-                  ["--cell-bg-color" as string]: boardTheme.cellBgColor,
-                  ["--cell-text-color" as string]: boardTheme.cellTextColor,
-                  ["--cell-border-color" as string]: boardTheme.cellBorderColor,
-                  ["--used-cell-bg-color" as string]: boardTheme.usedCellBgColor,
-                  ["--used-cell-text-color" as string]: boardTheme.usedCellTextColor,
-                }}
-              >
-                {quickTriviaQuestions.map((question, index) => {
-                  const isUsed = question.used;
-                  return (
-                    <button
-                      key={question.id}
-                      type="button"
-                      onClick={() => openQuickTriviaQuestion(question.id)}
-                      disabled={isUsed}
-                      className={`game-cell quick-trivia-cell ${isUsed ? "used" : ""}`}
-                    >
-                      {isUsed ? (
-                        "✓"
-                      ) : (
-                        <>
-                          <span className="quick-trivia-index">שאלה {index + 1}</span>
-                          <ValueMark value={question.value} />
-                        </>
-                      )}
-                    </button>
-                  );
-                })}
+              <div className="millionaire-header">
+                <div className="millionaire-lifelines">
+                  <button
+                    type="button"
+                    className={`millionaire-lifeline ${!quickTriviaLifelines.fifty ? "is-used" : ""}`}
+                    onClick={useQuickTriviaFiftyFifty}
+                    disabled={!quickTriviaLifelines.fifty || !quickTriviaCanAnswer || !nextQuickTriviaQuestion}
+                  >
+                    50:50
+                  </button>
+                  <button
+                    type="button"
+                    className={`millionaire-lifeline ${!quickTriviaLifelines.phone ? "is-used" : ""}`}
+                    onClick={useQuickTriviaPhoneFriend}
+                    disabled={!quickTriviaLifelines.phone || !quickTriviaCanAnswer || !nextQuickTriviaQuestion}
+                  >
+                    📞
+                  </button>
+                  <button
+                    type="button"
+                    className={`millionaire-lifeline ${!quickTriviaLifelines.audience ? "is-used" : ""}`}
+                    onClick={useQuickTriviaAskAudience}
+                    disabled={!quickTriviaLifelines.audience || !quickTriviaCanAnswer || !nextQuickTriviaQuestion}
+                  >
+                    👥
+                  </button>
+                </div>
+                <h3 className="millionaire-brand">{millionaireHeaderTitle}</h3>
+                <div className="millionaire-score">₪ {quickTriviaScore.toLocaleString()}</div>
+              </div>
+
+              <div className="millionaire-game-grid">
+                <section className="millionaire-main">
+                  <div className="millionaire-question-box">
+                    {nextQuickTriviaQuestion
+                      ? nextQuickTriviaQuestion.question
+                      : "כל השאלות הושלמו. לחצו על איפוס כדי להתחיל מחדש."}
+                  </div>
+
+                  {nextQuickTriviaQuestion && (
+                    <div className="millionaire-answers-grid">
+                      {quickTriviaOptionLetters.map((letter, index) => {
+                        const optionText = quickTriviaCurrentOptions[index] ?? "";
+                        const isHidden = quickTriviaHiddenOptionIndexes.includes(index);
+                        const isSelected = quickTriviaSelectedOptionIndex === index;
+                        const isCorrect = quickTriviaCorrectOptionIndex === index;
+                        const showCorrect = quickTriviaSelectedOptionIndex !== null && isCorrect;
+                        const showWrong = quickTriviaSelectedOptionIndex !== null && isSelected && !isCorrect;
+                        return (
+                          <button
+                            key={`millionaire-option-${index}`}
+                            type="button"
+                            className={`millionaire-answer-btn ${isHidden ? "is-hidden" : ""} ${
+                              showCorrect ? "is-correct" : ""
+                            } ${showWrong ? "is-wrong" : ""}`}
+                            onClick={() => checkQuickTriviaAnswer(index)}
+                            disabled={
+                              !nextQuickTriviaQuestion || isHidden || !quickTriviaCanAnswer || !optionText.trim()
+                            }
+                          >
+                            <span className="millionaire-answer-letter">{letter}:</span>
+                            <span>{optionText}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+
+                <aside className="millionaire-ladder-panel" aria-label="סולם זכייה">
+                  <ol>
+                    {quickTriviaLadder.map((question) => {
+                      const step = quickTriviaStepById.get(question.id) ?? 1;
+                      const isActive = nextQuickTriviaQuestion?.id === question.id;
+                      const isUsed = question.used;
+                      return (
+                        <li
+                          key={question.id}
+                          className={`millionaire-ladder-item ${isActive ? "is-active" : ""} ${
+                            isUsed ? "is-used" : ""
+                          }`}
+                        >
+                          <span className="millionaire-ladder-amount">
+                            <ValueMark value={question.value} />
+                            {" "}
+                            ₪
+                          </span>
+                          <span className="millionaire-ladder-step">{step}</span>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </aside>
               </div>
             </section>
           ) : (
@@ -4174,7 +4773,7 @@ function App() {
             </section>
           )}
 
-          {!isSharedViewOnly && (
+          {!isSharedViewOnly && gameType !== "quick-trivia" && (
             <p className="hint-text">
               {gameType === "hudomino"
                 ? `התקדמות חיבורים: ${usedCount} מתוך ${totalQuestions} ממשקים נדלקו.`
@@ -4184,7 +4783,19 @@ function App() {
         </>
       )}
 
-      {activeQuestion && (
+      {quickTriviaModal.open && gameType === "quick-trivia" && mode === "game" && (
+        <div className="millionaire-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="millionaire-modal">
+            <h2>{quickTriviaModal.title}</h2>
+            <p>{quickTriviaModal.content}</p>
+            <button type="button" onClick={closeQuickTriviaModal}>
+              {quickTriviaModal.buttonLabel}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeQuestion && gameType !== "quick-trivia" && (
         <div className="modal-overlay">
           <div className="modal" style={modalThemeStyle}>
             <div className="modal-header">
@@ -4247,3 +4858,4 @@ function App() {
 }
 
 export default App;
+

@@ -396,6 +396,18 @@ button:disabled {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
+.game-type-field {
+  grid-column: 1 / -1;
+  width: min(100%, 420px);
+}
+
+.game-type-select {
+  width: 100%;
+  min-width: 0;
+  font-size: 0.95rem;
+  padding-inline: 0.55rem 1.7rem;
+}
+
 .topic-field {
   grid-column: 1 / -1;
 }
@@ -1123,6 +1135,277 @@ textarea {
   font-weight: 500;
 }
 
+.millionaire-board {
+  --millionaire-stage-bg: rgba(15, 23, 42, 0.82);
+  --millionaire-ladder-bg: rgba(30, 41, 59, 0.88);
+  --millionaire-surface-border: rgba(148, 163, 184, 0.35);
+  --millionaire-accent-bg: #1d4ed8;
+  --millionaire-accent-text: #f8fafc;
+  --millionaire-text-main: #e2e8f0;
+  --millionaire-text-muted: #94a3b8;
+  min-height: clamp(560px, 74vh, 760px);
+  display: flex;
+  flex-direction: column;
+}
+
+.millionaire-header {
+  display: none;
+}
+
+.millionaire-lifelines {
+  display: inline-flex;
+  gap: 0.5rem;
+}
+
+.millionaire-lifeline {
+  width: 3.2rem;
+  min-height: 2.6rem;
+  border-radius: 999px;
+  border: 2px solid #fbbf24;
+  background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 50%, #1e3a8a 100%);
+  color: #f8fafc;
+  font-weight: 700;
+  padding: 0.2rem 0.4rem;
+}
+
+.millionaire-lifeline:hover:not(:disabled) {
+  background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 50%, #fbbf24 100%);
+  color: #0f172a;
+}
+
+.millionaire-lifeline.is-used {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+
+.millionaire-brand {
+  margin: 0;
+  color: #fbbf24;
+  font-size: clamp(1.2rem, 1vw + 0.95rem, 1.9rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.millionaire-score {
+  color: #fbbf24;
+  font-size: clamp(1.05rem, 0.8vw + 0.82rem, 1.42rem);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.millionaire-game-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 2.2fr) minmax(250px, 0.8fr);
+  align-items: stretch;
+  flex: 1 1 auto;
+  direction: ltr;
+}
+
+.millionaire-ladder-panel {
+  border: 1px solid var(--millionaire-surface-border);
+  border-radius: 0.95rem;
+  padding: 0.7rem 0.8rem;
+  background: color-mix(in srgb, var(--millionaire-ladder-bg) 94%, #020617 6%);
+  min-height: 100%;
+  display: flex;
+  direction: ltr;
+}
+
+.millionaire-ladder-panel ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.millionaire-ladder-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.52rem;
+  min-height: 2.35rem;
+  padding: 0.3rem 0.62rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--millionaire-surface-border) 54%, #1d4ed8 46%);
+  background: transparent;
+  color: #f8fafc;
+  font-size: 1.03rem;
+  line-height: 1.2;
+}
+
+.millionaire-ladder-item:last-child {
+  border-bottom: none;
+}
+
+.millionaire-ladder-amount {
+  display: inline-flex;
+  align-items: baseline;
+  justify-self: end;
+  gap: 0.2rem;
+  color: #f8fafc;
+  direction: ltr;
+  font-weight: 600;
+}
+
+.millionaire-ladder-amount .value-mark {
+  font-size: 1.08rem;
+  color: inherit;
+  font-weight: 700;
+}
+
+.millionaire-ladder-step {
+  color: #fbbf24;
+  font-weight: 700;
+  min-width: 1.22rem;
+  text-align: right;
+}
+
+.millionaire-ladder-item.is-active {
+  background: #fbbf24;
+  color: #0f172a;
+  border-bottom-color: transparent;
+  border-radius: 0.5rem;
+  font-weight: 700;
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.95);
+}
+
+.millionaire-ladder-item.is-active .millionaire-ladder-amount,
+.millionaire-ladder-item.is-active .millionaire-ladder-step,
+.millionaire-ladder-item.is-active .millionaire-ladder-amount .value-mark {
+  color: #0b1228;
+}
+
+.millionaire-ladder-item.is-used {
+  opacity: 0.34;
+  filter: saturate(0.64);
+}
+
+.millionaire-main {
+  background: transparent;
+  border: none;
+  border-radius: 0.95rem;
+  padding: 0.15rem 0.1rem 0.1rem;
+  display: grid;
+  gap: 0.85rem;
+  align-content: start;
+  direction: rtl;
+}
+
+.millionaire-question-box {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem;
+  clip-path: polygon(5% 50%, 0% 50%, 5% 0%, 95% 0%, 100% 50%, 95% 100%, 5% 100%);
+  border: 3px solid #fbbf24;
+  background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 50%, #1e3a8a 100%);
+  color: var(--millionaire-text-main);
+  font-size: clamp(1.1rem, 1vw + 0.88rem, 1.65rem);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.millionaire-answers-grid {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.millionaire-answer-btn {
+  min-height: 58px;
+  text-align: right;
+  padding: 0.6rem 2.9rem 0.6rem 1rem;
+  position: relative;
+  clip-path: polygon(5% 50%, 0% 50%, 5% 0%, 95% 0%, 100% 50%, 95% 100%, 5% 100%);
+  border: 2px solid #fbbf24;
+  background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 50%, #1e3a8a 100%);
+  color: #f8fafc;
+  font-size: clamp(0.94rem, 0.5vw + 0.82rem, 1.12rem);
+  line-height: 1.25;
+}
+
+.millionaire-answer-btn:hover:not(:disabled) {
+  background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 50%, #fbbf24 100%);
+  color: #0f172a;
+}
+
+.millionaire-answer-btn:disabled {
+  opacity: 0.94;
+}
+
+.millionaire-answer-btn.is-correct {
+  background: linear-gradient(90deg, #10b981 0%, #059669 50%, #10b981 100%);
+  color: #fff;
+}
+
+.millionaire-answer-btn.is-wrong {
+  background: linear-gradient(90deg, #ef4444 0%, #dc2626 50%, #ef4444 100%);
+  color: #fff;
+}
+
+.millionaire-answer-btn.is-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.millionaire-answer-letter {
+  position: absolute;
+  left: 0.9rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.millionaire-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.millionaire-modal {
+  width: min(540px, 100%);
+  border-radius: 1rem;
+  border: 3px solid #fbbf24;
+  background: #1e3a8a;
+  color: #f8fafc;
+  padding: 1.15rem;
+  text-align: center;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.millionaire-modal h2 {
+  margin: 0;
+  color: #fbbf24;
+  font-size: clamp(1.35rem, 0.8vw + 1.12rem, 2rem);
+}
+
+.millionaire-modal p {
+  margin: 0;
+  font-size: clamp(1rem, 0.55vw + 0.86rem, 1.22rem);
+  line-height: 1.45;
+}
+
+.millionaire-modal button {
+  justify-self: center;
+  min-width: 9rem;
+  border: 1px solid #fbbf24;
+  background: #fbbf24;
+  color: #0f172a;
+  font-weight: 700;
+}
+
 .hudomino-pairs-list {
   display: grid;
   gap: 0.75rem;
@@ -1600,6 +1883,30 @@ textarea {
   width: 100%;
 }
 
+@media (max-width: 980px) {
+  .millionaire-header {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .millionaire-lifelines {
+    justify-content: center;
+  }
+
+  .millionaire-game-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .millionaire-ladder-panel {
+    display: none;
+  }
+
+  .millionaire-board {
+    min-height: 0;
+  }
+}
+
 @media (max-width: 720px) {
   .launcher-grid {
     grid-template-columns: 1fr;
@@ -1636,6 +1943,15 @@ textarea {
 
   .archive-row-actions {
     width: 100%;
+  }
+
+  .millionaire-question-box {
+    min-height: 102px;
+    font-size: clamp(0.98rem, 0.74vw + 0.82rem, 1.24rem);
+  }
+
+  .millionaire-answers-grid {
+    grid-template-columns: 1fr;
   }
 
   .hudomino-layout {
