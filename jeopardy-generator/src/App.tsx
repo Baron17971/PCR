@@ -4255,13 +4255,6 @@ function App() {
               <div className="board-theme-actions">
                 <button
                   type="button"
-                  onClick={() => setStatusMessage("הרקע הפנימי נקבע לפי פלטת העיצוב הנבחרת.")}
-                  className="theme-action-btn theme-action-upload"
-                >
-                  רקע פנימי
-                </button>
-                <button
-                  type="button"
                   onClick={() => setIsBackgroundPickerOpen(true)}
                   className="theme-action-btn theme-action-library"
                 >
