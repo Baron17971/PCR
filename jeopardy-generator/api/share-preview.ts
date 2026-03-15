@@ -121,8 +121,8 @@ function applyGameSnapshot(snapshot: ParsedGame, fallback: GameDetails): GameDet
 }
 
 async function fetchServerGameDetails(serverGameId: string): Promise<{ title: string; payload: ParsedGame } | null> {
-  const supabaseUrl = process.env.VITE_SUPABASE_URL?.trim();
-  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY?.trim();
+  const supabaseUrl = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL)?.trim();
+  const supabaseAnonKey = (process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY)?.trim();
   if (!supabaseUrl || !supabaseAnonKey) return null;
 
   const restUrl =
@@ -138,13 +138,25 @@ async function fetchServerGameDetails(serverGameId: string): Promise<{ title: st
   });
 
   if (!response.ok) return null;
-  const rows = (await response.json()) as Array<{ title?: string; payload?: { game?: ParsedGame } }>;
+  const rows = (await response.json()) as Array<{ title?: string; payload?: ParsedGame | { game?: ParsedGame } }>;
   const first = rows[0];
-  if (!first?.payload?.game) return null;
+  const rawPayload = first?.payload;
+  if (!rawPayload || typeof rawPayload !== "object") return null;
+
+  const payloadRecord = rawPayload as ParsedGame & { game?: ParsedGame };
+  const parsedGame = payloadRecord.game && typeof payloadRecord.game === "object" ? payloadRecord.game : payloadRecord;
+  if (!parsedGame || typeof parsedGame !== "object") return null;
+
+  const resolvedTitle =
+    typeof first.title === "string" && first.title.trim()
+      ? first.title.trim()
+      : typeof parsedGame.gameTopic === "string" && parsedGame.gameTopic.trim()
+        ? parsedGame.gameTopic.trim()
+        : "Trivia Game";
 
   return {
-    title: typeof first.title === "string" && first.title.trim() ? first.title.trim() : "Trivia Game",
-    payload: first.payload.game,
+    title: resolvedTitle,
+    payload: parsedGame,
   };
 }
 
@@ -218,7 +230,7 @@ export default async function handler(req: any, res: any) {
 
   const gameTypeLabel = GAME_TYPE_LABELS[details.gameType];
   const summary = buildSummary(details.gameType, details.categories, details.rows, details.questions);
-  const description = `${gameTypeLabel} • ${summary}`;
+  const description = `${gameTypeLabel} - ${summary}`;
   const pageTitle = `${details.gameTitle} | ${gameTypeLabel}`;
   const escapedPageTitle = escapeHtml(pageTitle);
   const escapedDescription = escapeHtml(description);

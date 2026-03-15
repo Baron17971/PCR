@@ -2146,26 +2146,29 @@ function App() {
     const shareUrl = new URL(window.location.href);
     shareUrl.pathname = "/api/share-preview";
     shareUrl.search = "";
-    shareUrl.searchParams.set("a", options.access === "edit" ? "e" : "v");
+    if (options.access === "edit") {
+      shareUrl.searchParams.set("a", "e");
+    }
     if (options.encodedGame) {
       shareUrl.searchParams.set(SHARE_QUERY_PARAM, options.encodedGame);
     }
     if (options.serverGameId) {
       shareUrl.searchParams.set(SERVER_GAME_QUERY_PARAM, options.serverGameId);
     }
-    if (options.gameTitle) {
+    const shouldAttachMetadata = !options.serverGameId;
+    if (shouldAttachMetadata && options.gameTitle) {
       shareUrl.searchParams.set("t", encodeBase64Url(options.gameTitle));
     }
-    if (options.gameType) {
+    if (shouldAttachMetadata && options.gameType) {
       shareUrl.searchParams.set("g", options.gameType);
     }
-    if (typeof options.categories === "number") {
+    if (shouldAttachMetadata && typeof options.categories === "number") {
       shareUrl.searchParams.set("c", String(options.categories));
     }
-    if (typeof options.rows === "number") {
+    if (shouldAttachMetadata && typeof options.rows === "number") {
       shareUrl.searchParams.set("r", String(options.rows));
     }
-    if (typeof options.questionCount === "number") {
+    if (shouldAttachMetadata && typeof options.questionCount === "number") {
       shareUrl.searchParams.set("q", String(options.questionCount));
     }
     return shareUrl.toString();
@@ -2697,39 +2700,9 @@ function App() {
 
   const copyArchiveViewLink = async (record: ArchiveGameRecord) => {
     try {
-      const archiveGameType = resolveArchiveGameType(record.payload);
-      let categories: number | undefined;
-      let rows: number | undefined;
-      let questionCount: number | undefined;
-
-      if (record.payload && typeof record.payload === "object") {
-        const payloadRecord = record.payload as {
-          board?: Array<{ cells?: unknown[] }>;
-          quickTriviaQuestions?: unknown[];
-          hudominoPuzzle?: { size?: unknown };
-        };
-        if (archiveGameType === "jeopardy") {
-          categories = Array.isArray(payloadRecord.board) ? payloadRecord.board.length : undefined;
-          rows = Array.isArray(payloadRecord.board?.[0]?.cells) ? payloadRecord.board[0].cells.length : undefined;
-        } else if (archiveGameType === "quick-trivia") {
-          questionCount = Array.isArray(payloadRecord.quickTriviaQuestions)
-            ? payloadRecord.quickTriviaQuestions.length
-            : undefined;
-        } else if (archiveGameType === "hudomino") {
-          const puzzleSize = Number(payloadRecord.hudominoPuzzle?.size);
-          rows = Number.isFinite(puzzleSize) ? Math.round(puzzleSize) : undefined;
-          categories = rows;
-        }
-      }
-
       const previewLink = buildSharePreviewLink({
         access: "view",
         serverGameId: record.id,
-        gameTitle: record.title?.trim() || DEFAULT_GAME_TOPIC,
-        gameType: archiveGameType,
-        categories,
-        rows,
-        questionCount,
       });
       await navigator.clipboard.writeText(previewLink);
       setStatusMessage("קישור לצפייה הועתק מהארכיון.");
