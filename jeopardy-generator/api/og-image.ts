@@ -1,3 +1,5 @@
+import { Resvg } from "@resvg/resvg-js";
+
 type GameType = "jeopardy" | "quick-trivia" | "hudomino";
 
 function normalizeGameType(value: string | null): GameType {
@@ -116,7 +118,15 @@ export default function handler(req: any, res: any) {
   <text x="1150" y="585" fill="#cbd5e1" font-size="22" font-family="Arial, sans-serif" text-anchor="end">Jeopardy Generator</text>
 </svg>`;
 
-  res.setHeader("content-type", "image/svg+xml; charset=utf-8");
+  const resvg = new Resvg(svg, {
+    fitTo: {
+      mode: "width",
+      value: 1200,
+    },
+  });
+  const png = resvg.render().asPng();
+
+  res.setHeader("content-type", "image/png");
   res.setHeader("cache-control", "public, max-age=0, s-maxage=300");
-  res.status(200).send(svg);
+  res.status(200).send(Buffer.from(png));
 }

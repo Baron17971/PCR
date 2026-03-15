@@ -4,11 +4,12 @@ type GameType = "jeopardy" | "quick-trivia" | "hudomino";
 const SHARE_QUERY_PARAM = "game";
 const SERVER_GAME_QUERY_PARAM = "sgame";
 const SERVER_ACCESS_QUERY_PARAM = "access";
+const SUPABASE_GAMES_TABLE = "jeopardy_games";
 
 const GAME_TYPE_LABELS: Record<GameType, string> = {
-  jeopardy: "ג׳פרדי",
-  "quick-trivia": "מליונר",
-  hudomino: "חודומינו",
+  jeopardy: "Jeopardy",
+  "quick-trivia": "Millionaire",
+  hudomino: "Hudomino",
 };
 
 function normalizeGameType(value: string | null): GameType {
@@ -45,18 +46,103 @@ function toPositiveInt(value: string | null): number | null {
 
 function buildSummary(gameType: GameType, categories: number | null, rows: number | null, questions: number | null): string {
   if (gameType === "jeopardy" && categories && rows) {
-    return `${categories} קטגוריות × ${rows} שורות`;
+    return `${categories} categories x ${rows} rows`;
   }
   if (gameType === "quick-trivia" && questions) {
-    return `${questions} שאלות`;
+    return `${questions} questions`;
   }
   if (gameType === "hudomino" && rows) {
-    return `לוח ${rows}×${rows}`;
+    return `${rows}x${rows} board`;
   }
-  return "תצוגת משחק אינטראקטיבית";
+  return "Interactive game board";
 }
 
-export default function handler(req: any, res: any) {
+type ParsedGame = {
+  gameType?: string;
+  gameTopic?: string;
+  board?: Array<{ cells?: unknown[] }>;
+  quickTriviaQuestions?: unknown[];
+  hudominoPuzzle?: { size?: number };
+  hudominoDifficulty?: "easy" | "medium" | "hard";
+};
+
+type GameDetails = {
+  gameType: GameType;
+  gameTitle: string;
+  categories: number | null;
+  rows: number | null;
+  questions: number | null;
+};
+
+function applyGameSnapshot(snapshot: ParsedGame, fallback: GameDetails): GameDetails {
+  const next: GameDetails = { ...fallback };
+
+  if (snapshot.gameType) {
+    next.gameType = normalizeGameType(snapshot.gameType);
+  }
+  if (typeof snapshot.gameTopic === "string" && snapshot.gameTopic.trim()) {
+    next.gameTitle = snapshot.gameTopic.trim();
+  }
+
+  if (next.gameType === "jeopardy") {
+    next.categories = Array.isArray(snapshot.board) ? snapshot.board.length : next.categories;
+    next.rows =
+      Array.isArray(snapshot.board) && Array.isArray(snapshot.board?.[0]?.cells)
+        ? snapshot.board[0].cells.length
+        : next.rows;
+  } else if (next.gameType === "quick-trivia") {
+    next.questions = Array.isArray(snapshot.quickTriviaQuestions)
+      ? snapshot.quickTriviaQuestions.length
+      : next.questions;
+  } else if (next.gameType === "hudomino") {
+    const puzzleSize = Number(snapshot.hudominoPuzzle?.size);
+    if (Number.isFinite(puzzleSize) && puzzleSize > 0) {
+      next.rows = Math.round(puzzleSize);
+      next.categories = next.rows;
+    } else if (snapshot.hudominoDifficulty === "easy") {
+      next.rows = 2;
+      next.categories = 2;
+    } else if (snapshot.hudominoDifficulty === "hard") {
+      next.rows = 4;
+      next.categories = 4;
+    } else if (snapshot.hudominoDifficulty === "medium") {
+      next.rows = 3;
+      next.categories = 3;
+    }
+  }
+
+  return next;
+}
+
+async function fetchServerGameDetails(serverGameId: string): Promise<{ title: string; payload: ParsedGame } | null> {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL?.trim();
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY?.trim();
+  if (!supabaseUrl || !supabaseAnonKey) return null;
+
+  const restUrl =
+    `${supabaseUrl}/rest/v1/${SUPABASE_GAMES_TABLE}` +
+    `?id=eq.${encodeURIComponent(serverGameId)}&select=title,payload&limit=1`;
+
+  const response = await fetch(restUrl, {
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${supabaseAnonKey}`,
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) return null;
+  const rows = (await response.json()) as Array<{ title?: string; payload?: { game?: ParsedGame } }>;
+  const first = rows[0];
+  if (!first?.payload?.game) return null;
+
+  return {
+    title: typeof first.title === "string" && first.title.trim() ? first.title.trim() : "Trivia Game",
+    payload: first.payload.game,
+  };
+}
+
+export default async function handler(req: any, res: any) {
   const protocol = getProtocol(req);
   const host = req.headers?.host || "localhost";
   const requestUrl = new URL(req.url || "/", `${protocol}://${host}`);
@@ -66,61 +152,33 @@ export default function handler(req: any, res: any) {
   const serverGameId = params.get(SERVER_GAME_QUERY_PARAM);
   const shareAccess: ShareAccess = params.get(SERVER_ACCESS_QUERY_PARAM) === "edit" ? "edit" : "view";
 
-  let gameType = normalizeGameType(params.get("type"));
-  let gameTitle = (params.get("title") || "משחק טריוויה").trim() || "משחק טריוויה";
-  let categories = toPositiveInt(params.get("cats"));
-  let rows = toPositiveInt(params.get("rows"));
-  let questions = toPositiveInt(params.get("q"));
+  let details: GameDetails = {
+    gameType: normalizeGameType(params.get("type")),
+    gameTitle: (params.get("title") || "Trivia Game").trim() || "Trivia Game",
+    categories: toPositiveInt(params.get("cats")),
+    rows: toPositiveInt(params.get("rows")),
+    questions: toPositiveInt(params.get("q")),
+  };
 
   if (encodedGame) {
     try {
       const decodedPayload = decodeBase64Url(encodedGame);
-      const parsed = JSON.parse(decodedPayload) as {
-        game?: {
-          gameType?: string;
-          gameTopic?: string;
-          board?: Array<{ cells?: unknown[] }>;
-          quickTriviaQuestions?: unknown[];
-          hudominoPuzzle?: { size?: number };
-          hudominoDifficulty?: "easy" | "medium" | "hard";
-        };
-      };
-
-      if (parsed.game?.gameType) {
-        gameType = normalizeGameType(parsed.game.gameType);
-      }
-      if (typeof parsed.game?.gameTopic === "string" && parsed.game.gameTopic.trim()) {
-        gameTitle = parsed.game.gameTopic.trim();
-      }
-
-      if (gameType === "jeopardy") {
-        categories = Array.isArray(parsed.game?.board) ? parsed.game.board.length : categories;
-        rows =
-          Array.isArray(parsed.game?.board) && Array.isArray(parsed.game.board?.[0]?.cells)
-            ? parsed.game.board[0].cells.length
-            : rows;
-      } else if (gameType === "quick-trivia") {
-        questions = Array.isArray(parsed.game?.quickTriviaQuestions)
-          ? parsed.game.quickTriviaQuestions.length
-          : questions;
-      } else if (gameType === "hudomino") {
-        const puzzleSize = Number(parsed.game?.hudominoPuzzle?.size);
-        if (Number.isFinite(puzzleSize) && puzzleSize > 0) {
-          rows = Math.round(puzzleSize);
-          categories = rows;
-        } else if (parsed.game?.hudominoDifficulty === "easy") {
-          rows = 2;
-          categories = 2;
-        } else if (parsed.game?.hudominoDifficulty === "hard") {
-          rows = 4;
-          categories = 4;
-        } else if (parsed.game?.hudominoDifficulty === "medium") {
-          rows = 3;
-          categories = 3;
-        }
+      const parsed = JSON.parse(decodedPayload) as { game?: ParsedGame };
+      if (parsed.game) {
+        details = applyGameSnapshot(parsed.game, details);
       }
     } catch {
-      // Keep fallback values if payload is not decodable.
+      // Keep fallback values.
+    }
+  } else if (serverGameId) {
+    try {
+      const serverDetails = await fetchServerGameDetails(serverGameId);
+      if (serverDetails) {
+        details.gameTitle = serverDetails.title;
+        details = applyGameSnapshot(serverDetails.payload, details);
+      }
+    } catch {
+      // Keep fallback values.
     }
   }
 
@@ -134,16 +192,16 @@ export default function handler(req: any, res: any) {
   }
 
   const imageUrl = new URL("/api/og-image", `${protocol}://${host}`);
-  imageUrl.searchParams.set("type", gameType);
-  imageUrl.searchParams.set("title", gameTitle);
-  if (categories) imageUrl.searchParams.set("cats", String(categories));
-  if (rows) imageUrl.searchParams.set("rows", String(rows));
-  if (questions) imageUrl.searchParams.set("q", String(questions));
+  imageUrl.searchParams.set("type", details.gameType);
+  imageUrl.searchParams.set("title", details.gameTitle);
+  if (details.categories) imageUrl.searchParams.set("cats", String(details.categories));
+  if (details.rows) imageUrl.searchParams.set("rows", String(details.rows));
+  if (details.questions) imageUrl.searchParams.set("q", String(details.questions));
 
-  const gameTypeLabel = GAME_TYPE_LABELS[gameType];
-  const summary = buildSummary(gameType, categories, rows, questions);
+  const gameTypeLabel = GAME_TYPE_LABELS[details.gameType];
+  const summary = buildSummary(details.gameType, details.categories, details.rows, details.questions);
   const description = `${gameTypeLabel} • ${summary}`;
-  const pageTitle = `${gameTitle} | ${gameTypeLabel}`;
+  const pageTitle = `${details.gameTitle} | ${gameTypeLabel}`;
   const escapedPageTitle = escapeHtml(pageTitle);
   const escapedDescription = escapeHtml(description);
   const escapedImageUrl = escapeHtml(imageUrl.toString());
@@ -162,6 +220,7 @@ export default function handler(req: any, res: any) {
   <meta property="og:title" content="${escapedPageTitle}" />
   <meta property="og:description" content="${escapedDescription}" />
   <meta property="og:image" content="${escapedImageUrl}" />
+  <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:url" content="${escapedAppUrl}" />
@@ -173,7 +232,7 @@ export default function handler(req: any, res: any) {
 </head>
 <body>
   <script>window.location.replace(${JSON.stringify(appUrl.toString())});</script>
-  <p>מעביר למשחק... אם ההעברה לא בוצעה, <a href="${escapedAppUrl}">לחצו כאן</a>.</p>
+  <p>Redirecting to game... If it does not open, <a href="${escapedAppUrl}">click here</a>.</p>
 </body>
 </html>`;
 

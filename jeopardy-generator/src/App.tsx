@@ -2137,8 +2137,8 @@ function App() {
     access: ShareAccess;
     encodedGame?: string;
     serverGameId?: string;
-    gameTitle: string;
-    gameType: GameType;
+    gameTitle?: string;
+    gameType?: GameType;
     categories?: number;
     rows?: number;
     questionCount?: number;
@@ -2153,16 +2153,22 @@ function App() {
       shareUrl.searchParams.set(SERVER_GAME_QUERY_PARAM, options.serverGameId);
       shareUrl.searchParams.set(SERVER_ACCESS_QUERY_PARAM, options.access);
     }
-    shareUrl.searchParams.set("title", options.gameTitle);
-    shareUrl.searchParams.set("type", options.gameType);
-    if (typeof options.categories === "number") {
-      shareUrl.searchParams.set("cats", String(options.categories));
-    }
-    if (typeof options.rows === "number") {
-      shareUrl.searchParams.set("rows", String(options.rows));
-    }
-    if (typeof options.questionCount === "number") {
-      shareUrl.searchParams.set("q", String(options.questionCount));
+    if (!options.serverGameId) {
+      if (options.gameTitle) {
+        shareUrl.searchParams.set("title", options.gameTitle);
+      }
+      if (options.gameType) {
+        shareUrl.searchParams.set("type", options.gameType);
+      }
+      if (typeof options.categories === "number") {
+        shareUrl.searchParams.set("cats", String(options.categories));
+      }
+      if (typeof options.rows === "number") {
+        shareUrl.searchParams.set("rows", String(options.rows));
+      }
+      if (typeof options.questionCount === "number") {
+        shareUrl.searchParams.set("q", String(options.questionCount));
+      }
     }
     return shareUrl.toString();
   };
@@ -2693,39 +2699,9 @@ function App() {
 
   const copyArchiveViewLink = async (record: ArchiveGameRecord) => {
     try {
-      const archiveGameType = resolveArchiveGameType(record.payload);
-      let categories: number | undefined;
-      let rows: number | undefined;
-      let questionCount: number | undefined;
-
-      if (record.payload && typeof record.payload === "object") {
-        const payloadRecord = record.payload as {
-          board?: Array<{ cells?: unknown[] }>;
-          quickTriviaQuestions?: unknown[];
-          hudominoPuzzle?: { size?: unknown };
-        };
-        if (archiveGameType === "jeopardy") {
-          categories = Array.isArray(payloadRecord.board) ? payloadRecord.board.length : undefined;
-          rows = Array.isArray(payloadRecord.board?.[0]?.cells) ? payloadRecord.board[0].cells.length : undefined;
-        } else if (archiveGameType === "quick-trivia") {
-          questionCount = Array.isArray(payloadRecord.quickTriviaQuestions)
-            ? payloadRecord.quickTriviaQuestions.length
-            : undefined;
-        } else if (archiveGameType === "hudomino") {
-          const puzzleSize = Number(payloadRecord.hudominoPuzzle?.size);
-          rows = Number.isFinite(puzzleSize) ? Math.round(puzzleSize) : undefined;
-          categories = rows;
-        }
-      }
-
       const previewLink = buildSharePreviewLink({
         access: "view",
         serverGameId: record.id,
-        gameTitle: record.title?.trim() || DEFAULT_GAME_TOPIC,
-        gameType: archiveGameType,
-        categories,
-        rows,
-        questionCount,
       });
       await navigator.clipboard.writeText(previewLink);
       setStatusMessage("קישור לצפייה הועתק מהארכיון.");
@@ -2828,6 +2804,37 @@ function App() {
     }
   };
 
+  const persistShareSnapshotToServer = async (snapshot: SharePayload["game"]): Promise<string | null> => {
+    if (!supabase) return null;
+
+    if (activeArchiveGameId) {
+      const { error } = await supabase
+        .from(SUPABASE_GAMES_TABLE)
+        .update({
+          title: resolvedGameTopic,
+          payload: snapshot,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", activeArchiveGameId);
+      if (!error) {
+        return activeArchiveGameId;
+      }
+    }
+
+    const { error, data } = await supabase
+      .from(SUPABASE_GAMES_TABLE)
+      .insert({
+        title: resolvedGameTopic,
+        payload: snapshot,
+      })
+      .select("id")
+      .single();
+
+    if (error || !data) return null;
+    setActiveArchiveGameId(data.id);
+    return data.id;
+  };
+
   const copyActiveGameLink = async (access: ShareAccess) => {
     if (mode !== "game") {
       setStatusMessage("קישור שיתוף זמין רק בזמן משחק פעיל.");
@@ -2846,29 +2853,21 @@ function App() {
         game: buildCurrentGameSnapshot({ stripInlineImages: true }),
       };
 
-      const encodedPayload = encodeBase64Url(JSON.stringify(payload));
-      let categories: number | undefined;
-      let rows: number | undefined;
-      let questionCount: number | undefined;
-      if (gameType === "jeopardy") {
-        categories = categoryCount;
-        rows = rowCount;
-      } else if (gameType === "quick-trivia") {
-        questionCount = quickTriviaQuestions.length;
-      } else if (gameType === "hudomino") {
-        categories = hudominoBoardSize;
-        rows = hudominoBoardSize;
-      }
-
-      const previewLink = buildSharePreviewLink({
-        access,
-        encodedGame: encodedPayload,
-        gameTitle: resolvedGameTopic,
-        gameType,
-        categories,
-        rows,
-        questionCount,
-      });
+      const serverGameId = await persistShareSnapshotToServer(payload.game);
+      const previewLink = serverGameId
+        ? buildSharePreviewLink({
+            access,
+            serverGameId,
+          })
+        : buildSharePreviewLink({
+            access,
+            encodedGame: encodeBase64Url(JSON.stringify(payload)),
+            gameTitle: resolvedGameTopic,
+            gameType,
+            categories: gameType === "jeopardy" ? categoryCount : gameType === "hudomino" ? hudominoBoardSize : undefined,
+            rows: gameType === "jeopardy" ? rowCount : gameType === "hudomino" ? hudominoBoardSize : undefined,
+            questionCount: gameType === "quick-trivia" ? quickTriviaQuestions.length : undefined,
+          });
       await navigator.clipboard.writeText(previewLink);
       showOverlayMessage(
         access === "view"
