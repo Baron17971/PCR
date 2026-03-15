@@ -2133,11 +2133,37 @@ function App() {
     setStatusMessage("");
   };
 
-  const buildServerGameLink = (gameId: string, access: ShareAccess): string => {
+  const buildSharePreviewLink = (options: {
+    access: ShareAccess;
+    encodedGame?: string;
+    serverGameId?: string;
+    gameTitle: string;
+    gameType: GameType;
+    categories?: number;
+    rows?: number;
+    questionCount?: number;
+  }): string => {
     const shareUrl = new URL(window.location.href);
-    shareUrl.searchParams.delete(SHARE_QUERY_PARAM);
-    shareUrl.searchParams.set(SERVER_GAME_QUERY_PARAM, gameId);
-    shareUrl.searchParams.set(SERVER_ACCESS_QUERY_PARAM, access);
+    shareUrl.pathname = "/api/share-preview";
+    shareUrl.search = "";
+    if (options.encodedGame) {
+      shareUrl.searchParams.set(SHARE_QUERY_PARAM, options.encodedGame);
+    }
+    if (options.serverGameId) {
+      shareUrl.searchParams.set(SERVER_GAME_QUERY_PARAM, options.serverGameId);
+      shareUrl.searchParams.set(SERVER_ACCESS_QUERY_PARAM, options.access);
+    }
+    shareUrl.searchParams.set("title", options.gameTitle);
+    shareUrl.searchParams.set("type", options.gameType);
+    if (typeof options.categories === "number") {
+      shareUrl.searchParams.set("cats", String(options.categories));
+    }
+    if (typeof options.rows === "number") {
+      shareUrl.searchParams.set("rows", String(options.rows));
+    }
+    if (typeof options.questionCount === "number") {
+      shareUrl.searchParams.set("q", String(options.questionCount));
+    }
     return shareUrl.toString();
   };
 
@@ -2665,9 +2691,43 @@ function App() {
     }
   };
 
-  const copyArchiveViewLink = async (recordId: string) => {
+  const copyArchiveViewLink = async (record: ArchiveGameRecord) => {
     try {
-      await navigator.clipboard.writeText(buildServerGameLink(recordId, "view"));
+      const archiveGameType = resolveArchiveGameType(record.payload);
+      let categories: number | undefined;
+      let rows: number | undefined;
+      let questionCount: number | undefined;
+
+      if (record.payload && typeof record.payload === "object") {
+        const payloadRecord = record.payload as {
+          board?: Array<{ cells?: unknown[] }>;
+          quickTriviaQuestions?: unknown[];
+          hudominoPuzzle?: { size?: unknown };
+        };
+        if (archiveGameType === "jeopardy") {
+          categories = Array.isArray(payloadRecord.board) ? payloadRecord.board.length : undefined;
+          rows = Array.isArray(payloadRecord.board?.[0]?.cells) ? payloadRecord.board[0].cells.length : undefined;
+        } else if (archiveGameType === "quick-trivia") {
+          questionCount = Array.isArray(payloadRecord.quickTriviaQuestions)
+            ? payloadRecord.quickTriviaQuestions.length
+            : undefined;
+        } else if (archiveGameType === "hudomino") {
+          const puzzleSize = Number(payloadRecord.hudominoPuzzle?.size);
+          rows = Number.isFinite(puzzleSize) ? Math.round(puzzleSize) : undefined;
+          categories = rows;
+        }
+      }
+
+      const previewLink = buildSharePreviewLink({
+        access: "view",
+        serverGameId: record.id,
+        gameTitle: record.title?.trim() || DEFAULT_GAME_TOPIC,
+        gameType: archiveGameType,
+        categories,
+        rows,
+        questionCount,
+      });
+      await navigator.clipboard.writeText(previewLink);
       setStatusMessage("קישור לצפייה הועתק מהארכיון.");
     } catch {
       setStatusMessage("לא ניתן להעתיק קישור צפייה כרגע.");
@@ -2787,12 +2847,29 @@ function App() {
       };
 
       const encodedPayload = encodeBase64Url(JSON.stringify(payload));
-      const shareUrl = new URL(window.location.href);
-      shareUrl.searchParams.delete(SERVER_GAME_QUERY_PARAM);
-      shareUrl.searchParams.delete(SERVER_ACCESS_QUERY_PARAM);
-      shareUrl.searchParams.set(SHARE_QUERY_PARAM, encodedPayload);
-      const directLink = shareUrl.toString();
-      await navigator.clipboard.writeText(directLink);
+      let categories: number | undefined;
+      let rows: number | undefined;
+      let questionCount: number | undefined;
+      if (gameType === "jeopardy") {
+        categories = categoryCount;
+        rows = rowCount;
+      } else if (gameType === "quick-trivia") {
+        questionCount = quickTriviaQuestions.length;
+      } else if (gameType === "hudomino") {
+        categories = hudominoBoardSize;
+        rows = hudominoBoardSize;
+      }
+
+      const previewLink = buildSharePreviewLink({
+        access,
+        encodedGame: encodedPayload,
+        gameTitle: resolvedGameTopic,
+        gameType,
+        categories,
+        rows,
+        questionCount,
+      });
+      await navigator.clipboard.writeText(previewLink);
       showOverlayMessage(
         access === "view"
           ? "קישור שיתוף לצפייה הועתק ללוח."
@@ -3931,7 +4008,7 @@ function App() {
                           <button type="button" onClick={() => void updateArchiveGame(record.id)} disabled={isBusy}>
                             עדכן
                           </button>
-                          <button type="button" onClick={() => void copyArchiveViewLink(record.id)} disabled={isBusy}>
+                          <button type="button" onClick={() => void copyArchiveViewLink(record)} disabled={isBusy}>
                             קישור לצפייה
                           </button>
                           <button
