@@ -1,4 +1,5 @@
 import { Resvg } from "@resvg/resvg-js";
+import { fileURLToPath } from "node:url";
 
 type GameType = "jeopardy" | "quick-trivia" | "hudomino";
 
@@ -27,6 +28,8 @@ const MILLIONAIRE_LADDER = [
   500000,
   1000000,
 ];
+
+const OG_FONT_FILE = fileURLToPath(new URL("./fonts/NotoSansHebrew.ttf", import.meta.url));
 
 function normalizeGameType(value: string | null): GameType {
   if (value === "quick-trivia" || value === "hudomino" || value === "jeopardy") return value;
@@ -238,8 +241,9 @@ export default function handler(req: any, res: any) {
       value: 1200,
     },
     font: {
-      loadSystemFonts: true,
-      defaultFontFamily: "Arial",
+      fontFiles: [OG_FONT_FILE],
+      loadSystemFonts: false,
+      defaultFontFamily: "Noto Sans Hebrew",
     },
   });
   const png = resvg.render().asPng();
