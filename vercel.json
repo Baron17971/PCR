@@ -2,8 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     { "source": "/teacher", "destination": "/index.html" },
-    { "source": "/student", "destination": "/index.html" },
-    { "source": "/join", "destination": "/index.html" },
+    { "source": "/student", "destination": "/student.html" },
+    { "source": "/join", "destination": "/student.html" },
     { "source": "/projector", "destination": "/index.html" }
   ]
 }
