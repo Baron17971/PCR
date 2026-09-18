@@ -8,6 +8,11 @@
     {"source":"/projector","destination":"/projector.html"}
   ],
   "headers":[
+    {"source":"/","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/teacher","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/join","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/student","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/projector","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
     {"source":"/teacher.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
     {"source":"/join.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
     {"source":"/projector.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
