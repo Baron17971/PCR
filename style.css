@@ -100,5 +100,5 @@ body{min-height:100vh}.app-shell{min-height:100vh;padding:28px}.container{width:
 
 /* v18: use real uploaded image asset */
 .app-visual-header{
-  background-image:url("/assets/pcr-header.jpg") !important;
+  background-image:url("https://raw.githubusercontent.com/Baron17971/PCR/pcr-live-quiz/assets/pcr-header.jpg") !important;
 }
