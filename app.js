@@ -46,7 +46,7 @@ async function teacherRoom(code, token){
   let room=await poll(); if(!room){toast('החדר לא נמצא');return teacherStart();}
   const render=async()=>{
     const q=questionAt(room.questionIndex);
-    const joinUrl=`${base()}/student?code=${room.code}`;
+    const joinUrl=`${base()}/student`;
     const projUrl=`${base()}/projector?code=${room.code}`;
     if(room.finished){
       shell(`<div class="topbar">${brand()}<div class="room-code">${room.code}</div></div>
@@ -74,7 +74,7 @@ async function teacherRoom(code, token){
 }
 
 window.studentStart=function(prefill=qs.get('code')||''){
-  shell(`<div class="topbar">${brand()}<button class="btn ghost" onclick="home()">חזרה</button></div><section class="card student-card"><h2>כניסת תלמיד</h2><p class="muted">הקלד את קוד הכיתה ושם פרטי.</p><div class="field"><label>קוד כיתה</label><input id="studentCode" class="code-input" inputmode="numeric" maxlength="6" value="${esc(prefill)}" placeholder="000000"></div><div class="field" style="margin-top:12px"><label>שם פרטי</label><input id="studentName" maxlength="40" placeholder="השם שלך"></div><button class="btn primary" style="width:100%;margin-top:16px" id="joinBtn">כניסה לסקר</button></section>`);
+  shell(`<div class="topbar">${brand()}<span class="muted small">כניסת תלמידים</span></div><section class="card student-card"><h2>כניסת תלמיד</h2><p class="muted">הקלד את קוד הכיתה ושם פרטי.</p><div class="field"><label>קוד כיתה</label><input id="studentCode" class="code-input" inputmode="numeric" maxlength="6" value="${esc(prefill)}" placeholder="000000"></div><div class="field" style="margin-top:12px"><label>שם פרטי</label><input id="studentName" maxlength="40" placeholder="השם שלך"></div><button class="btn primary" style="width:100%;margin-top:16px" id="joinBtn">כניסה לסקר</button></section>`);
   document.getElementById('joinBtn').onclick=()=>{const code=document.getElementById('studentCode').value.trim();const name=document.getElementById('studentName').value.trim();if(code.length<4||!name)return toast('יש להזין קוד ושם');studentRoom(code,name);};
 }
 
@@ -110,7 +110,7 @@ window.projectorStart=function(prefill=qs.get('code')||''){
 async function projectorRoom(code){
   let room=null;
   const poll=async()=>apiGet(code,{});
-  const render=()=>{const q=questionAt(room.questionIndex);const joinUrl=`${base()}/student?code=${room.code}`;
+  const render=()=>{const q=questionAt(room.questionIndex);const joinUrl=`${base()}/student`;
     if(room.finished){
       shell(`<div class="projector-head">${brand()}<div style="text-align:left"><span class="muted small">קוד כיתה</span><div class="room-code">${room.code}</div></div></div>
       <section class="card final-card projector-final"><div class="eyebrow">השאלון הסתיים</div><h1>🏆 שלושת הציונים הגבוהים ביותר</h1><p>כל תשובה נכונה = 4 נקודות • ציון מרבי 100</p>${renderLeaderboard(room.leaderboard||[],true)}</section>`,'projector');
@@ -126,4 +126,4 @@ async function projectorRoom(code){
 window.copyText=async function(s){try{await navigator.clipboard.writeText(s);toast('הקישור הועתק')}catch{toast('לא ניתן להעתיק אוטומטית')}}
 window.home=function(){if(window.__stopPolling)window.__stopPolling();history.replaceState({},'', '/');home();}
 
-(function route(){const path=location.pathname;if(path==='/teacher'&&qs.get('code')){const code=qs.get('code');const token=localStorage.getItem(`pcr_teacher_${code}`);if(token)return teacherRoom(code,token);return teacherStart();}if((path==='/student'||path==='/join')&&qs.get('code'))return studentStart(qs.get('code'));if(path==='/projector'&&qs.get('code'))return projectorRoom(qs.get('code'));home();})();
+(function route(){const path=location.pathname;if(path==='/teacher'&&qs.get('code')){const code=qs.get('code');const token=localStorage.getItem(`pcr_teacher_${code}`);if(token)return teacherRoom(code,token);return teacherStart();}if(path==='/student'||path==='/join')return studentStart(qs.get('code')||'');if(path==='/projector'&&qs.get('code'))return projectorRoom(qs.get('code'));home();})();
