@@ -81,7 +81,7 @@ async function teacherRoom(code,token){
   const render=()=>{
     const q=qAt(room.questionIndex);
     const joinUrl=base()+'/join?code='+encodeURIComponent(room.code);
-    const projectorUrl=base()+'/projector?code='+encodeURIComponent(room.code);
+    const projectorUrl=base()+'/teacher?code='+encodeURIComponent(room.code)+'&token='+encodeURIComponent(token)+'&projector=1';
 
     if(room.finished){
       shell(`<div class="topbar">${brand()}<div class="room-code">${room.code}</div></div>
