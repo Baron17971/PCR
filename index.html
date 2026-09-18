@@ -21,12 +21,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=14">
+  <link rel="stylesheet" href="/style.css?v=19">
 </head>
 <body>
+  <div class="app-visual-header" role="img" aria-label="ביוטכנולוגיה, PCR ו-qPCR"></div>
   <main id="app"></main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/questions.js?v=14"></script>
+  <script src="/questions.js?v=19"></script>
   <script>
   (function(){
     var path=location.pathname;
@@ -40,7 +41,7 @@
       p.get('projector')==='1' ||
       path==='/projector' ||
       path==='/projector.html';
-    var src=(isStudent||isProjector)?'/app.js?v=14':'/teacher.js?v=14';
+    var src=(isStudent||isProjector)?'/app.js?v=19':'/teacher.js?v=19';
     var s=document.createElement('script');
     s.src=src;
     s.defer=false;
