@@ -5,7 +5,7 @@ const TTL = 2592000;
 const NS = 'pcr-live-quiz-v1';
 const SHARDS = 32;
 const OPTION_COUNT = 4;
-const QUESTION_COUNT = 15;
+const QUESTION_COUNT = 25;
 const cache = () => getCache(undefined, NS);
 const roomKey = code => `room:${code}`;
 const votesKey = (room, shard) => `votes:${room.code}:q${room.questionIndex}:${shard}`;
