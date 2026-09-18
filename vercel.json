@@ -2,7 +2,11 @@
   "$schema":"https://openapi.vercel.sh/vercel.json",
   "rewrites":[
     {"source":"/teacher","destination":"/index.html"},
-    {"source":"/join","destination":"/index.html"}
+    {"source":"/join","destination":"/index.html"},
+    {"source":"/student","destination":"/index.html"},
+    {"source":"/projector","destination":"/index.html"},
+    {"source":"/student.html","destination":"/index.html"},
+    {"source":"/projector.html","destination":"/index.html"}
   ],
   "headers":[
     {"source":"/index.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
