@@ -96,3 +96,9 @@ body{min-height:100vh}.app-shell{min-height:100vh;padding:28px}.container{width:
     background-position:center center;
   }
 }
+
+
+/* v18: use real uploaded image asset */
+.app-visual-header{
+  background-image:url("/assets/pcr-header.jpg") !important;
+}
