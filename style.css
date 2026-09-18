@@ -81,7 +81,7 @@ body{min-height:100vh}.app-shell{min-height:100vh;padding:28px}.container{width:
   height:clamp(150px,18vw,250px);
   margin:14px auto 0;
   border-radius:0 0 26px 26px;
-  background-image:url("https://raw.githubusercontent.com/Baron17971/PCR/pcr-live-quiz/assets/pcr-header.jpg");
+  background-image:url("https://raw.githubusercontent.com/Baron17971/PCR/master/public/pcr-header.png");
   background-size:cover;
   background-position:center center;
   background-repeat:no-repeat;
