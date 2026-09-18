@@ -37,40 +37,128 @@ function home(){
 }
 
 window.teacherStart = function(){
-  shell(`<div class="topbar">${brand()}${window.PCR_FORCE_TEACHER?'':'<button class="btn ghost" onclick="home()">חזרה</button>'}</div><section class="card panel"><h2>פתיחת סקר חדש</h2><p class="muted">כל פתיחה יוצרת קוד כיתה חדש. לאחר מכן אפשר לפתוח את מסך המקרן ולהתחיל.</p><div class="form-row"><div class="field"><label>שם הכיתה / הקבוצה</label><input id="className" placeholder="למשל: י״א ביוטכנולוגיה" maxlength="60"></div><button class="btn primary" id="createBtn">צור חדר</button></div></section>`);
-  document.getElementById('createBtn').onclick=async()=>{const b=document.getElementById('createBtn');b.disabled=true;try{const room=await apiPost({action:'create',className:document.getElementById('className').value.trim()});localStorage.setItem(`pcr_teacher_${room.code}`,room.teacherToken);location.href=`/teacher?code=${encodeURIComponent(room.code)}&token=${encodeURIComponent(room.teacherToken)}`;}catch(e){toast('לא הצלחתי לפתוח חדר');b.disabled=false;}};
+  if(window.__stopPolling)window.__stopPolling();
+  shell(`<div class="topbar">${brand()}<span class="muted small">מסך מורה</span></div>
+  <section class="card panel"><h2>פתיחת סקר חדש</h2><p class="muted">כל פתיחה יוצרת קוד כיתה חדש. לאחר מכן אפשר לפתוח את מסך המקרן ולהתחיל.</p>
+  <div class="form-row"><div class="field"><label>שם הכיתה / הקבוצה</label><input id="className" placeholder="למשל: י״א ביוטכנולוגיה" maxlength="60"></div>
+  <button class="btn primary" id="createBtn">צור חדר</button></div></section>`);
+  document.getElementById('createBtn').onclick=async()=>{
+    const b=document.getElementById('createBtn');
+    b.disabled=true;
+    b.textContent='פותח כיתה…';
+    try{
+      const room=await apiPost({action:'create',className:document.getElementById('className').value.trim()});
+      localStorage.setItem(`pcr_teacher_${room.code}`,room.teacherToken);
+      location.href=`/teacher?code=${encodeURIComponent(room.code)}&token=${encodeURIComponent(room.teacherToken)}`;
+    }catch(e){
+      toast('לא הצלחתי לפתוח חדר');
+      b.disabled=false;
+      b.textContent='צור חדר';
+    }
+  };
 }
 
 async function teacherRoom(code, token){
+  if(window.__stopPolling)window.__stopPolling();
+  shell(`<div class="topbar">${brand()}<span class="muted small">מסך מורה</span></div>
+  <section class="card panel waiting"><div class="pulse"></div><h2>פותח את הכיתה…</h2><p class="muted">טוען את מצב הסקר.</p></section>`);
+
   const poll=async()=>{try{return await apiGet(code,{teacherToken:token})}catch(e){return null}};
-  let room=await poll(); if(!room){toast('החדר לא נמצא');return teacherStart();}
-  const render=async()=>{
+  let room=await poll();
+  if(!room){toast('החדר לא נמצא');return teacherStart();}
+
+  let qrFor='';
+  const render=()=>{
     const q=questionAt(room.questionIndex);
     const joinUrl=`${base()}/join?code=${encodeURIComponent(room.code)}`;
     const projUrl=`${base()}/teacher?code=${encodeURIComponent(room.code)}&token=${encodeURIComponent(token)}&projector=1`;
+
     if(room.finished){
       shell(`<div class="topbar">${brand()}<div class="room-code">${room.code}</div></div>
       <section class="card final-card"><div class="eyebrow">השאלון הסתיים</div><h1>🏆 מובילי הכיתה</h1><p class="muted">כל תשובה נכונה שווה 4 נקודות • ציון מרבי 100</p>${renderLeaderboard(room.leaderboard||[])}</section>`);
       return;
     }
-    shell(`<div class="topbar">${brand()}<div class="actions"><button class="btn ghost" onclick="copyText('${joinUrl}')">העתק קישור תלמיד</button><button class="btn ghost" onclick="window.open('${projUrl}','_blank')">פתח מקרן לכיתה הזו</button></div></div>
-    <div class="teacher-layout"><section class="card question-card"><div class="question-kicker"><span>שאלה ${room.questionIndex+1} מתוך ${Q.length}</span>${statusPill(room)}</div><h2 class="question-title">${esc(q.question)}</h2>${room.resultsVisible?renderResults(room,q):renderOptions(q,false)}</section>
-    <aside class="side-stack"><section class="card stat-card"><div class="muted small">קוד כיתה</div><div class="room-code">${room.code}</div><div>${esc(room.className||'כיתה')}</div><div class="divider"></div><div class="muted small">תשובות שנקלטו</div><div class="stat-big">${room.results?.total||0}</div></section>
-    <section class="card stat-card"><strong>שליטת מורה</strong><div class="control-grid"><button class="btn ${room.status==='open'?'danger':'primary'}" id="toggleBtn" ${room.resultsVisible?'disabled':''}>${room.status==='open'?'סגור הצבעה':'פתח הצבעה'}</button><button class="btn secondary" id="revealBtn" ${room.resultsVisible?'disabled':''}>חשוף תשובה</button><button class="btn" id="prevBtn" ${room.questionIndex===0?'disabled':''}>שאלה קודמת</button><button class="btn primary" id="nextBtn" ${room.questionIndex===Q.length-1?'disabled':''}>שאלה הבאה</button><button class="btn ghost" id="resetBtn">אפס תשובות</button><button class="btn ghost" id="closeBtn">סגור הצבעה</button>${room.questionIndex===Q.length-1?`<button class="btn primary finish-btn" id="finishBtn" ${room.resultsVisible?'':'disabled'}>סיום השאלון והצגת ציונים</button>`:''}</div></section>
-    <section class="card stat-card"><strong>קישור לתלמידים</strong><div class="linkbox">${joinUrl}</div><div id="qrBox" class="qr" style="margin-top:12px"><span class="small muted">טוען QR…</span></div></section></aside></div>`);
+
+    shell(`<div class="topbar">${brand()}<div class="actions">
+      <button class="btn ghost" id="copyStudentLink">העתק קישור תלמיד</button>
+      <button class="btn ghost" id="openProjector">פתח מקרן לכיתה הזו</button>
+    </div></div>
+    <div class="teacher-layout">
+      <section class="card question-card">
+        <div class="question-kicker"><span>שאלה ${room.questionIndex+1} מתוך ${Q.length}</span>${statusPill(room)}</div>
+        <h2 class="question-title">${esc(q.question)}</h2>
+        ${room.resultsVisible?renderResults(room,q):renderOptions(q,false)}
+      </section>
+      <aside class="side-stack">
+        <section class="card stat-card"><div class="muted small">קוד כיתה</div><div class="room-code">${room.code}</div><div>${esc(room.className||'כיתה')}</div><div class="divider"></div><div class="muted small">תשובות שנקלטו</div><div class="stat-big">${room.results?.total||0}</div></section>
+        <section class="card stat-card"><strong>שליטת מורה</strong><div class="control-grid">
+          <button class="btn ${room.status==='open'?'danger':'primary'}" id="toggleBtn" ${room.resultsVisible?'disabled':''}>${room.status==='open'?'סגור הצבעה':'פתח הצבעה'}</button>
+          <button class="btn secondary" id="revealBtn" ${room.resultsVisible?'disabled':''}>חשוף תשובה</button>
+          <button class="btn" id="prevBtn" ${room.questionIndex===0?'disabled':''}>שאלה קודמת</button>
+          <button class="btn primary" id="nextBtn" ${room.questionIndex===Q.length-1?'disabled':''}>שאלה הבאה</button>
+          <button class="btn ghost" id="resetBtn">אפס תשובות</button>
+          <button class="btn ghost" id="closeBtn">סגור הצבעה</button>
+          ${room.questionIndex===Q.length-1?`<button class="btn primary finish-btn" id="finishBtn" ${room.resultsVisible?'':'disabled'}>סיום השאלון והצגת ציונים</button>`:''}
+        </div></section>
+        <section class="card stat-card"><strong>כניסת תלמידים</strong><div class="linkbox">${joinUrl}</div><div id="qrBox" class="qr" style="margin-top:12px"><span class="small muted">טוען QR…</span></div></section>
+      </aside>
+    </div>`);
+
+    document.getElementById('copyStudentLink').onclick=()=>copyText(joinUrl);
+    document.getElementById('openProjector').onclick=()=>window.open(projUrl,'_blank','noopener');
     document.getElementById('toggleBtn').onclick=()=>act('setStatus',{status:room.status==='open'?'closed':'open'});
     document.getElementById('revealBtn').onclick=()=>act('setVisibility',{resultsVisible:true,status:'closed'});
     document.getElementById('prevBtn').onclick=()=>act('setQuestion',{questionIndex:room.questionIndex-1});
     document.getElementById('nextBtn').onclick=()=>act('setQuestion',{questionIndex:room.questionIndex+1});
     document.getElementById('resetBtn').onclick=()=>act('reset',{});
     document.getElementById('closeBtn').onclick=()=>act('setStatus',{status:'closed'});
-    const finishBtn=document.getElementById('finishBtn');if(finishBtn)finishBtn.onclick=()=>act('finish',{});
-    fetch(`/api/qr?url=${encodeURIComponent(joinUrl)}`).then(r=>r.text()).then(svg=>{const box=document.getElementById('qrBox');if(box)box.innerHTML=svg}).catch(()=>{});
+    const finishBtn=document.getElementById('finishBtn');
+    if(finishBtn)finishBtn.onclick=()=>act('finish',{});
+
+    if(qrFor!==joinUrl){
+      qrFor=joinUrl;
+      fetch(`/api/qr?url=${encodeURIComponent(joinUrl)}`).then(r=>r.text()).then(svg=>{
+        const box=document.getElementById('qrBox');
+        if(box)box.innerHTML=svg;
+      }).catch(()=>{});
+    }else{
+      const box=document.getElementById('qrBox');
+      if(box)fetch(`/api/qr?url=${encodeURIComponent(joinUrl)}`).then(r=>r.text()).then(svg=>{if(box)box.innerHTML=svg}).catch(()=>{});
+    }
   };
-  const act=async(action,extra)=>{try{room=await apiPost({action,code,teacherToken:token,...extra});render();}catch(e){toast('הפעולה לא בוצעה');}};
+
+  let acting=false;
+  const act=async(action,extra)=>{
+    if(acting)return;
+    acting=true;
+    try{
+      room=await apiPost({action,code,teacherToken:token,...extra});
+      render();
+    }catch(e){
+      toast('הפעולה לא בוצעה');
+    }finally{
+      acting=false;
+    }
+  };
+
   render();
-  let alive=true; window.__stopPolling=()=>alive=false;
-  while(alive){await sleep(1200);const fresh=await poll();if(fresh&&fresh.version!==room.version){room=fresh;render();}else if(fresh&&fresh.results?.total!==room.results?.total){room=fresh;render();}}
+
+  let busy=false;
+  const timer=setInterval(async()=>{
+    if(busy||acting)return;
+    busy=true;
+    try{
+      const fresh=await poll();
+      if(fresh && (fresh.version!==room.version || fresh.results?.total!==room.results?.total)){
+        room=fresh;
+        render();
+      }
+    }finally{
+      busy=false;
+    }
+  },1800);
+
+  window.__stopPolling=()=>clearInterval(timer);
 }
 
 window.studentStart=function(prefill=qs.get('code')||''){
