@@ -1,18 +1,13 @@
 {
   "$schema":"https://openapi.vercel.sh/vercel.json",
   "rewrites":[
-    {"source":"/","destination":"/teacher.html"},
-    {"source":"/teacher","destination":"/teacher.html"},
-    {"source":"/join","destination":"/student.html"},
-    {"source":"/student","destination":"/student.html"},
-    {"source":"/projector","destination":"/projector.html"}
+    {"source":"/join","destination":"/index.html"},
+    {"source":"/teacher","destination":"/index.html"}
   ],
   "headers":[
-    {"source":"/teacher.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/index.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
     {"source":"/app.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
-    {"source":"/questions.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
-    {"source":"/teacher.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
-    {"source":"/student.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
-    {"source":"/projector.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]}
+    {"source":"/teacher.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
+    {"source":"/questions.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]}
   ]
 }
