@@ -218,26 +218,25 @@ window.home=function(){if(window.__stopPolling)window.__stopPolling();location.h
 (function route(){
   const path=location.pathname;
   const params=new URLSearchParams(location.search);
+  const code=params.get('code')||'';
 
-  if(path==='/teacher'){
-    const code=params.get('code')||'';
-    const token=params.get('token')||localStorage.getItem(`pcr_teacher_${code}`)||'';
-    if(params.get('projector')==='1'){
-      if(code) return projectorRoom(code);
-      return teacherStart();
-    }
-    if(code&&token) return teacherRoom(code,token);
-    return teacherStart();
+  if(params.get('student')==='1'){
+    return studentStart(code);
+  }
+
+  if(params.get('projector')==='1'){
+    if(code) return projectorRoom(code);
+    return projectorStart('');
   }
 
   if(path==='/join'||path==='/student'){
-    return studentStart(params.get('code')||'');
+    return studentStart(code);
   }
 
-  if(path==='/projector'){
-    const code=params.get('code')||'';
-    if(code) return projectorRoom(code);
-    return projectorStart('');
+  if(path==='/teacher'){
+    const token=params.get('token')||localStorage.getItem(`pcr_teacher_${code}`)||'';
+    if(code&&token) return teacherRoom(code,token);
+    return teacherStart();
   }
 
   return teacherStart();
