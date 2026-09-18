@@ -1,24 +1,138 @@
 {
-  "$schema":"https://openapi.vercel.sh/vercel.json",
-  "rewrites":[
-    {"source":"/","destination":"/teacher.html"},
-    {"source":"/teacher","destination":"/teacher.html"},
-    {"source":"/join","destination":"/join.html"},
-    {"source":"/student","destination":"/join.html"},
-    {"source":"/projector","destination":"/projector.html"}
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/teacher.html"
+    },
+    {
+      "source": "/teacher",
+      "destination": "/teacher.html"
+    },
+    {
+      "source": "/join",
+      "destination": "/join.html"
+    },
+    {
+      "source": "/student",
+      "destination": "/join.html"
+    },
+    {
+      "source": "/projector",
+      "destination": "/projector.html"
+    }
   ],
-  "headers":[
-    {"source":"/","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
-    {"source":"/teacher","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
-    {"source":"/join","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
-    {"source":"/student","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
-    {"source":"/projector","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
-    {"source":"/teacher.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
-    {"source":"/join.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
-    {"source":"/projector.html","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
-    {"source":"/teacher.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
-    {"source":"/student.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
-    {"source":"/projector.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]},
-    {"source":"/questions.js","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]}
-  ]
+  "headers": [
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/teacher",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/join",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/student",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/projector",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/teacher.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/join.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/projector.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/teacher.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/student.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/projector.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/questions.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    }
+  ],
+  "git": {
+    "deploymentEnabled": false
+  }
 }
