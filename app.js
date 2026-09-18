@@ -38,7 +38,7 @@ function home(){
 
 window.teacherStart = function(){
   shell(`<div class="topbar">${brand()}${window.PCR_FORCE_TEACHER?'':'<button class="btn ghost" onclick="home()">חזרה</button>'}</div><section class="card panel"><h2>פתיחת סקר חדש</h2><p class="muted">כל פתיחה יוצרת קוד כיתה חדש. לאחר מכן אפשר לפתוח את מסך המקרן ולהתחיל.</p><div class="form-row"><div class="field"><label>שם הכיתה / הקבוצה</label><input id="className" placeholder="למשל: י״א ביוטכנולוגיה" maxlength="60"></div><button class="btn primary" id="createBtn">צור חדר</button></div></section>`);
-  document.getElementById('createBtn').onclick=async()=>{const b=document.getElementById('createBtn');b.disabled=true;try{const room=await apiPost({action:'create',className:document.getElementById('className').value.trim()});localStorage.setItem(`pcr_teacher_${room.code}`,room.teacherToken);history.replaceState({},'',`/?role=teacher&code=${room.code}`);teacherRoom(room.code,room.teacherToken);}catch(e){toast('לא הצלחתי לפתוח חדר');b.disabled=false;}};
+  document.getElementById('createBtn').onclick=async()=>{const b=document.getElementById('createBtn');b.disabled=true;try{const room=await apiPost({action:'create',className:document.getElementById('className').value.trim()});localStorage.setItem(`pcr_teacher_${room.code}`,room.teacherToken);location.href=`/teacher?code=${encodeURIComponent(room.code)}&token=${encodeURIComponent(room.teacherToken)}`;}catch(e){toast('לא הצלחתי לפתוח חדר');b.disabled=false;}};
 }
 
 async function teacherRoom(code, token){
@@ -46,8 +46,8 @@ async function teacherRoom(code, token){
   let room=await poll(); if(!room){toast('החדר לא נמצא');return teacherStart();}
   const render=async()=>{
     const q=questionAt(room.questionIndex);
-    const joinUrl=`${base()}/?role=student&code=${room.code}`;
-    const projUrl=`${base()}/?role=projector&code=${room.code}`;
+    const joinUrl=`${base()}/join?code=${encodeURIComponent(room.code)}`;
+    const projUrl=`${base()}/teacher?code=${encodeURIComponent(room.code)}&token=${encodeURIComponent(token)}&projector=1`;
     if(room.finished){
       shell(`<div class="topbar">${brand()}<div class="room-code">${room.code}</div></div>
       <section class="card final-card"><div class="eyebrow">השאלון הסתיים</div><h1>🏆 מובילי הכיתה</h1><p class="muted">כל תשובה נכונה שווה 4 נקודות • ציון מרבי 100</p>${renderLeaderboard(room.leaderboard||[])}</section>`);
@@ -105,13 +105,13 @@ async function studentRoom(code,name){
 window.projectorStart=function(prefill=qs.get('code')||''){
   if(prefill)return projectorRoom(prefill);
   shell(`<div class="topbar">${brand()}${window.PCR_FORCE_PROJECTOR?'':'<button class="btn ghost" onclick="home()">חזרה</button>'}</div><section class="card student-card"><h2>תצוגת מקרן</h2><p class="muted">הקלד את קוד הכיתה.</p><input id="projectorCode" class="code-input" inputmode="numeric" maxlength="6" placeholder="000000"><button class="btn primary" style="width:100%;margin-top:16px" id="projectBtn">פתח מקרן לכיתה הזו</button></section>`);
-  document.getElementById('projectBtn').onclick=()=>{const code=document.getElementById('projectorCode').value.trim();if(!code)return;history.replaceState({},'',`/?role=projector&code=${code}`);projectorRoom(code)};
+  document.getElementById('projectBtn').onclick=()=>{const code=document.getElementById('projectorCode').value.trim();if(!code)return;location.href=`/projector?code=${encodeURIComponent(code)}`};
 }
 
 async function projectorRoom(code){
   let room=null;
   const poll=async()=>apiGet(code,{});
-  const render=()=>{const q=questionAt(room.questionIndex);const joinUrl=`${base()}/?role=student&code=${room.code}`;
+  const render=()=>{const q=questionAt(room.questionIndex);const joinUrl=`${base()}/join?code=${encodeURIComponent(room.code)}`;
     if(room.finished){
       shell(`<div class="projector-head">${brand()}<div style="text-align:left"><span class="muted small">קוד כיתה</span><div class="room-code">${room.code}</div></div></div>
       <section class="card final-card projector-final"><div class="eyebrow">השאלון הסתיים</div><h1>🏆 שלושת הציונים הגבוהים ביותר</h1><p>כל תשובה נכונה = 4 נקודות • ציון מרבי 100</p>${renderLeaderboard(room.leaderboard||[],true)}</section>`,'projector');
@@ -125,41 +125,32 @@ async function projectorRoom(code){
 }
 
 window.copyText=async function(s){try{await navigator.clipboard.writeText(s);toast('הקישור הועתק')}catch{toast('לא ניתן להעתיק אוטומטית')}}
-window.home=function(){if(window.__stopPolling)window.__stopPolling();history.replaceState({},'', '/');home();}
+window.home=function(){if(window.__stopPolling)window.__stopPolling();location.href='/';}
 
 (function route(){
-  const role=qs.get('role');
-  if(role==='student') return studentStart(qs.get('code')||'');
-  if(role==='teacher'){
-    const code=qs.get('code');
-    if(code){
-      const token=localStorage.getItem(`pcr_teacher_${code}`);
-      if(token) return teacherRoom(code,token);
-    }
-    return teacherStart();
-  }
-  if(role==='projector') return projectorStart(qs.get('code')||'');
-
   const path=location.pathname;
-  if(window.PCR_FORCE_STUDENT) return studentStart(qs.get('code')||'');
-  if(window.PCR_FORCE_TEACHER){
-    const code=qs.get('code');
-    if(code){
-      const token=localStorage.getItem(`pcr_teacher_${code}`);
-      if(token) return teacherRoom(code,token);
-    }
-    return teacherStart();
-  }
-  if(window.PCR_FORCE_PROJECTOR) return projectorStart(qs.get('code')||'');
+  const params=new URLSearchParams(location.search);
+
   if(path==='/teacher'){
-    const code=qs.get('code');
-    if(code){
-      const token=localStorage.getItem(`pcr_teacher_${code}`);
-      if(token) return teacherRoom(code,token);
+    const code=params.get('code')||'';
+    const token=params.get('token')||localStorage.getItem(`pcr_teacher_${code}`)||'';
+    if(params.get('projector')==='1'){
+      if(code) return projectorRoom(code);
+      return teacherStart();
     }
+    if(code&&token) return teacherRoom(code,token);
     return teacherStart();
   }
-  if(path==='/student'||path==='/join') return studentStart(qs.get('code')||'');
-  if(path==='/projector') return projectorStart(qs.get('code')||'');
-  home();
+
+  if(path==='/join'||path==='/student'){
+    return studentStart(params.get('code')||'');
+  }
+
+  if(path==='/projector'){
+    const code=params.get('code')||'';
+    if(code) return projectorRoom(code);
+    return projectorStart('');
+  }
+
+  return teacherStart();
 })();
