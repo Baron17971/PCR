@@ -46,14 +46,14 @@ async function teacherRoom(code, token){
   let room=await poll(); if(!room){toast('החדר לא נמצא');return teacherStart();}
   const render=async()=>{
     const q=questionAt(room.questionIndex);
-    const joinUrl=`${base()}/?role=student`;
+    const joinUrl=`${base()}/?role=student&code=${room.code}`;
     const projUrl=`${base()}/?role=projector&code=${room.code}`;
     if(room.finished){
       shell(`<div class="topbar">${brand()}<div class="room-code">${room.code}</div></div>
       <section class="card final-card"><div class="eyebrow">השאלון הסתיים</div><h1>🏆 מובילי הכיתה</h1><p class="muted">כל תשובה נכונה שווה 4 נקודות • ציון מרבי 100</p>${renderLeaderboard(room.leaderboard||[])}</section>`);
       return;
     }
-    shell(`<div class="topbar">${brand()}<div class="actions"><button class="btn ghost" onclick="copyText('${joinUrl}')">העתק קישור תלמיד</button><button class="btn ghost" onclick="window.open('${projUrl}','_blank')">פתח מקרן</button></div></div>
+    shell(`<div class="topbar">${brand()}<div class="actions"><button class="btn ghost" onclick="copyText('${joinUrl}')">העתק קישור תלמיד</button><button class="btn ghost" onclick="window.open('${projUrl}','_blank')">פתח מקרן לכיתה הזו</button></div></div>
     <div class="teacher-layout"><section class="card question-card"><div class="question-kicker"><span>שאלה ${room.questionIndex+1} מתוך ${Q.length}</span>${statusPill(room)}</div><h2 class="question-title">${esc(q.question)}</h2>${room.resultsVisible?renderResults(room,q):renderOptions(q,false)}</section>
     <aside class="side-stack"><section class="card stat-card"><div class="muted small">קוד כיתה</div><div class="room-code">${room.code}</div><div>${esc(room.className||'כיתה')}</div><div class="divider"></div><div class="muted small">תשובות שנקלטו</div><div class="stat-big">${room.results?.total||0}</div></section>
     <section class="card stat-card"><strong>שליטת מורה</strong><div class="control-grid"><button class="btn ${room.status==='open'?'danger':'primary'}" id="toggleBtn" ${room.resultsVisible?'disabled':''}>${room.status==='open'?'סגור הצבעה':'פתח הצבעה'}</button><button class="btn secondary" id="revealBtn" ${room.resultsVisible?'disabled':''}>חשוף תשובה</button><button class="btn" id="prevBtn" ${room.questionIndex===0?'disabled':''}>שאלה קודמת</button><button class="btn primary" id="nextBtn" ${room.questionIndex===Q.length-1?'disabled':''}>שאלה הבאה</button><button class="btn ghost" id="resetBtn">אפס תשובות</button><button class="btn ghost" id="closeBtn">סגור הצבעה</button>${room.questionIndex===Q.length-1?`<button class="btn primary finish-btn" id="finishBtn" ${room.resultsVisible?'':'disabled'}>סיום השאלון והצגת ציונים</button>`:''}</div></section>
@@ -74,7 +74,8 @@ async function teacherRoom(code, token){
 }
 
 window.studentStart=function(prefill=qs.get('code')||''){
-  shell(`<div class="topbar">${brand()}<span class="muted small">כניסת תלמידים</span></div><section class="card student-card"><h2>כניסת תלמיד</h2><p class="muted">הקלד את קוד הכיתה ושם פרטי.</p><div class="field"><label>קוד כיתה</label><input id="studentCode" class="code-input" inputmode="numeric" maxlength="6" value="${esc(prefill)}" placeholder="000000"></div><div class="field" style="margin-top:12px"><label>שם פרטי</label><input id="studentName" maxlength="40" placeholder="השם שלך"></div><button class="btn primary" style="width:100%;margin-top:16px" id="joinBtn">כניסה לסקר</button></section>`);
+  const hasCode=Boolean(prefill);
+  shell(`<div class="topbar">${brand()}<span class="muted small">כניסת תלמידים</span></div><section class="card student-card"><h2>כניסת תלמיד</h2><p class="muted">${hasCode?'קוד הכיתה כבר נקלט. הזן שם פרטי והיכנס לסקר.':'הקלד את קוד הכיתה ושם פרטי.'}</p><div class="field"><label>קוד כיתה</label><input id="studentCode" class="code-input" inputmode="numeric" maxlength="6" value="${esc(prefill)}" placeholder="000000" ${hasCode?'readonly':''}></div><div class="field" style="margin-top:12px"><label>שם פרטי</label><input id="studentName" maxlength="40" placeholder="השם שלך"></div><button class="btn primary" style="width:100%;margin-top:16px" id="joinBtn">כניסה לסקר</button></section>`);
   document.getElementById('joinBtn').onclick=()=>{const code=document.getElementById('studentCode').value.trim();const name=document.getElementById('studentName').value.trim();if(code.length<4||!name)return toast('יש להזין קוד ושם');studentRoom(code,name);};
 }
 
@@ -103,14 +104,14 @@ async function studentRoom(code,name){
 
 window.projectorStart=function(prefill=qs.get('code')||''){
   if(prefill)return projectorRoom(prefill);
-  shell(`<div class="topbar">${brand()}${window.PCR_FORCE_PROJECTOR?'':'<button class="btn ghost" onclick="home()">חזרה</button>'}</div><section class="card student-card"><h2>תצוגת מקרן</h2><p class="muted">הקלד את קוד הכיתה.</p><input id="projectorCode" class="code-input" inputmode="numeric" maxlength="6" placeholder="000000"><button class="btn primary" style="width:100%;margin-top:16px" id="projectBtn">פתח מקרן</button></section>`);
+  shell(`<div class="topbar">${brand()}${window.PCR_FORCE_PROJECTOR?'':'<button class="btn ghost" onclick="home()">חזרה</button>'}</div><section class="card student-card"><h2>תצוגת מקרן</h2><p class="muted">הקלד את קוד הכיתה.</p><input id="projectorCode" class="code-input" inputmode="numeric" maxlength="6" placeholder="000000"><button class="btn primary" style="width:100%;margin-top:16px" id="projectBtn">פתח מקרן לכיתה הזו</button></section>`);
   document.getElementById('projectBtn').onclick=()=>{const code=document.getElementById('projectorCode').value.trim();if(!code)return;history.replaceState({},'',`/?role=projector&code=${code}`);projectorRoom(code)};
 }
 
 async function projectorRoom(code){
   let room=null;
   const poll=async()=>apiGet(code,{});
-  const render=()=>{const q=questionAt(room.questionIndex);const joinUrl=`${base()}/?role=student`;
+  const render=()=>{const q=questionAt(room.questionIndex);const joinUrl=`${base()}/?role=student&code=${room.code}`;
     if(room.finished){
       shell(`<div class="projector-head">${brand()}<div style="text-align:left"><span class="muted small">קוד כיתה</span><div class="room-code">${room.code}</div></div></div>
       <section class="card final-card projector-final"><div class="eyebrow">השאלון הסתיים</div><h1>🏆 שלושת הציונים הגבוהים ביותר</h1><p>כל תשובה נכונה = 4 נקודות • ציון מרבי 100</p>${renderLeaderboard(room.leaderboard||[],true)}</section>`,'projector');
