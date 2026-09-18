@@ -80,8 +80,8 @@ async function teacherRoom(code,token){
   let busy=false,acting=false;
   const render=()=>{
     const q=qAt(room.questionIndex);
-    const joinUrl=base()+'/?student=1&code='+encodeURIComponent(room.code);
-    const projectorUrl=base()+'/?projector=1&code='+encodeURIComponent(room.code);
+    const joinUrl=base()+'/join?code='+encodeURIComponent(room.code);
+    const projectorUrl=base()+'/teacher?code='+encodeURIComponent(room.code)+'&token='+encodeURIComponent(token)+'&projector=1';
 
     if(room.finished){
       shell(`<div class="topbar">${brand()}<div class="room-code">${room.code}</div></div>
