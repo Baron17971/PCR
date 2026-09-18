@@ -1,20 +1,33 @@
 <!doctype html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#0f4c5c" />
-  <title>PCR LIVE — סקר כיתתי חי</title>
-  <meta name="description" content="25 שאלות PCR ו־qPCR בסקר כיתתי חי עם צד מורה, צד תלמיד ותצוגת מקרן." />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0f4c5c">
+  <title>PCR LIVE</title>
+  <meta name="description" content="25 שאלות PCR ו־qPCR בסקר כיתתי חי">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=10" />
+  <link rel="stylesheet" href="/style.css?v=12">
 </head>
 <body>
   <main id="app"></main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/questions.js?v=10"></script>
-  <script src="/app.js?v=10"></script>
+  <script src="/questions.js?v=12"></script>
+  <script>
+  (function(){
+    var path=location.pathname;
+    var p=new URLSearchParams(location.search);
+    var src;
+    if(path==='/join') src='/app.js?v=12';
+    else if(path==='/teacher' && p.get('projector')==='1') src='/app.js?v=12';
+    else src='/teacher.js?v=12';
+    var s=document.createElement('script');
+    s.src=src;
+    s.defer=false;
+    document.body.appendChild(s);
+  })();
+  </script>
 </body>
 </html>
