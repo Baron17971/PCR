@@ -12,9 +12,20 @@ function questionAt(index){return Q[Math.max(0, Math.min(Q.length-1, index))];}
 function pct(n,total){return total?Math.round(n*100/total):0;}
 async function apiGet(code, extras={}){const p=new URLSearchParams({code,...extras});const r=await fetch(`/api/room?${p}`,{cache:'no-store'});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||'network');return r.json();}
 async function apiPost(body){const r=await fetch('/api/room',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'network');return j;}
-function statusPill(room){const s=room.resultsVisible?'revealed':room.status==='open'?'open':'closed';const label=room.resultsVisible?'תשובה נחשפה':room.status==='open'?'ההצבעה פתוחה':'ההצבעה סגורה';return `<span class="status-pill ${s}"><i class="dot"></i>${label}</span>`}
+function statusPill(room){const s=room.finished?'revealed':room.resultsVisible?'revealed':room.status==='open'?'open':'closed';const label=room.finished?'השאלון הסתיים':room.resultsVisible?'תשובה נחשפה':room.status==='open'?'ההצבעה פתוחה':'ההצבעה סגורה';return `<span class="status-pill ${s}"><i class="dot"></i>${label}</span>`}
 function renderOptions(q, correctVisible=false, selected=null){return `<div class="option-list">${q.options.map((o,i)=>`<div class="option ${correctVisible&&i===q.correct?'correct':''} ${selected===i&&correctVisible&&i!==q.correct?'wrong-selected':''}"><span class="option-letter">${letters[i]}</span><span>${esc(o)}</span></div>`).join('')}</div>`}
 function renderResults(room,q){const counts=room.results?.counts||[0,0,0,0];const total=room.results?.total||0;return `<div class="results">${q.options.map((o,i)=>`<div class="result-row"><div class="bar-wrap"><div class="bar ${i===q.correct?'correct':''}" style="width:${pct(counts[i]||0,total)}%"></div><div class="bar-label"><span class="option-letter">${letters[i]}</span><span>${esc(o)}</span></div></div><div class="pct">${pct(counts[i]||0,total)}%</div></div>`).join('')}</div><div class="answer-badge">✓ התשובה הנכונה: <strong>${letters[q.correct]}. ${esc(q.options[q.correct])}</strong></div><div class="explanation">${esc(q.explanation)}</div>`}
+function renderLeaderboard(leaders=[], projector=false){
+  const medals=['🥇','🥈','🥉'];
+  if(!leaders.length)return `<div class="leader-empty">עדיין אין ציונים להצגה.</div>`;
+  return `<div class="leaderboard ${projector?'leaderboard-projector':''}">${leaders.slice(0,3).map((p,i)=>`
+    <div class="leader-card rank-${i+1}">
+      <div class="leader-rank">${medals[i]}</div>
+      <div class="leader-name">${esc(p.name)}</div>
+      <div class="leader-score">${p.score}<span>/100</span></div>
+      <div class="leader-detail">${p.correct} תשובות נכונות מתוך 25</div>
+    </div>`).join('')}</div>`;
+}
 
 function shell(content, cls=''){app.innerHTML=`<div class="${cls}"><div class="app-shell"><div class="container">${content}</div></div></div>`}
 function brand(){return `<div class="brand"><span class="brand-mark">PCR</span><div><strong>PCR LIVE</strong><div class="small muted">סקר כיתתי חי</div></div></div>`}
@@ -37,10 +48,15 @@ async function teacherRoom(code, token){
     const q=questionAt(room.questionIndex);
     const joinUrl=`${base()}/student?code=${room.code}`;
     const projUrl=`${base()}/projector?code=${room.code}`;
+    if(room.finished){
+      shell(`<div class="topbar">${brand()}<div class="room-code">${room.code}</div></div>
+      <section class="card final-card"><div class="eyebrow">השאלון הסתיים</div><h1>🏆 מובילי הכיתה</h1><p class="muted">כל תשובה נכונה שווה 4 נקודות • ציון מרבי 100</p>${renderLeaderboard(room.leaderboard||[])}</section>`);
+      return;
+    }
     shell(`<div class="topbar">${brand()}<div class="actions"><button class="btn ghost" onclick="copyText('${joinUrl}')">העתק קישור תלמיד</button><button class="btn ghost" onclick="window.open('${projUrl}','_blank')">פתח מקרן</button></div></div>
     <div class="teacher-layout"><section class="card question-card"><div class="question-kicker"><span>שאלה ${room.questionIndex+1} מתוך ${Q.length}</span>${statusPill(room)}</div><h2 class="question-title">${esc(q.question)}</h2>${room.resultsVisible?renderResults(room,q):renderOptions(q,false)}</section>
     <aside class="side-stack"><section class="card stat-card"><div class="muted small">קוד כיתה</div><div class="room-code">${room.code}</div><div>${esc(room.className||'כיתה')}</div><div class="divider"></div><div class="muted small">תשובות שנקלטו</div><div class="stat-big">${room.results?.total||0}</div></section>
-    <section class="card stat-card"><strong>שליטת מורה</strong><div class="control-grid"><button class="btn ${room.status==='open'?'danger':'primary'}" id="toggleBtn" ${room.resultsVisible?'disabled':''}>${room.status==='open'?'סגור הצבעה':'פתח הצבעה'}</button><button class="btn secondary" id="revealBtn" ${room.resultsVisible?'disabled':''}>חשוף תשובה</button><button class="btn" id="prevBtn" ${room.questionIndex===0?'disabled':''}>שאלה קודמת</button><button class="btn primary" id="nextBtn" ${room.questionIndex===Q.length-1?'disabled':''}>שאלה הבאה</button><button class="btn ghost" id="resetBtn">אפס תשובות</button><button class="btn ghost" id="closeBtn">סגור הצבעה</button></div></section>
+    <section class="card stat-card"><strong>שליטת מורה</strong><div class="control-grid"><button class="btn ${room.status==='open'?'danger':'primary'}" id="toggleBtn" ${room.resultsVisible?'disabled':''}>${room.status==='open'?'סגור הצבעה':'פתח הצבעה'}</button><button class="btn secondary" id="revealBtn" ${room.resultsVisible?'disabled':''}>חשוף תשובה</button><button class="btn" id="prevBtn" ${room.questionIndex===0?'disabled':''}>שאלה קודמת</button><button class="btn primary" id="nextBtn" ${room.questionIndex===Q.length-1?'disabled':''}>שאלה הבאה</button><button class="btn ghost" id="resetBtn">אפס תשובות</button><button class="btn ghost" id="closeBtn">סגור הצבעה</button>${room.questionIndex===Q.length-1?`<button class="btn primary finish-btn" id="finishBtn" ${room.resultsVisible?'':'disabled'}>סיום השאלון והצגת ציונים</button>`:''}</div></section>
     <section class="card stat-card"><strong>קישור לתלמידים</strong><div class="linkbox">${joinUrl}</div><div id="qrBox" class="qr" style="margin-top:12px"><span class="small muted">טוען QR…</span></div></section></aside></div>`);
     document.getElementById('toggleBtn').onclick=()=>act('setStatus',{status:room.status==='open'?'closed':'open'});
     document.getElementById('revealBtn').onclick=()=>act('setVisibility',{resultsVisible:true,status:'closed'});
@@ -48,6 +64,7 @@ async function teacherRoom(code, token){
     document.getElementById('nextBtn').onclick=()=>act('setQuestion',{questionIndex:room.questionIndex+1});
     document.getElementById('resetBtn').onclick=()=>act('reset',{});
     document.getElementById('closeBtn').onclick=()=>act('setStatus',{status:'closed'});
+    const finishBtn=document.getElementById('finishBtn');if(finishBtn)finishBtn.onclick=()=>act('finish',{});
     fetch(`/api/qr?url=${encodeURIComponent(joinUrl)}`).then(r=>r.text()).then(svg=>{const box=document.getElementById('qrBox');if(box)box.innerHTML=svg}).catch(()=>{});
   };
   const act=async(action,extra)=>{try{room=await apiPost({action,code,teacherToken:token,...extra});render();}catch(e){toast('הפעולה לא בוצעה');}};
@@ -69,6 +86,12 @@ async function studentRoom(code,name){
   const render=()=>{
     const q=questionAt(room.questionIndex);
     if(room.questionIndex!==lastQuestion){lastQuestion=room.questionIndex;}
+    if(room.finished){
+      const score=room.score||{score:0,correct:0,answered:0};
+      shell(`<div class="topbar">${brand()}<span class="status-pill revealed"><i class="dot"></i>השאלון הסתיים</span></div>
+      <section class="card student-card final-student"><div class="eyebrow">כל הכבוד, ${esc(name)}</div><h2>הציון שלך</h2><div class="student-score">${score.score}<span>/100</span></div><div class="score-detail">${score.correct} תשובות נכונות מתוך 25</div><p class="muted">כל תשובה נכונה שווה 4 נקודות.</p></section>`);
+      return;
+    }
     if(room.status!=='open'&&!room.resultsVisible){shell(`<div class="topbar">${brand()}<span class="status-pill closed"><i class="dot"></i>ממתינים למורה</span></div><section class="card student-card waiting"><div class="pulse"></div><h2>${esc(name)}, עוד רגע מתחילים</h2><p class="muted">שאלה ${room.questionIndex+1} מתוך ${Q.length} מוכנה. המורה יפתח את ההצבעה.</p></section>`);return;}
     if(room.resultsVisible){const good=room.myVote===q.correct;shell(`<div class="topbar">${brand()}<span class="status-pill revealed"><i class="dot"></i>התשובה נחשפה</span></div><section class="card student-card"><div class="muted small">שאלה ${room.questionIndex+1} מתוך ${Q.length}</div><h2 class="question-title" style="font-size:26px">${esc(q.question)}</h2>${renderOptions(q,true,room.myVote)}<div class="feedback ${good?'good':'bad'}">${room.myVote==null?'לא נשלחה תשובה בשאלה זו.':good?'✓ נכון!':'התשובה שלך אינה נכונה.'}</div><div class="explanation">${esc(q.explanation)}</div><p class="muted small">ממתינים למורה לשאלה הבאה.</p></section>`);return;}
     shell(`<div class="topbar">${brand()}<span class="status-pill open"><i class="dot"></i>ההצבעה פתוחה</span></div><section class="card student-card"><div class="muted small">שאלה ${room.questionIndex+1} מתוך ${Q.length}</div><h2 class="question-title" style="font-size:27px">${esc(q.question)}</h2><div class="student-options">${q.options.map((o,i)=>`<button class="student-option ${room.myVote===i?'selected':''}" data-answer="${i}"><span class="option-letter">${letters[i]}</span><span>${esc(o)}</span></button>`).join('')}</div><div class="small muted" style="margin-top:14px">אפשר לשנות בחירה כל עוד ההצבעה פתוחה.</div></section>`);
@@ -88,6 +111,11 @@ async function projectorRoom(code){
   let room=null;
   const poll=async()=>apiGet(code,{});
   const render=()=>{const q=questionAt(room.questionIndex);const joinUrl=`${base()}/student?code=${room.code}`;
+    if(room.finished){
+      shell(`<div class="projector-head">${brand()}<div style="text-align:left"><span class="muted small">קוד כיתה</span><div class="room-code">${room.code}</div></div></div>
+      <section class="card final-card projector-final"><div class="eyebrow">השאלון הסתיים</div><h1>🏆 שלושת הציונים הגבוהים ביותר</h1><p>כל תשובה נכונה = 4 נקודות • ציון מרבי 100</p>${renderLeaderboard(room.leaderboard||[],true)}</section>`,'projector');
+      return;
+    }
     if(room.status!=='open'&&!room.resultsVisible){shell(`<div class="projector-head">${brand()}<div><span class="muted small">קוד הצטרפות</span><div class="room-code">${room.code}</div></div></div><section class="card projector-wait"><div><div class="eyebrow">${esc(room.className||'PCR LIVE')}</div><h1>מוכנים לשאלה ${room.questionIndex+1}?</h1><p>הצטרפו דרך הטלפון • קוד ${room.code}</p><div id="projectorQr" class="qr" style="margin:24px auto 0"></div></div></section>`,'projector');fetch(`/api/qr?url=${encodeURIComponent(joinUrl)}`).then(r=>r.text()).then(svg=>{const x=document.getElementById('projectorQr');if(x)x.innerHTML=svg});return;}
     shell(`<div class="projector-head">${brand()}<div style="text-align:left"><span class="muted small">קוד כיתה</span><div class="room-code">${room.code}</div></div></div><section class="card question-card"><div class="question-kicker"><span>שאלה ${room.questionIndex+1} מתוך ${Q.length}</span>${statusPill(room)}</div><h1 class="question-title">${esc(q.question)}</h1>${room.resultsVisible?renderResults(room,q):`${renderOptions(q,false)}<div style="margin-top:24px;text-align:center;font-size:24px;color:var(--muted)">נקלטו <strong style="color:var(--brand)">${room.results?.total||0}</strong> תשובות</div>`}</section>`,'projector');
   };
