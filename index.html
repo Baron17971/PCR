@@ -9,16 +9,26 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=13">
+  <link rel="stylesheet" href="/style.css?v=14">
 </head>
 <body>
   <main id="app"></main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/questions.js?v=13"></script>
+  <script src="/questions.js?v=14"></script>
   <script>
   (function(){
+    var path=location.pathname;
     var p=new URLSearchParams(location.search);
-    var src=(p.get('student')==='1'||p.get('projector')==='1')?'/app.js?v=13':'/teacher.js?v=13';
+    var isStudent =
+      p.get('student')==='1' ||
+      path==='/join' ||
+      path==='/student' ||
+      path==='/student.html';
+    var isProjector =
+      p.get('projector')==='1' ||
+      path==='/projector' ||
+      path==='/projector.html';
+    var src=(isStudent||isProjector)?'/app.js?v=14':'/teacher.js?v=14';
     var s=document.createElement('script');
     s.src=src;
     s.defer=false;
