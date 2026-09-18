@@ -37,7 +37,7 @@ function home(){
 }
 
 window.teacherStart = function(){
-  shell(`<div class="topbar">${brand()}<button class="btn ghost" onclick="home()">חזרה</button></div><section class="card panel"><h2>פתיחת סקר חדש</h2><p class="muted">כל פתיחה יוצרת קוד כיתה חדש. לאחר מכן אפשר לפתוח את מסך המקרן ולהתחיל.</p><div class="form-row"><div class="field"><label>שם הכיתה / הקבוצה</label><input id="className" placeholder="למשל: י״א ביוטכנולוגיה" maxlength="60"></div><button class="btn primary" id="createBtn">צור חדר</button></div></section>`);
+  shell(`<div class="topbar">${brand()}${window.PCR_FORCE_TEACHER?'':'<button class="btn ghost" onclick="home()">חזרה</button>'}</div><section class="card panel"><h2>פתיחת סקר חדש</h2><p class="muted">כל פתיחה יוצרת קוד כיתה חדש. לאחר מכן אפשר לפתוח את מסך המקרן ולהתחיל.</p><div class="form-row"><div class="field"><label>שם הכיתה / הקבוצה</label><input id="className" placeholder="למשל: י״א ביוטכנולוגיה" maxlength="60"></div><button class="btn primary" id="createBtn">צור חדר</button></div></section>`);
   document.getElementById('createBtn').onclick=async()=>{const b=document.getElementById('createBtn');b.disabled=true;try{const room=await apiPost({action:'create',className:document.getElementById('className').value.trim()});localStorage.setItem(`pcr_teacher_${room.code}`,room.teacherToken);history.replaceState({},'',`/teacher?code=${room.code}`);teacherRoom(room.code,room.teacherToken);}catch(e){toast('לא הצלחתי לפתוח חדר');b.disabled=false;}};
 }
 
@@ -103,7 +103,7 @@ async function studentRoom(code,name){
 
 window.projectorStart=function(prefill=qs.get('code')||''){
   if(prefill)return projectorRoom(prefill);
-  shell(`<div class="topbar">${brand()}<button class="btn ghost" onclick="home()">חזרה</button></div><section class="card student-card"><h2>תצוגת מקרן</h2><p class="muted">הקלד את קוד הכיתה.</p><input id="projectorCode" class="code-input" inputmode="numeric" maxlength="6" placeholder="000000"><button class="btn primary" style="width:100%;margin-top:16px" id="projectBtn">פתח מקרן</button></section>`);
+  shell(`<div class="topbar">${brand()}${window.PCR_FORCE_PROJECTOR?'':'<button class="btn ghost" onclick="home()">חזרה</button>'}</div><section class="card student-card"><h2>תצוגת מקרן</h2><p class="muted">הקלד את קוד הכיתה.</p><input id="projectorCode" class="code-input" inputmode="numeric" maxlength="6" placeholder="000000"><button class="btn primary" style="width:100%;margin-top:16px" id="projectBtn">פתח מקרן</button></section>`);
   document.getElementById('projectBtn').onclick=()=>{const code=document.getElementById('projectorCode').value.trim();if(!code)return;history.replaceState({},'',`/projector?code=${code}`);projectorRoom(code)};
 }
 
