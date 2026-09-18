@@ -126,4 +126,27 @@ async function projectorRoom(code){
 window.copyText=async function(s){try{await navigator.clipboard.writeText(s);toast('הקישור הועתק')}catch{toast('לא ניתן להעתיק אוטומטית')}}
 window.home=function(){if(window.__stopPolling)window.__stopPolling();history.replaceState({},'', '/');home();}
 
-(function route(){const path=location.pathname;if(window.PCR_FORCE_STUDENT)return studentStart(qs.get('code')||'');if(path==='/teacher'&&qs.get('code')){const code=qs.get('code');const token=localStorage.getItem(`pcr_teacher_${code}`);if(token)return teacherRoom(code,token);return teacherStart();}if(path==='/student'||path==='/join')return studentStart(qs.get('code')||'');if(path==='/projector'&&qs.get('code'))return projectorRoom(qs.get('code'));home();})();
+(function route(){
+  const path=location.pathname;
+  if(window.PCR_FORCE_STUDENT) return studentStart(qs.get('code')||'');
+  if(window.PCR_FORCE_TEACHER){
+    const code=qs.get('code');
+    if(code){
+      const token=localStorage.getItem(`pcr_teacher_${code}`);
+      if(token) return teacherRoom(code,token);
+    }
+    return teacherStart();
+  }
+  if(window.PCR_FORCE_PROJECTOR) return projectorStart(qs.get('code')||'');
+  if(path==='/teacher'){
+    const code=qs.get('code');
+    if(code){
+      const token=localStorage.getItem(`pcr_teacher_${code}`);
+      if(token) return teacherRoom(code,token);
+    }
+    return teacherStart();
+  }
+  if(path==='/student'||path==='/join') return studentStart(qs.get('code')||'');
+  if(path==='/projector') return projectorStart(qs.get('code')||'');
+  home();
+})();
