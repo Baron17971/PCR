@@ -151,17 +151,19 @@ export default async function handler(req,res){
 
       const teacher=sameToken(teacherToken,room.teacherToken);
       const vote=await myVote(room,voterId);
-      const results=await aggregate(room);
       const finished=Boolean(room.finished);
+      const publicDisplay=!voterId;
+      const needsAggregate=teacher||publicDisplay;
+      const results=needsAggregate?await aggregate(room):{counts:[],total:0};
       const score=finished&&voterId?await myScore(code,voterId):null;
-      const leaders=finished&&(teacher||!voterId)?await leaderboard(code):null;
+      const leaders=finished&&needsAggregate?await leaderboard(code):null;
 
       return res.json({
         ...publicRoom(room),
         myVote:vote,
         score,
         leaderboard:leaders,
-        results: teacher||room.resultsVisible||!voterId ? results : {counts:[],total:results.total},
+        results,
         teacher
       });
     }
