@@ -46,8 +46,8 @@ async function teacherRoom(code, token){
   let room=await poll(); if(!room){toast('החדר לא נמצא');return teacherStart();}
   const render=async()=>{
     const q=questionAt(room.questionIndex);
-    const joinUrl=`${base()}/student`;
-    const projUrl=`${base()}/projector?code=${room.code}`;
+    const joinUrl=`${base()}/student.html`;
+    const projUrl=`${base()}/projector.html?code=${room.code}`;
     if(room.finished){
       shell(`<div class="topbar">${brand()}<div class="room-code">${room.code}</div></div>
       <section class="card final-card"><div class="eyebrow">השאלון הסתיים</div><h1>🏆 מובילי הכיתה</h1><p class="muted">כל תשובה נכונה שווה 4 נקודות • ציון מרבי 100</p>${renderLeaderboard(room.leaderboard||[])}</section>`);
@@ -110,7 +110,7 @@ window.projectorStart=function(prefill=qs.get('code')||''){
 async function projectorRoom(code){
   let room=null;
   const poll=async()=>apiGet(code,{});
-  const render=()=>{const q=questionAt(room.questionIndex);const joinUrl=`${base()}/student`;
+  const render=()=>{const q=questionAt(room.questionIndex);const joinUrl=`${base()}/student.html`;
     if(room.finished){
       shell(`<div class="projector-head">${brand()}<div style="text-align:left"><span class="muted small">קוד כיתה</span><div class="room-code">${room.code}</div></div></div>
       <section class="card final-card projector-final"><div class="eyebrow">השאלון הסתיים</div><h1>🏆 שלושת הציונים הגבוהים ביותר</h1><p>כל תשובה נכונה = 4 נקודות • ציון מרבי 100</p>${renderLeaderboard(room.leaderboard||[],true)}</section>`,'projector');
